@@ -4,6 +4,7 @@ import { ThemeContext, getComponentTheme } from '../../../../../../ui/useTheme'
 import ColorControls from './sharedControls/ColorControls'
 import columnTypes from '../../../../../../ui/columnTypes'
 import { getFormatFunctionOptions } from '../dataWrapper/utils/utils'
+import { trimDataWrapperForView } from '../dataWrapper/trimForView'
 
 // Build the header/value font-style options dynamically from the resolved
 // `textSettings` theme block. Card.jsx applies the chosen value as a class via
@@ -783,6 +784,8 @@ export default {
     // The page loader preloads this section's rows before first render (api/preloadSectionData.js reads
     // this flag with fullDataLoad / keepOriginalValues; opt-in, so not every dataWrapper component fetches at load).
     preloadData: true,
+    // view pages get its settings without the copy of the source's whole column list (dataWrapper/trimForView.js)
+    trimForView: trimDataWrapperForView,
     useGetDataOnPageChange: true,
     useInfiniteScroll: false,
     showPagination: true,

@@ -2,17 +2,19 @@ import React from 'react'
 import { useNavigate } from 'react-router'
 import { AdminContext } from "../context";
 import { ThemeContext } from '../../../ui/useTheme';
-import { siteCan, MANAGE_DOMAINS, MANAGE_TENANTS } from '../../../utils/adminPermissions';
+import { siteCan, MANAGE_DOMAINS, MANAGE_TENANTS, MANAGE_THEMES } from '../../../utils/adminPermissions';
 import { getRootDomain } from '../../../utils/hostResolver';
 import { editSiteTheme } from './editSite.theme'
 import { DomainsCard } from '../components/domainsCard'
 import { PgEnvsCard } from '../components/pgEnvsCard'
+import { AppSettingsCard } from '../components/appSettingsCard'
 
 // /list/settings on a TENANT host of the tenant hub: the tenant's settings, on its own host (was
 // /list/domains, pages/siteDomains.jsx, until 2026-11-13; that path still opens this page). One card
 // per setting, stacked: domains (design_system_v6/pages/admin-site-domains.html; only on a hub with a
 // root domain) and data environments, the pgEnvs the tenant is attached to
-// (pgenv-config-on-the-site-row.md). The same cards as the hub's own page for the tenant
+// (pgenv-config-on-the-site-row.md), and the site's app and icon (components/appSettingsCard.jsx;
+// site-app-settings-pwa.md; for manage-themes, as the server's routes). The same cards as the hub's own page for the tenant
 // (pages/tenantOverview.jsx). On a tenant host (`tenantSubdomain` set) for a user with manage-domains on
 // this site; on the hub's root, for the hub's own site (it has no domains card: it is not a tenant), for
 // hub staff (manage-tenants). Multi-tenant sites only; the server's /domains and /tenants routes judge the
@@ -29,6 +31,8 @@ export default function SiteSettingsPage() {
 	// a tenant's own admins on its host; hub staff on the hub's root, for the hub's own site
 	const hasAccess = Boolean(isMultiTenant) && siteCan(user, app, authPermissions, tenantSubdomain ? MANAGE_DOMAINS : MANAGE_TENANTS)
 	const hasDomains = Boolean(tenantSubdomain) && Boolean(getRootDomain())
+	// the app-settings routes take hub staff, or manage-themes on the site
+	const hasAppSettings = !tenantSubdomain || siteCan(user, app, authPermissions, MANAGE_THEMES)
 
 	React.useEffect(() => {
 		if (!user?.authed) {
@@ -77,6 +81,7 @@ export default function SiteSettingsPage() {
 			<div className={t.tenantSettingsStack}>
 				{hasDomains && <DomainsCard tenant={tenantSubdomain} onChange={setInfo} />}
 				<PgEnvsCard tenant={tenantSubdomain} onChange={setPgEnvs} />
+				{hasAppSettings && <AppSettingsCard tenant={tenantSubdomain} />}
 			</div>
 		</div>
 	)

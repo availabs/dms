@@ -3,6 +3,7 @@ import { RenderTable } from './index'
 import ActionControls from './controls/ActionControls'
 import { ThemeContext } from '../../../../../../../ui/useTheme'
 import { getFormatFunctionOptions } from '../../dataWrapper/utils/utils'
+import { trimDataWrapperForView } from '../../dataWrapper/trimForView'
 
 const handleCopy = async (obj) => {
     try {
@@ -359,6 +360,8 @@ export default {
     // The page loader preloads this section's rows before first render (api/preloadSectionData.js reads
     // this flag with fullDataLoad / keepOriginalValues; opt-in, so not every dataWrapper component fetches at load).
     preloadData: true,
+    // view pages get its settings without the copy of the source's whole column list (dataWrapper/trimForView.js)
+    trimForView: trimDataWrapperForView,
     useGetDataOnPageChange: true,
     useInfiniteScroll: true,
     showPagination: true,

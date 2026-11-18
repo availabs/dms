@@ -81,14 +81,18 @@ async function loadFromLocalDB(sync, app, type, format, dmsAttrsConfigs, activeC
     || stripModePrefix(parentWildcard)
     || stripModePrefix((path || '').replace(/^\//, ''))
     || '';
-  const needsRefResolution = (item, idx) => {
-    if (!Object.keys(dmsAttrsConfigs).length) return false;
+  const isActiveItem = (item) => {
     if (activeId && String(item.id) === String(activeId)) return true;
     if (activeSlug && item.url_slug === activeSlug) return true;
     // Home page: no slug/id specified, resolve for the default page (!parent && index==0)
     if (!activeSlug && !activeId && !item.parent && (item.index == 0 || item.index === '0')) return true;
-    if (idx === 0) return true; // match processNewData behavior: first item
     return false;
+  };
+  // match processNewData: the first item only when nothing is active (the route's fallback)
+  const noneActive = !items.some(isActiveItem);
+  const needsRefResolution = (item, idx) => {
+    if (!Object.keys(dmsAttrsConfigs).length) return false;
+    return isActiveItem(item) || (idx === 0 && noneActive);
   };
 
   // Resolve dms-format children from local SQLite (only for active items)

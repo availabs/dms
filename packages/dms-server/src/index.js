@@ -155,6 +155,10 @@ require('./routes/domains').registerDomainRoutes(app);
 // Deleting a tenant of the hub, with a backup first (routes/tenants; tenant-subdomain-uniqueness.md)
 require('./routes/tenants').registerTenantRoutes(app);
 
+// A site's icon, app name and colours; its manifest, icons and service worker by Host (routes/appSettings;
+// site-app-settings-pwa.md)
+require('./routes/appSettings').registerAppSettingsRoutes(app);
+
 // Deleting a pattern or a theme with what it owns, plan first, backup first (routes/dms/ownerDeleteHttp.js;
 // safe-delete-removes-rows.md)
 require('./routes/dms/ownerDeleteHttp').registerOwnerDeleteRoutes(app);
@@ -400,6 +404,8 @@ async function setupAndListen() {
       serverEntry: '/src/entry-ssr.jsx',
       clientDir: path.join(distDir, 'client'),
       serverBundle: path.join(distDir, 'server', 'entry-ssr.js'),
+      // the site's manifest, icons and service worker in the page head (routes/appSettings)
+      getHeadTags: require('./routes/appSettings').headTags,
       handlerConfig: {
         apiHost: `http://localhost:${PORT}`,
         siteConfig: {

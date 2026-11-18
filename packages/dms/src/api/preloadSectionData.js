@@ -242,6 +242,36 @@ export function findPageItem(data, slug = '') {
 }
 
 /**
+ * The page's published sections with each section's settings passed through its registry entry's
+ * `trimForView(elementData) → elementData`, for a VIEW route's loader data, which is serialized
+ * into the page's HTML. A section type leaves out what it saved for its editor (the dataWrapper
+ * sections: their copy of the source's whole column list). The edit route never calls this.
+ * Returns `data` itself when nothing changed; never mutates it. See page-hydration-payload.md.
+ */
+export function trimSectionsForView(data, slug = '', components = {}) {
+    const pageItem = findPageItem(data, slug)
+    if (!pageItem || !Array.isArray(pageItem.sections)) return data
+
+    let changed = false
+    const sections = pageItem.sections.map(section => {
+        const element = section?.element
+        const trim = components[element?.['element-type']]?.trimForView
+        if (typeof trim !== 'function' || !element?.['element-data']) return section
+        try {
+            const elementData = trim(element['element-data'])
+            if (elementData === element['element-data']) return section
+            changed = true
+            return { ...section, element: { ...element, 'element-data': elementData } }
+        } catch (e) {
+            console.warn(`[trimForView] ${element['element-type']} ${section.id || ''}: ${e.message}`)
+            return section
+        }
+    })
+    if (!changed) return data
+    return data.map(d => d === pageItem ? { ...d, sections } : d)
+}
+
+/**
  * Every section element-type on a page (published and draft), for
  * preloading the page's code-split section components.
  */

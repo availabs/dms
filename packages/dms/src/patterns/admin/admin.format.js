@@ -339,6 +339,14 @@ const patternAdminFormat = {
       type: "text",
       hidden: true
     },
+    // The site's icon, app name and colours: { name, short_name, theme_color, background_color,
+    // icon: { version } }. Written only by dms-server's app-settings routes, which also draw the icon
+    // set; edited on the tenant settings page (components/appSettingsCard.jsx; site-app-settings-pwa.md).
+    {
+      key: 'app_settings',
+      type: 'json',
+      hidden: true
+    },
     //content
     {
       key: 'patterns',

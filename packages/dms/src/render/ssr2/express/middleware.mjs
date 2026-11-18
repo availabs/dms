@@ -8,9 +8,11 @@
  * @param {object} options
  * @param {Function} options.getHandler - () => { render, invalidateRoutes }
  * @param {Function} options.getTemplate - () => string (HTML template)
+ * @param {Function} [options.getHeadTags] - async (req) => HTML added to the head. When it has its own
+ *   `<link rel="icon">`, the template's (the build's favicon) is dropped.
  * @returns {Function} Express middleware
  */
-export function createSSRMiddleware({ getHandler, getTemplate }) {
+export function createSSRMiddleware({ getHandler, getTemplate, getHeadTags = null }) {
   return async function ssrMiddleware(req, res, next) {
     try {
       const handler = getHandler()
@@ -64,11 +66,21 @@ export function createSSRMiddleware({ getHandler, getTemplate }) {
       // theme's real look (colors, backgrounds, brand fonts) is present at
       // first paint instead of only appearing once client JS hydrates and
       // re-injects them, which was a visible flash of unstyled content.
+      // Per-site head tags from the server (its app settings), best effort: a failure keeps the build's.
+      let siteHead = ''
+      if (getHeadTags) {
+        try { siteHead = (await getHeadTags(req)) || '' }
+        catch (e) { console.warn('[SSR] head tags failed:', e.message) }
+      }
       const headContent =
         `<script>window.__dmsSSRData=${serializedData}</script>` +
-        (result.themeFontsHtml || '')
+        (result.themeFontsHtml || '') +
+        siteHead
 
-      const content = template
+      const page = /<link[^>]*rel="icon"/.test(siteHead)
+        ? template.replace(/<link\s+rel="icon"[^>]*>\s*/, '')
+        : template
+      const content = page
         .replace('<!--app-head-->', headContent)
         .replace('<!--app-html-->', result.html || '')
 
