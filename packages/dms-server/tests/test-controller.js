@@ -4,7 +4,7 @@
  */
 
 // Override the config to use SQLite for testing
-process.env.DMS_DB_ENV = 'dms-sqlite';
+process.env.DMS_DB_ENV = 'dms-sqlite-test';
 
 // Patch getDb to use SQLite config
 const originalGetDb = require('#db/index.js').getDb;
@@ -19,7 +19,7 @@ let testDb = null;
 
 async function setup() {
   // Create a test SQLite database
-  const config = loadConfig('dms-sqlite');
+  const config = loadConfig('dms-sqlite-test');
   testDb = new SqliteAdapter(config);
 
   // Initialize schema

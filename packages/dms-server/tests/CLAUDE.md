@@ -17,6 +17,13 @@ Avoid:
 - Testing trivial getters/setters
 - Tests that pass even when features are broken
 
+## Never against a remote database
+
+`npm test` preloads `tests/no-remote-dms.js`, which refuses any DMS config pointing at a Postgres server
+other than localhost, and sets `DMS_DB_ENV=dms-sqlite-test`. Tests default to `dms-sqlite-test` (a local
+SQLite file, `src/db/data/dms-sqlite-test.sqlite`), never `dms-sqlite`: on a dev machine that untracked
+config can name production, and test runs wrote schemas into prod `dms3` before 2026-11-18.
+
 ## Test Structure
 
 ```
@@ -83,9 +90,9 @@ Tests that support both databases read these env vars (defaulting to SQLite):
 
 | Variable | Default | Used by |
 |----------|---------|---------|
-| `DMS_TEST_DB` | `dms-sqlite` | test-graph.js, test-workflow.js, test-auth.js |
+| `DMS_TEST_DB` | `dms-sqlite-test` | test-graph.js, test-workflow.js, test-auth.js |
 | `DMS_AUTH_DB_ENV` | `auth-sqlite` | test-auth.js (auth database) |
-| `DMS_DB_ENV` | `dms-sqlite` | test-auth.js (DMS database for Falcor /graph) |
+| `DMS_DB_ENV` | `dms-sqlite-test` (set by `npm test`) | test-auth.js (DMS database for Falcor /graph) |
 
 Example: run graph tests against PostgreSQL manually (container must be running):
 
@@ -118,7 +125,7 @@ The `graph.js` module provides a harness to call Falcor routes directly without 
 const { createTestGraph } = require('./graph');
 
 // Create a test graph — pass database config name
-const graph = createTestGraph('dms-sqlite');       // SQLite (default)
+const graph = createTestGraph('dms-sqlite-test');       // SQLite (default)
 const graph = createTestGraph('dms-postgres-test'); // PostgreSQL
 
 // Database info
@@ -216,7 +223,7 @@ To replay recorded requests:
 node tests/replay.js logs/requests-2026-01-28T12-00-00-000Z.jsonl
 
 # Options via environment variables
-DB_NAME=dms-sqlite STOP_ON_ERROR=1 node tests/replay.js <file>
+DB_NAME=dms-sqlite-test STOP_ON_ERROR=1 node tests/replay.js <file>
 ```
 
 ## Writing New Tests
@@ -225,7 +232,7 @@ DB_NAME=dms-sqlite STOP_ON_ERROR=1 node tests/replay.js <file>
 
 **Good** - Test through the Falcor routes like a real client:
 ```js
-const DB_NAME = process.env.DMS_TEST_DB || 'dms-sqlite';
+const DB_NAME = process.env.DMS_TEST_DB || 'dms-sqlite-test';
 const graph = createTestGraph(DB_NAME);
 
 // Create via route
@@ -263,7 +270,7 @@ Simulate how the client actually uses the feature:
 **Setup:**
 ```js
 const { createTestGraph } = require('./graph');
-const DB_NAME = process.env.DMS_TEST_DB || 'dms-sqlite';
+const DB_NAME = process.env.DMS_TEST_DB || 'dms-sqlite-test';
 const TEST_APP = 'my-test-' + Date.now();
 let graph = null;
 
@@ -304,6 +311,6 @@ When writing tests that run on both SQLite and PostgreSQL, watch for:
 
 1. Create `test-<name>.js` in this folder
 2. Add to `package.json` scripts if needed
-3. Read `DMS_TEST_DB` env var to support both databases (default to `'dms-sqlite'`)
+3. Read `DMS_TEST_DB` env var to support both databases (default to `'dms-sqlite-test'`)
 4. Use the graph harness for route testing, or import adapters for low-level tests
 5. Follow the pattern in existing test files

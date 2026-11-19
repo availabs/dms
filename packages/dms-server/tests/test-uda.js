@@ -5,13 +5,13 @@
  * Tests both DMS mode (app+type) and DAMA mode (pgEnv with real sources/views tables).
  *
  * Database selection:
- *   DMS_TEST_DB=dms-sqlite (default) or DMS_TEST_DB=dms-postgres-test
+ *   DMS_TEST_DB=dms-sqlite-test (default) or DMS_TEST_DB=dms-postgres-test
  *   DAMA_TEST_DB=dama-sqlite-test (default) — DAMA test database config
  */
 
 const { createTestGraph } = require('./graph');
 
-const DMS_DB = process.env.DMS_TEST_DB || 'dms-sqlite';
+const DMS_DB = process.env.DMS_TEST_DB || 'dms-sqlite-test';
 const DAMA_DB = process.env.DAMA_TEST_DB || 'dama-sqlite-test';
 
 // UDA routes read DMS_DB_ENV to resolve the database — sync it with the test DB

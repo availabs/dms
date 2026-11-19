@@ -14,7 +14,7 @@ const {
   UUID_SPLIT_REGEX,
 } = require('../src/db/table-resolver.js');
 
-const DB_NAME = process.env.DMS_TEST_DB || 'dms-sqlite';
+const DB_NAME = process.env.DMS_TEST_DB || 'dms-sqlite-test';
 const TEST_APP = `deprecate-test-${Date.now()}`;
 const SPLIT_MODE = 'per-app';
 

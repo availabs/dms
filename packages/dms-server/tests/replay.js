@@ -59,14 +59,14 @@ async function replayRequest(graph, entry) {
  * Replay all requests from a log file
  * @param {string} filePath - Path to the JSONL file
  * @param {Object} options - Replay options
- * @param {string} options.dbName - Database config name (default: 'dms-sqlite')
+ * @param {string} options.dbName - Database config name (default: 'dms-sqlite-test')
  * @param {boolean} options.stopOnError - Stop on first error (default: false)
  * @param {boolean} options.verbose - Log each request (default: true)
  * @returns {Promise<Object>} - Summary of replay results
  */
 async function replayFile(filePath, options = {}) {
   const {
-    dbName = 'dms-sqlite',
+    dbName = 'dms-sqlite-test',
     stopOnError = false,
     verbose = true
   } = options;
@@ -137,7 +137,7 @@ if (require.main === module) {
     console.log('Usage: node tests/replay.js <logfile.jsonl>');
     console.log('');
     console.log('Options (via env vars):');
-    console.log('  DB_NAME=dms-sqlite     Database config to use');
+    console.log('  DB_NAME=dms-sqlite-test     Database config to use');
     console.log('  STOP_ON_ERROR=1        Stop on first error');
     console.log('  QUIET=1                Suppress per-request output');
     process.exit(1);
@@ -145,7 +145,7 @@ if (require.main === module) {
 
   const filePath = args[0];
   const options = {
-    dbName: process.env.DB_NAME || 'dms-sqlite',
+    dbName: process.env.DB_NAME || 'dms-sqlite-test',
     stopOnError: process.env.STOP_ON_ERROR === '1',
     verbose: process.env.QUIET !== '1'
   };

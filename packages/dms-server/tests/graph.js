@@ -6,7 +6,7 @@
  *
  * Usage:
  *   const { createTestGraph } = require('./graph');
- *   const graph = createTestGraph('dms-sqlite');
+ *   const graph = createTestGraph('dms-sqlite-test');
  *
  *   // GET request
  *   graph.get([['dms', 'data', 'myapp+mytype', 'length']], (error, { jsonGraph }) => {
@@ -33,13 +33,13 @@ const DEFAULT_TEST_USER = { id: 1, email: 'test@test.com', groups: ['admin'] };
 
 /**
  * Create a test graph with configurable database
- * @param {string} dbName - Database config name (e.g., 'dms-sqlite')
+ * @param {string} dbName - Database config name (e.g., 'dms-sqlite-test')
  * @param {Object} options - Router options
  * @param {Object} options.user - User object for authenticated routes (defaults to mock admin)
  * @param {Object} options.reqMeta - Request metadata for audit log (defaults to test values)
  * @returns {Object} Test graph with get, set, call methods
  */
-function createTestGraph(dbName = 'dms-sqlite', options = {}) {
+function createTestGraph(dbName = 'dms-sqlite-test', options = {}) {
   const { splitMode, ...routerOptions } = options;
   const controllerOpts = splitMode ? { splitMode } : {};
   const controller = createController(dbName, controllerOpts);

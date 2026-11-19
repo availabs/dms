@@ -6,7 +6,7 @@
 
 const { createTestGraph } = require('./graph');
 
-const DB_NAME = process.env.DMS_TEST_DB || 'dms-sqlite';
+const DB_NAME = process.env.DMS_TEST_DB || 'dms-sqlite-test';
 
 let graph = null;
 const TEST_APP = 'graph-test-' + Date.now();

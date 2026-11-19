@@ -24,7 +24,7 @@
  *      waits (SQLite) / proceeds (PG) and claims — it used to hit "cannot start a transaction
  *      within a transaction" on SQLite.
  *
- * Database selection: DMS_TEST_DB=dms-sqlite (default) or dms-postgres-test (via
+ * Database selection: DMS_TEST_DB=dms-sqlite-test (default) or dms-postgres-test (via
  * tests/postgres-docker.js). Postgres-only checks (pg_stat_activity, per-backend tracing,
  * DAMA source deletes) live in test-transactions-pg.js.
  */
@@ -36,7 +36,7 @@ const { getDb, awaitReady } = require('../src/db/index.js');
 const { resolveTable } = require('../src/db/table-resolver.js');
 const { createController } = require('../src/routes/dms/dms.controller.js');
 
-const DB_NAME = process.env.DMS_TEST_DB || 'dms-sqlite';
+const DB_NAME = process.env.DMS_TEST_DB || 'dms-sqlite-test';
 // UDA routes and the DMS task queue resolve their db from DMS_DB_ENV — sync it with the test DB.
 process.env.DMS_DB_ENV = DB_NAME;
 const { createSyncRoutes } = require('../src/routes/sync/sync.js');

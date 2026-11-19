@@ -9,7 +9,7 @@ async function testSqlite() {
 
   try {
     // Get database connection
-    const db = getDb('dms-sqlite');
+    const db = getDb('dms-sqlite-test');
     const dbType = db.type;
     console.log(`Database type: ${dbType}`);
     console.log(`Database path: ${db.getDb()}\n`);

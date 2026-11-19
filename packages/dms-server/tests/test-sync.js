@@ -15,7 +15,7 @@ const { createSyncRoutes } = require('../src/routes/sync/sync');
 const { initWebSocket, notifyChange, getWSS } = require('../src/routes/sync/ws');
 const { getDb } = require('../src/db');
 
-const DB_NAME = process.env.DMS_TEST_DB || 'dms-sqlite';
+const DB_NAME = process.env.DMS_TEST_DB || 'dms-sqlite-test';
 const TEST_APP = 'sync-test-' + Date.now();
 const TEST_TYPE = 'sync-test-page';
 

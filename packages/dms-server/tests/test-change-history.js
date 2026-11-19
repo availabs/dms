@@ -24,7 +24,7 @@
  *   9. Off by default per call: a direct controller create/edit without `{ changeHistory: true }`
  *      writes nothing; the Falcor routes pass it.
  *
- * Database selection: DMS_TEST_DB=dms-sqlite (default) or dms-postgres-test.
+ * Database selection: DMS_TEST_DB=dms-sqlite-test (default) or dms-postgres-test.
  */
 
 const { createTestGraph } = require('./graph');
@@ -33,7 +33,7 @@ const { resolveTable } = require('../src/db/table-resolver.js');
 const { createController } = require('../src/routes/dms/dms.controller.js');
 const { parseChangeHistory, historyText, withinBurst } = require('../src/routes/dms/changeHistory.js');
 
-const DB_NAME = process.env.DMS_TEST_DB || 'dms-sqlite';
+const DB_NAME = process.env.DMS_TEST_DB || 'dms-sqlite-test';
 process.env.DMS_DB_ENV = DB_NAME;
 
 const TEST_APP = 'history-test-' + Date.now();

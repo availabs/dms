@@ -17,7 +17,7 @@ const {
   SPLIT_TYPE_REGEX
 } = require('../src/db/table-resolver.js');
 
-const DB_NAME = process.env.DMS_TEST_DB || 'dms-sqlite';
+const DB_NAME = process.env.DMS_TEST_DB || 'dms-sqlite-test';
 const TEST_APP = `split-test-${Date.now()}`;
 
 // Name-based split types (internal_table) — these get their own tables

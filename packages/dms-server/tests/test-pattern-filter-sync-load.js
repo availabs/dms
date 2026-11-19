@@ -12,11 +12,11 @@
  *   - without sectionLoad (an API / CLI caller)           → 25 rows (the unchanged one-page behaviour)
  *   - the route rejects a malformed sectionLoad and keeps only boolean flags
  *
- * Database selection: DMS_TEST_DB=dms-sqlite (default).
+ * Database selection: DMS_TEST_DB=dms-sqlite-test (default).
  */
 const assert = require('assert');
 
-const DB_NAME = process.env.DMS_TEST_DB || 'dms-sqlite';
+const DB_NAME = process.env.DMS_TEST_DB || 'dms-sqlite-test';
 // UDA (the getData mirror's data path) reads DMS_DB_ENV to resolve the database
 process.env.DMS_DB_ENV = DB_NAME;
 

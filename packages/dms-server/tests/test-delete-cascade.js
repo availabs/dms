@@ -20,7 +20,7 @@
  *      rolls back the page delete, and deleting a page with no hook
  *      registered behaves exactly as before.
  *
- * Database selection: DMS_TEST_DB=dms-sqlite (default) or dms-postgres-test.
+ * Database selection: DMS_TEST_DB=dms-sqlite-test (default) or dms-postgres-test.
  */
 
 const { createTestGraph } = require('./graph');
@@ -28,7 +28,7 @@ const { getDb } = require('../src/db/index.js');
 const { resolveTable } = require('../src/db/table-resolver.js');
 const { setPageDeleteHook } = require('../src/routes/dms/dms.controller.js');
 
-const DB_NAME = process.env.DMS_TEST_DB || 'dms-sqlite';
+const DB_NAME = process.env.DMS_TEST_DB || 'dms-sqlite-test';
 // UDA routes read DMS_DB_ENV to resolve the database — sync it with the test DB
 process.env.DMS_DB_ENV = DB_NAME;
 

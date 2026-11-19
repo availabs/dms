@@ -13,7 +13,7 @@
 
 const { createTestGraph } = require('./graph');
 
-const DB_NAME = process.env.DMS_TEST_DB || 'dms-sqlite';
+const DB_NAME = process.env.DMS_TEST_DB || 'dms-sqlite-test';
 const TEST_APP = 'sqlite-compat-test-' + Date.now();
 const TEST_TYPE = 'compat-page';
 

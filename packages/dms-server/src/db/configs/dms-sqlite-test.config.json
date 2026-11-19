@@ -1,0 +1,6 @@
+{
+  "type": "sqlite",
+  "role": ["dms", "auth"],
+  "filename": "../data/dms-sqlite-test.sqlite",
+  "splitMode": "per-app"
+}

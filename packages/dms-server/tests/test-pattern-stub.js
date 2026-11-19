@@ -14,7 +14,7 @@
 const assert = require('assert');
 const { createTestGraph } = require('./graph');
 
-const DB_NAME = process.env.DMS_TEST_DB || 'dms-sqlite';
+const DB_NAME = process.env.DMS_TEST_DB || 'dms-sqlite-test';
 const TEST_APP = 'stub-test-' + Date.now();
 const PATTERN_TYPE = 'prod|dash:pattern';
 

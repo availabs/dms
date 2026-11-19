@@ -14,7 +14,7 @@
 
 const { createTestGraph } = require('./graph');
 
-const DB_NAME = process.env.DMS_TEST_DB || 'dms-sqlite';
+const DB_NAME = process.env.DMS_TEST_DB || 'dms-sqlite-test';
 
 // Test app name - unique to avoid conflicts
 const TEST_APP = 'workflow-test-' + Date.now();

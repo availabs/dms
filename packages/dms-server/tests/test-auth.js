@@ -6,7 +6,7 @@
  *
  * Environment variables:
  *   DMS_AUTH_DB_ENV  — auth database config (default: auth-sqlite)
- *   DMS_DB_ENV       — DMS database config (default: dms-sqlite)
+ *   DMS_DB_ENV       — DMS database config (default: dms-sqlite-test)
  *   DMS_TEST_DB      — alias for DMS_DB_ENV (for consistency with other tests)
  */
 
@@ -18,7 +18,7 @@ const PORT = 3097;
 const BASE = `http://localhost:${PORT}`;
 
 const AUTH_DB = process.env.DMS_AUTH_DB_ENV || 'auth-sqlite';
-const DMS_DB = process.env.DMS_TEST_DB || process.env.DMS_DB_ENV || 'dms-sqlite';
+const DMS_DB = process.env.DMS_TEST_DB || process.env.DMS_DB_ENV || 'dms-sqlite-test';
 const IS_SQLITE = AUTH_DB.includes('sqlite');
 
 process.env.PORT = PORT;
