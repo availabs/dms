@@ -94,12 +94,15 @@ async function dataTables(db) {
     const rows = await q(db, `
       SELECT t.table_schema AS schema, t.table_name AS "table"
         FROM information_schema.tables t
-        JOIN information_schema.columns c ON c.table_schema = t.table_schema AND c.table_name = t.table_name AND c.column_name = 'data'
+        JOIN information_schema.columns c ON c.table_schema = t.table_schema AND c.table_name = t.table_name AND c.column_name IN ('data', 'app', 'type')
        WHERE (t.table_schema = 'dms' OR t.table_schema LIKE 'dms\\_%') AND t.table_name LIKE 'data\\_items%' AND t.table_type = 'BASE TABLE'
+       GROUP BY 1, 2 HAVING COUNT(*) = 3
        ORDER BY 1, 2`);
     return rows.map(r => ({ ...r, fullName: `"${r.schema}"."${r.table}"`, main: r.table === 'data_items' }));
   }
-  const rows = await q(db, `SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'data_items%' ORDER BY name`);
+  // only tables with the columns the scan reads (a history table has its own shape)
+  const rows = await q(db, `SELECT m.name FROM sqlite_master m WHERE m.type = 'table' AND m.name LIKE 'data_items%'
+    AND (SELECT COUNT(*) FROM pragma_table_info(m.name) p WHERE p.name IN ('data', 'app', 'type')) = 3 ORDER BY m.name`);
   // sqlite per-app main tables are `data_items__<app>`; split tables add a further `__<suffix>`
   return rows.map(r => ({ schema: 'main', table: r.name, fullName: r.name, main: r.name === 'data_items' || r.name.split('__').length === 2 }));
 }
@@ -166,7 +169,7 @@ function computeCandidates(rows, { byOwnerKind, pinned, recentCutoff, hasPattern
   const isOther = (r) => !contentKinds.has(r.parsed.kind) && !CONTAINER_KINDS.has(r.parsed.kind);
   const kept = (r) => pinned.has(r.id) || (recentCutoff && isRecent(r, recentCutoff));
   const out = new Map();
-  let held = new Map();                                 // id -> reason, rows left only because they are other kinds
+  let held = new Map();                                 // id -> { reason, holds? }, rows left only because they are other kinds
   for (let round = 0; round < 50; round++) {
     const live = rows.filter(r => !out.has(r.id));
     const before = out.size;
@@ -180,9 +183,15 @@ function computeCandidates(rows, { byOwnerKind, pinned, recentCutoff, hasPattern
       for (const r of live) {
         if (r.parsed.kind !== PATTERN_KIND || listed.has(r.id) || kept(r)) continue;
         const twin = listedTypes.has(r.type);
-        if (!twin && !takeOtherKinds) {
+        if (!twin) {
           const holds = live.filter(x => x.parsed.parent === r.parsed.instance && !x.parsed.instance && isOther(x));
-          if (holds.length) { held.set(r.id, `holds ${holds.length} ${[...new Set(holds.map(x => x.parsed.kind))].join(' / ')} row(s)`); continue; }
+          if (holds.length) {
+            const reason = `holds ${holds.length} ${[...new Set(holds.map(x => x.parsed.kind))].join(' / ')} row(s)`;
+            // asked for: the pattern goes with what it holds, as one `other_kinds` choice
+            if (takeOtherKinds) out.set(r.id, { category: 'other_kinds', reason });
+            else held.set(r.id, { reason, holds: holds.length });
+            continue;
+          }
         }
         out.set(r.id, { category: 'unlisted_patterns', reason: twin ? 'duplicate' : 'alone' });
       }
@@ -215,7 +224,7 @@ function computeCandidates(rows, { byOwnerKind, pinned, recentCutoff, hasPattern
       if (instances.has(parent) || listedByLive.has(r.id) || kept(r)) continue;
       if (isOther(r)) {
         if (takeOtherKinds) out.set(r.id, { category: 'other_kinds', reason: `no live row is "${parent}"` });
-        else held.set(r.id, `no live row is "${parent}"`);
+        else held.set(r.id, { reason: `no live row is "${parent}"` });
         continue;
       }
       out.set(r.id, { category: 'dead_containers', reason: `no live row is "${parent}"` });
@@ -329,13 +338,21 @@ function collect(rows, t, ids, out) {
 // ---- plan ----------------------------------------------------------------------------------------
 
 /**
- * Plan the sweep. `opts`: { config, apps?, only?: [category], minAgeHours = 24, log }.
- * Returns { at, apps: [{ app, table, skipped?, childRefs, counts, bytes, rows, blocked, notes }] }.
+ * Plan the sweep. `opts`: { config, apps?, only?: [category], minAgeHours = 24, parents?: [name], kinds?: [kind], usage?, log }.
+ * `kinds` narrows to rows of those kinds (one Clean up button: unused sections only).
+ * `parents` narrows what is planned (and held) to rows under those containers, and pattern rows with those
+ * instance names: a pattern's Storage tab passes its own, the site page a former pattern's.
+ * `usage` adds every type's rows and size in the app (the Storage pages' usage bar).
+ * Returns { at, apps: [{ app, table, skipped?, counts, bytes, groups, held, blocked, recentKept, usage?, notes }] }.
  */
 async function planSweep(db, opts = {}) {
   const { config, minAgeHours = 24, log = () => {} } = opts;
   const only = opts.only && opts.only.length ? opts.only : DEFAULT_CATEGORIES;
   const takeOtherKinds = only.includes('other_kinds');
+  const parents = opts.parents && opts.parents.length ? new Set(opts.parents) : null;
+  const kinds = opts.kinds && opts.kinds.length ? new Set(opts.kinds) : null;
+  const inScope = (r) => (!kinds || kinds.has(r.parsed.kind))
+    && (!parents || parents.has(r.parsed.parent) || (r.parsed.kind === PATTERN_KIND && parents.has(r.parsed.instance)));
   const splitMode = splitModeOf(config);
   const at = new Date().toISOString();
   const recentCutoff = minAgeHours > 0 ? Date.now() - minAgeHours * 3600 * 1000 : 0;
@@ -403,7 +420,15 @@ async function planSweep(db, opts = {}) {
       candidates = computeCandidates(a.rows, { byOwnerKind: a.refs.byOwnerKind, pinned, recentCutoff, hasPatternLists: a.hasPatternLists, takeOtherKinds }).candidates;
     }
     a.held = computeCandidates(a.rows, { byOwnerKind: a.refs.byOwnerKind, pinned, recentCutoff, hasPatternLists: a.hasPatternLists, takeOtherKinds }).held;
-    for (const [id, c] of [...candidates]) if (!only.includes(c.category)) candidates.delete(id);
+    for (const [id] of [...a.held]) if (!inScope(a.byId.get(id))) a.held.delete(id);
+    const wanted = (id, c) => only.includes(c.category) && inScope(a.byId.get(id));
+    for (const [id, c] of [...candidates]) if (!wanted(id, c)) candidates.delete(id);
+    // what only the age rule keeps (the "changed in the last N hours" line)
+    a.recentKept = 0;
+    if (recentCutoff) {
+      const all = computeCandidates(a.rows, { byOwnerKind: a.refs.byOwnerKind, pinned, recentCutoff: 0, hasPatternLists: a.hasPatternLists, takeOtherKinds }).candidates;
+      for (const [id, c] of all) if (!candidates.has(id) && wanted(id, c)) a.recentKept++;
+    }
     a.candidates = candidates;
     a.blocked = blocked.filter(b => !candidates.has(b.id));
   }
@@ -413,20 +438,26 @@ async function planSweep(db, opts = {}) {
     if (a.skipped) { result.apps.push({ app: a.app, table: a.table, skipped: a.skipped }); continue; }
     const counts = {}, groups = {};
     for (const c of CATEGORIES) counts[c] = 0;
+    const ids = [...a.candidates.keys()];
+    const heldIds = [...a.held.keys()];
+    const sizes = await sizesOf(db, a.table, [...ids, ...heldIds]);
+    let bytes = 0;
     for (const [id, c] of a.candidates) {
       counts[c.category]++;
       const r = a.byId.get(id);
       const key = `${c.category}\t${r.type}\t${c.reason}`;
-      groups[key] = (groups[key] || 0) + 1;
+      const g = groups[key] || (groups[key] = { category: c.category, type: r.type, parent: r.parsed.parent || '', kind: r.parsed.kind, instance: r.parsed.instance || '', reason: c.reason, rows: 0, bytes: 0 });
+      g.rows++;
+      g.bytes += sizes.get(id) || 0;
+      bytes += sizes.get(id) || 0;
     }
-    const ids = [...a.candidates.keys()];
     result.apps.push({
       app: a.app, table: a.table, rowsInApp: a.rows.length, notes: a.notes, childRefsSource: a.refs.source,
-      counts, total: ids.length, bytes: ids.length ? await sizeOf(db, a.table, ids) : 0,
-      groups: Object.entries(groups).map(([k, n]) => { const [category, type, reason] = k.split('\t'); return { category, type, reason, rows: n }; })
-        .sort((x, y) => y.rows - x.rows),
+      counts, total: ids.length, bytes, recentKept: a.recentKept,
+      groups: Object.values(groups).sort((x, y) => y.rows - x.rows),
       blocked: a.blocked,
-      held: heldGroups(a),
+      held: heldGroups(a, sizes),
+      ...(opts.usage ? { usage: await usageOf(db, a.table, a.app) } : {}),
       duplicates: [...a.candidates].filter(([, c]) => c.reason === 'duplicate').map(([id]) => ({ id, type: a.byId.get(id).type })),
       ids: Object.fromEntries(CATEGORIES.map(c => [c, ids.filter(id => a.candidates.get(id).category === c)])),
       _refs: a.refs, _hasPatternLists: a.hasPatternLists, _pinned: new Set(a.blocked.map(b => b.id)), _takeOtherKinds: takeOtherKinds,
@@ -436,24 +467,36 @@ async function planSweep(db, opts = {}) {
 }
 
 // Rows kept only because they are other kinds, grouped by type and reason: what `other_kinds` would add.
-function heldGroups(a) {
+// A held pattern's `holds` counts the rows under it (they go with it when asked for, and are not in `rows`).
+function heldGroups(a, sizes = new Map()) {
   const g = {};
-  for (const [id, reason] of a.held || []) {
-    const key = `${a.byId.get(id).type}\t${reason}`;
-    g[key] = (g[key] || 0) + 1;
+  for (const [id, h] of a.held || []) {
+    const r = a.byId.get(id);
+    const key = `${r.type}\t${h.reason}`;
+    const x = g[key] || (g[key] = { type: r.type, parent: r.parsed.parent || '', kind: r.parsed.kind, instance: r.parsed.instance || '', reason: h.reason, rows: 0, holds: 0, bytes: 0 });
+    x.rows++;
+    x.holds = Math.max(x.holds, h.holds || 0);
+    x.bytes += sizes.get(id) || 0;
   }
-  return Object.entries(g).map(([k, rows]) => { const [type, reason] = k.split('\t'); return { type, reason, rows }; })
-    .sort((x, y) => y.rows - x.rows);
+  return Object.values(g).sort((x, y) => y.rows - x.rows);
 }
 
-async function sizeOf(db, table, ids) {
-  let total = 0;
-  for (const part of chunks(ids)) {
-    const expr = isPg(db) ? 'pg_column_size(data)' : 'length(data)';
-    const [r] = await q(db, `SELECT COALESCE(SUM(${expr}), 0) AS b FROM ${table} WHERE id = ANY($1)`, [part.map(Number)]);
-    total += Number(r.b) || 0;
+/** Map(id -> size of its data, bytes). */
+async function sizesOf(db, table, ids) {
+  const out = new Map();
+  const expr = isPg(db) ? 'pg_column_size(data)' : 'length(data)';
+  for (const part of chunks(ids, 2000)) {
+    for (const r of await q(db, `SELECT id, ${expr} AS b FROM ${table} WHERE id = ANY($1)`, [part.map(Number)])) out.set(String(r.id), Number(r.b) || 0);
   }
-  return total;
+  return out;
+}
+
+/** Every type in the app with its rows and size: `[{ type, parent, kind, instance, rows, bytes }]`. */
+async function usageOf(db, table, app) {
+  const expr = isPg(db) ? 'pg_column_size(data)' : 'length(data)';
+  const rows = await q(db, `SELECT type, COUNT(*) AS n, COALESCE(SUM(${expr}), 0) AS b FROM ${table} WHERE app = $1 GROUP BY type`, [app]);
+  return rows.map(r => { const p = parseRowType(r.type); return { type: r.type, parent: p.parent || '', kind: p.kind, instance: p.instance || '', rows: Number(r.n), bytes: Number(r.b) }; })
+    .sort((x, y) => y.bytes - x.bytes);
 }
 
 // ---- junk schemas (Postgres per-app) -------------------------------------------------------------

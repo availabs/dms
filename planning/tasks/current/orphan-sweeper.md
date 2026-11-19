@@ -200,16 +200,45 @@ Proposed, to confirm with a mockup before code:
       (1.2 GB, 314,363 rows + header); log `apply.txt`. Checked: fresh read-only dry run plans 0 rows (`verify-dry-run.txt`, 344s vs 72 min before).
 
 **Phase 2: UI**
-- [~] Mockups made 2026-11-18, **waiting for the owner's confirmation**: `design_system_v6/pages/admin-pattern-storage.html`
+- [x] Mockups made 2026-11-18, **confirmed by the owner 2026-11-18** ("mockups look good, build them"): `design_system_v6/pages/admin-pattern-storage.html`
       (MitigateNY_2025: usage bar, kinds with counts and sizes, Clean up list, two-step dialog with a "counts
       changed" state) and `admin-site-storage.html` (mitigat-ny-prod: usage bar, pages with no pattern with the
       former-pattern list, unused sections, extra pattern copies, Clean up all, by-pattern table). Real numbers
       from the 11-17 prod copy except the 24 h counts. Registered in `ds-nav.js`. Checked 1280 light, dialog in
-      dark, 390 (no horizontal scroll). The other admin mockups' SideNavs don't show the new storage items yet;
-      added when confirmed.
+      dark, 390 (no horizontal scroll). SideNav storage items added to the other admin mockups 2026-11-18 (17
+      pages + the user-menu page; `HardDrive` registered in `theme/icons.js`). Wording mirrored from the build.
       2026-11-18 (owner: symbologies a deliberate choice): site page gains **"Kept until you choose"**, below
       Clean up and outside Clean up all: "Map styles in unused patterns" (257 · 3 patterns) and "Other rows with
       no pattern" (5 old sections), each with its own Delete button and a Delete → Confirm delete dialog
       (sends `only: ['other_kinds']`). npmrdsv5's numbers (mitigat-ny-prod has none); shown only when any.
       Checked 1280 light / dark, 390, dialog.
-- [ ] Plan/apply routes, tab, page
+- [x] Plan/apply routes, tab, page (2026-11-18)
+  - Server: `routes/dms/storageHttp.js` — `POST /dms/:app/storage/plan` (read-only) and `/storage/clean`
+    (`expect` required, 409 when the counts moved; no preview flag), each a job polled at
+    `GET /dms/:app/storage/jobs/:job` (a plan on a big site outlasts a proxy's wait). Gate: site-level
+    `manage-storage` (new verb in the admin site vocabulary; `*` / `<app> Admin` pass). Controller
+    `planStorage` / `cleanStorage` (strip ids, add `expect`, `childRefs`; clear caches + auth snapshots after).
+  - `orphanSweep.js`: `parents` / `kinds` scope, per-group `bytes`, `recentKept`, `usage` by type; a held
+    pattern now goes WITH its rows under `other_kinds` (was `unlisted_patterns`, which `only: [other_kinds]`
+    would have left behind). Fix: the scan reads only `data_items*` tables that have `app`, `type` and
+    `data` (a SQLite history table broke it).
+  - Client: `api` `dmsStoragePlan` / `dmsStorageClean` (poll 3 s); `components/storage.{jsx,theme.js}`,
+    `storageUtils.js`; `pages/siteStorage.jsx` (route `storage`, SideNav "Storage") and
+    `patternEditor/pages/storageTab.jsx` (every pattern; SideNav and tab gated on site `manage-storage`).
+    Live icon `HardDrive` added (ui/icons).
+  - Site page groups by container, not category: a gone pattern's sections are planned as unlisted children
+    once its page is, so "Pages with no pattern" = everything under a container no pattern row is (its clean
+    sends `parents` + both categories); "Unused sections" = live patterns' only.
+  - Deviation from the mockup: held rows are named by kind ("Rows in unused patterns · 2 symbology rows"), not
+    "Map styles", since the core has no type names; the pattern nav has no size badge (a plan per nav render
+    costs too much).
+  - Tests: `test-orphan-sweep.js` 10/10 (new: parents/kinds scope, held pattern in other_kinds),
+    `test-storage-routes.js` 6/6 (auth, scope, 400/409, clean one pattern, clean all), owner-delete 14/14,
+    formats 12/12. Postgres: plan on the local 11-17 copy (`sweep-base-1117`, wcdb, read-only) 49 s.
+  - Live (rig :3458/:5197, seeded orphans): site page + pattern tab light/dark/390; pattern Clean up deleted
+    3 then 1 (backups written); "Delete them" took the held pattern + 2 symbologies; Clean up all took 5; a row
+    added between plan and confirm → "Counts changed since you opened this" (409, nothing deleted); a viewer
+    gets no nav item, is sent home, and no plan request is made.
+- [ ] Register the site vocabulary on prod (`register-formats.js`) so `manage-storage` can be granted; until
+      then only `*` / `<app> Admin` see the pages
+- [ ] Deploy (server + sites), then a plan on mitigat-ny-prod from the page

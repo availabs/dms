@@ -3,7 +3,7 @@ import {Link, useLocation, useNavigate} from 'react-router'
 import {AdminContext} from "../../context";
 import { ThemeContext } from '../../../../ui/useTheme';
 import { patternEditorTheme } from './patternEditor.theme'
-import { siteCan, patternCan, tabPermission, PATTERN_EDITOR_PERMISSIONS, VIEW_PATTERN_LIST, EDIT_PATTERN } from '../../../../utils/adminPermissions';
+import { siteCan, patternCan, tabPermission, PATTERN_EDITOR_PERMISSIONS, VIEW_PATTERN_LIST, EDIT_PATTERN, MANAGE_STORAGE } from '../../../../utils/adminPermissions';
 
 import { PatternSettingsEditor } from "./default/settings";
 import { PatternThemeEditor } from "./default/themeEditor";
@@ -11,6 +11,7 @@ import { PatternAccessEditor } from "./default/accessEditor";
 import { PatternPagesEditor } from "./pages/pagesEditor";
 import { SourcesTab } from "./pages/sourcesTab";
 import { ActivityTab } from "./pages/activityTab";
+import { StorageTab } from "./pages/storageTab";
 import FormatManager from './formatManager';
 import PageTemplateManagerPane from './pageTemplateManagerPane';
 import UserMenuEditor from './userMenuEditor';
@@ -65,6 +66,14 @@ const activityTab = {
   name: 'Activity',
   path: 'activity',
   component: ActivityTab
+}
+
+// What this pattern's rows take up, and cleaning up its unused ones (orphan-sweeper.md, Phase 2). A
+// site-level permission, manage-storage, not the pattern's: siteConfig.jsx's sidenav gates it the same way.
+const storageTab = {
+  name: 'Storage',
+  path: 'storage',
+  component: StorageTab
 }
 
 const PatternEditor = ({params, dataItems, item, format, attributes, apiUpdate, apiLoad, falcor, ...rest}) => {
@@ -124,6 +133,7 @@ const PatternEditor = ({params, dataItems, item, format, attributes, apiUpdate, 
     ...navPages,
     userMenuTab,
     ...(item.pattern_type === 'page' ? [pagesTab, sourcesTab, activityTab] : []),
+    storageTab,
     // the tabs the pattern's own type adds (patterns/registry.js admin.editorTabs)
     ...(getPatternType(item.pattern_type)?.admin?.editorTabs || []),
     ...(item.pages || []),
@@ -135,7 +145,8 @@ const PatternEditor = ({params, dataItems, item, format, attributes, apiUpdate, 
   // No admin row yet → the stand-in is a core row with no grants, so only site `*` passes.
   const canEditUserMenu = can(EDIT_PATTERN)
     || patternCan(user, app, authPermissions, adminPatternRow || { pattern_type: 'admin' }, EDIT_PATTERN);
-  const pages = allPages.filter(d => d.path === 'user_menu' ? canEditUserMenu : can(tabPermission(d.path)));
+  const canStorage = siteCan(user, app, authPermissions, MANAGE_STORAGE);
+  const pages = allPages.filter(d => d.path === 'user_menu' ? canEditUserMenu : d.path === 'storage' ? canStorage : can(tabPermission(d.path)));
   // No tab in the URL → the first one this user can use (Access, for an
   // edit-pattern-permissions-only user). A tab the user can't use is shown as
   // denied, not silently swapped for another.

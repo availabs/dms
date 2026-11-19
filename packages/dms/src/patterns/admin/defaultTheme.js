@@ -15,6 +15,7 @@ import { themeEditorTheme } from './pages/patternEditor/default/themeEditor.them
 import { themeListTheme } from './pages/themes/list.theme'
 import { editThemeTheme } from './pages/themes/editTheme.theme'
 import { sectionGroupTheme } from './siteConfig.theme'
+import { storageTheme } from './components/storage.theme'
 
 export default {
     navOptions: {
@@ -55,4 +56,5 @@ export default {
     editTheme: editThemeTheme,
     sectionGroup: sectionGroupTheme,
     pagesEditor: pagesEditorTheme,
+    storage: storageTheme,
 }

@@ -601,6 +601,15 @@ export const GlobalEditing = (props) => (
   </svg>
 )
 
+// tessera v6 HardDrive (design_system_v6 admin Storage pages, 2026-11-18)
+export const HardDrive = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={16} height={16} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <rect x="3.5" y="13" width="17" height="6.5" rx="1.5" />
+    <path d="M5 13l2.2-7.2A1.5 1.5 0 0 1 8.6 4.7h6.8a1.5 1.5 0 0 1 1.4 1.1L19 13" />
+    <circle cx="16.5" cy="16.25" r="0.9" fill="currentColor" stroke="none" />
+  </svg>
+)
+
 export const Database = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={16} height={16} fill="none" {...props}>
     <ellipse cx="12" cy="5" rx="8" ry="3" stroke="currentColor" strokeWidth="1.5" />

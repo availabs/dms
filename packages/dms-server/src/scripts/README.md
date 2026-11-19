@@ -100,7 +100,7 @@ node src/scripts/sweep-orphans.js --db <config> --apply [--expect '<json>'] [--d
 - **unlisted_patterns**: pattern rows no site lists. `duplicate` (a listed pattern row has the same type: only the
   row goes) or `alone` (its rows go with it).
 - **other_kinds**, opt-in (only when `--only` names it): rows of any other kind whose pattern is gone (map
-  symbologies), and an unlisted pattern that still holds such rows. Like sources they can be worth keeping with
+  symbologies), and an unlisted pattern that still holds such rows (counted in `other_kinds` too). Like sources they can be worth keeping with
   nothing pointing at them, so by default they are kept and listed as `held`.
 - Rows inside JSON stored as text (a section's `element-data`) are read too.
 - Page- and pattern-level candidates are searched for in every `data_items*` table of the database, split tables
@@ -112,6 +112,10 @@ node src/scripts/sweep-orphans.js --db <config> --apply [--expect '<json>'] [--d
 - No change_log entries (open clients keep stale copies until they reload). Backup: gzipped NDJSON in `DMS_DELETE_BACKUP_DIR`
   (default `var/delete-backups`). Opens the database directly: no init, no migrations.
 - Test: `npm run test:orphan-sweep`.
+- The admin **Storage** pages run the same plan and apply through `routes/dms/storageHttp.js`
+  (`POST /dms/:app/storage/plan`, `POST /dms/:app/storage/clean` with the plan's `expect`, `GET
+  /dms/:app/storage/jobs/:job`), scoped by `parents` (a pattern's instance) and `kinds`, needing the site's
+  `manage-storage`. Test: `npm run test:storage-routes`.
 
 ## cleanup-db.js
 

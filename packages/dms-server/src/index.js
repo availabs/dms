@@ -159,6 +159,10 @@ require('./routes/tenants').registerTenantRoutes(app);
 // safe-delete-removes-rows.md)
 require('./routes/dms/ownerDeleteHttp').registerOwnerDeleteRoutes(app);
 
+// The Storage pages: usage, and cleaning up rows nothing can reach, plan first, backup first
+// (routes/dms/storageHttp.js; orphan-sweeper.md)
+require('./routes/dms/storageHttp').registerStorageRoutes(app);
+
 // Upload routes — DAMA-compatible file upload endpoints (after JWT so uploads are authenticated)
 registerUploadRoutes(app);
 

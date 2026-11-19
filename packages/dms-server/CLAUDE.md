@@ -391,8 +391,9 @@ The `tests/graph.js` module provides a test harness that calls Falcor routes dir
 ```js
 const { createTestGraph } = require('./graph');
 
-// Create a test graph with a specific database
-const graph = createTestGraph('dms-sqlite');
+// Create a test graph with a specific database (tests default to the local `dms-sqlite-test`;
+// never `dms-sqlite`, which can name production on a dev machine — tests/CLAUDE.md)
+const graph = createTestGraph('dms-sqlite-test');
 
 // GET request
 const result = await graph.getAsync([

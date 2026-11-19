@@ -12,7 +12,7 @@ import ErrorPage from "./components/errorPage.jsx";
 import DefaultMenu from "./components/menu";
 
 import adminFormat, { pattern, themeFormat } from "./admin.format.js";
-import { siteCan, patternCan, tabPermission, VIEW_PATTERN_LIST, MANAGE_TENANTS, MANAGE_DOMAINS, AUTH_USERS, AUTH_GROUPS, EDIT_PATTERN } from "../../utils/adminPermissions";
+import { siteCan, patternCan, tabPermission, VIEW_PATTERN_LIST, MANAGE_TENANTS, MANAGE_DOMAINS, MANAGE_STORAGE, AUTH_USERS, AUTH_GROUPS, EDIT_PATTERN } from "../../utils/adminPermissions";
 import { adminNavOptions } from "../../utils/userMenus";
 
 import { lazyComponent } from "../../utils/lazyComponent";
@@ -27,6 +27,7 @@ const ThemeList = lazyComponent('admin/ThemeList', () => import("./pages/themes/
 const TenantsPage = lazyComponent('admin/TenantsPage', () => import("./pages/tenants"));
 const TenantOverviewPage = lazyComponent('admin/TenantOverviewPage', () => import("./pages/tenantOverview"));
 const SiteSettingsPage = lazyComponent('admin/SiteSettingsPage', () => import("./pages/siteSettings"));
+const SiteStoragePage = lazyComponent('admin/SiteStoragePage', () => import("./pages/siteStorage"));
 const ThemeEdit = lazyComponent('admin/ThemeEdit', () => import("./pages/themes/editTheme"));
 const PatternEditor = lazyComponent('admin/PatternEditor', () => import("./pages/patternEditor"));
 //import ThemeManager from './pages/themeManager/index.jsx'
@@ -35,7 +36,7 @@ const PatternEditor = lazyComponent('admin/PatternEditor', () => import("./pages
 // header band. Not the shared Layout's own TopNav — that's gated by a single
 // GLOBAL layout.options.topNav.size, so enabling it here would turn it on
 // for every page in the app, not just the admin pattern's own pages.
-const PAGE_LABELS = { '': 'overview', create: 'new site', themes: 'themes', theme: 'theme', tenants: 'tenants', settings: 'settings', domains: 'settings' };
+const PAGE_LABELS = { '': 'overview', create: 'new site', themes: 'themes', theme: 'theme', tenants: 'tenants', settings: 'settings', domains: 'settings', storage: 'storage' };
 const AdminBreadcrumb = ({ theme, baseUrl }) => {
   const location = useLocation();
   const { UI: contextUI } = React.useContext(ThemeContext) || {};
@@ -247,6 +248,18 @@ const adminConfig = ({
           // A tenant's own settings, on its host: domains and data environments; manage-domains
           // (pages/siteSettings.jsx). Reads and writes go to dms-server's /domains and /tenants routes.
           // `domains` is the page's old path (it held the domains card alone until 2026-11-13).
+          {
+            type: (props) => (
+              // What the site's rows take up, and cleaning up the ones nothing can reach
+              // (design_system_v6/pages/admin-site-storage.html; pages/siteStorage.jsx gates it to manage-storage).
+              // Loads the site row ("edit", like Tenants) for its `patterns` list.
+              <SectionGroup card={false} padding="p-0" maxWidth="max-w-5xl">
+                <SiteStoragePage {...props} />
+              </SectionGroup>
+            ),
+            path: "storage",
+            action: "edit",
+          },
           ...["settings", "domains"].map(path => ({
             type: (props) => (
               <SectionGroup card={false} padding="p-0" maxWidth="max-w-5xl">
@@ -355,7 +368,8 @@ const patternConfig = ({
           if (currentPattern) {
             const can = perm => patternCan(user, app, authPermissions, currentPattern, perm);
             menuItems.push(...buildPatternMenuItems(baseUrl, currentId, currentPattern, can,
-              can(EDIT_PATTERN) || patternCan(user, app, authPermissions, adminPatternRow || { pattern_type: 'admin' }, EDIT_PATTERN)));
+              can(EDIT_PATTERN) || patternCan(user, app, authPermissions, adminPatternRow || { pattern_type: 'admin' }, EDIT_PATTERN),
+              siteCan(user, app, authPermissions, MANAGE_STORAGE)));
           }
 
           return (
@@ -438,6 +452,12 @@ const getMenuItems = (baseUrl, authPath, user, { app, authPermissions, isMultiTe
       path: `${baseUrl}`,
       icon: 'Home',
     }] : []),
+    // What the site's rows take up, and cleaning up the ones nothing can reach (pages/siteStorage.jsx).
+    ...(siteCan(user, app, authPermissions, MANAGE_STORAGE) ? [{
+      name: "Storage",
+      path: `${baseUrl}/storage`,
+      icon: 'HardDrive',
+    }] : []),
     // {
     //     name: 'Datasets',
     //     path: `${baseUrl}/datasets`
@@ -501,7 +521,7 @@ const getMenuItems = (baseUrl, authPath, user, { app, authPermissions, isMultiTe
 // way with tabPermission).
 // `canEditUserMenu`: edit access to this pattern (its own menu) or to the admin
 // row (the Default menu); patternEditor/index.jsx gates it the same way.
-const buildPatternMenuItems = (baseUrl, id, pattern, can, canEditUserMenu = false) => {
+const buildPatternMenuItems = (baseUrl, id, pattern, can, canEditUserMenu = false, canStorage = false) => {
   const isPage = pattern.pattern_type === 'page';
   const tabs = [
     ['Overview', 'overview', 'InfoCircle'],
@@ -510,6 +530,8 @@ const buildPatternMenuItems = (baseUrl, id, pattern, can, canEditUserMenu = fals
     ...(getPatternType(pattern.pattern_type)?.admin?.editorTabs || []).map(({ name, path, icon }) => [name, path, icon || 'Page']),
     ['Access', 'permissions', 'Lock'],
     ...(isPage ? [['Data', 'sources', 'Database'], ['Activity', 'activity', 'ClockIcon']] : []),
+    // site-level manage-storage, not the pattern's (patternEditor/index.jsx gates it the same way)
+    ['Storage', 'storage', 'HardDrive'],
     ['Theme', 'theme', 'AdjustmentsHorizontal'],
     ['User Menu', 'user_menu', 'Menu'],
     // Custom, site-specific extra tabs a pattern's own data can define
@@ -520,7 +542,7 @@ const buildPatternMenuItems = (baseUrl, id, pattern, can, canEditUserMenu = fals
       ['Format Manager', 'edit_pattern', 'Settings'],
     ] : []),
   ]
-    .filter(([, path]) => path === 'user_menu' ? canEditUserMenu : can(tabPermission(path)))
+    .filter(([, path]) => path === 'user_menu' ? canEditUserMenu : path === 'storage' ? canStorage : can(tabPermission(path)))
     .map(([name, path, icon]) => ({ name, path: `${baseUrl}/${id}/${path}`, icon }));
   if (!tabs.length) return [];
   return [

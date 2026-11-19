@@ -132,6 +132,7 @@ const iconList = [
   // Special Icons
   { icon: "GlobalEditing" },
   { icon: "Database" },
+  { icon: "HardDrive" },
   { icon: "Columns" },
   { icon: "AccessControl" },
   { icon: "MenuDots" },

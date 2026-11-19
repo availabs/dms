@@ -20,7 +20,8 @@
  *   dead_containers     rows under a container no live row is (a page whose pattern is gone, and its rows)
  *   unlisted_patterns   pattern rows no site lists: `duplicate` (a listed twin has the same type) or `alone`
  *   other_kinds         OPT-IN, only when --only names it: rows of a kind that is not page content (map
- *                       symbologies) whose pattern is gone, and an unlisted pattern still holding such rows.
+ *                       symbologies) whose pattern is gone, and an unlisted pattern still holding such rows
+ *                       (counted here too: it goes with what it holds).
  *                       Without it they are kept and listed as "held". Deleting them is a deliberate choice.
  *
  * No change_log entries (owner, 2026-11-18). Backups go to DMS_DELETE_BACKUP_DIR

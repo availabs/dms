@@ -989,3 +989,38 @@ export async function dmsOwnerDelete(falcor, { API_HOST = '', user, app, kind, i
 	}
 	return body;
 }
+
+/**
+ * The Storage pages (dms-server routes/dms/storageHttp.js; orphan-sweeper.md Phase 2). A plan or a clean up
+ * runs as a job on the server (minutes on a big site); these wait for it, polling every 3 s.
+ *
+ * dmsStoragePlan: read-only. `{ parents?, kinds?, only? }` narrow it. Resolves to the plan: usage by type,
+ * the clean-up groups with sizes, held and blocked rows, and `expect` for the clean up.
+ */
+async function storageJob(API_HOST, user, app, res) {
+	let body = await res.json().catch(() => ({}));
+	while (res.status === 202 && body.job) {
+		await new Promise(r => setTimeout(r, 3000));
+		res = await authedFetch(`${API_HOST}/dms/${encodeURIComponent(app)}/storage/jobs/${encodeURIComponent(body.job)}`, { user });
+		body = await res.json().catch(() => ({}));
+	}
+	if (res.status === 404 && !body.error) throw Object.assign(new Error("This server can't show storage yet."), { status: 404 });
+	if (!res.ok) throw Object.assign(new Error(body.error || `Storage request failed (${res.status})`), { status: res.status });
+	return body.result;
+}
+
+export async function dmsStoragePlan({ API_HOST = '', user, app, parents = [], kinds = [], only }) {
+	const res = await authedFetch(`${API_HOST}/dms/${encodeURIComponent(app)}/storage/plan`,
+		{ user, method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ parents, kinds, ...(only ? { only } : {}) }) });
+	return storageJob(API_HOST, user, app, res);
+}
+
+/**
+ * Clean up: the server re-plans with the same scope, refuses with 409 when the counts differ from `expect`
+ * (the plan's), backs up, then deletes. Resolves to `{ deleted, keptSincePlan, backup }`.
+ */
+export async function dmsStorageClean({ API_HOST = '', user, app, parents = [], kinds = [], only, expect }) {
+	const res = await authedFetch(`${API_HOST}/dms/${encodeURIComponent(app)}/storage/clean`,
+		{ user, method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ parents, kinds, ...(only ? { only } : {}), expect }) });
+	return storageJob(API_HOST, user, app, res);
+}

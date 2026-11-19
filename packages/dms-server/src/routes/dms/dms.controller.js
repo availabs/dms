@@ -828,6 +828,8 @@ function createController(dbName = 'dms-sqlite', options = {}) {
     return kind === 'source' || kind === 'view';
   }
 
+  const orphanSweep = require('./orphanSweep');
+
   // Deleting a pattern or a theme with what it owns (ownerDelete.js; safe-delete-removes-rows.md F4 / F5)
   const ownerDelete = require('./ownerDelete').createOwnerDelete({
     dms_db, dbType, splitMode, mainTable, appendChangeLog, removeIdFromRefArrays, cascadeSourceDelete, escapeLike, resolveTable,
@@ -843,6 +845,25 @@ function createController(dbName = 'dms-sqlite', options = {}) {
     planThemeDelete: ownerDelete.planThemeDelete,
     deleteTheme: ownerDelete.deleteTheme,
     rowForDelete: ownerDelete.rowById,
+
+    // The Storage pages (storageHttp.js): one app's usage and its orphan-sweep plan, and the clean up.
+    planStorage: async (app, { parents, kinds, only } = {}) => {
+      const plan = await orphanSweep.planSweep(dms_db, { config: { splitMode }, apps: [app], parents, kinds, only, usage: true });
+      const a = plan.apps[0] || { app, skipped: 'no rows' };
+      const { ids, rows, byId, ...rest } = Object.fromEntries(Object.entries(a).filter(([k]) => !k.startsWith('_')));
+      return { at: plan.at, minAgeHours: plan.minAgeHours, parents: parents || [], kinds: kinds || [], only: only || orphanSweep.DEFAULT_CATEGORIES,
+        childRefs: (a._refs && a._refs.byOwnerKind) || {},
+        ...rest, blocked: (a.blocked || []).slice(0, 50), blockedCount: (a.blocked || []).length,
+        expect: { [app]: a.counts || {} } };
+    },
+    cleanStorage: async (app, { parents, kinds, only, expect } = {}) => {
+      const plan = await orphanSweep.planSweep(dms_db, { config: { splitMode }, apps: [app], parents, kinds, only });
+      const out = await orphanSweep.applySweep(dms_db, plan, { config: { splitMode }, expect });
+      _tagsCache.clear(); _changeHistoryCache.clear(); _childRefsCache.clear();
+      require('../auth/owners').clearSnapshots();
+      const r = out.results[0] || { deleted: 0, keptSincePlan: 0 };
+      return { deleted: r.deleted, keptSincePlan: r.keptSincePlan, backup: require('path').basename(out.backup) };
+    },
     dbName,
     splitMode,
 

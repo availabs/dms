@@ -26,6 +26,8 @@ export const MANAGE_THEMES = 'manage-themes';
 export const MANAGE_TENANTS = 'manage-tenants';
 // a tenant's domain aliases (tenant hub): judged again by dms-server's /domains routes
 export const MANAGE_DOMAINS = 'manage-domains';
+// the Storage pages: usage, and cleaning up rows nothing can reach (judged again by dms-server's /storage routes)
+export const MANAGE_STORAGE = 'manage-storage';
 
 // Site level, but stay on the auth pattern: they gate auth routes.
 export const AUTH_USERS = 'auth-users';

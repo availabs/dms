@@ -404,6 +404,9 @@ const patternAdminFormat = {
         // admin can't write, so dms-server's /domains routes check this verb on the TENANT's site
         // row and write the hub row themselves. No fields: nothing on this site row changes.
         { label: 'Manage Domains',    value: 'manage-domains',    implies: [] },
+        // The Storage pages: see what the site's rows take up and delete the ones nothing can reach
+        // (dms-server routes/dms/storageHttp.js). The rows are unreachable, so no field changes here.
+        { label: 'Manage Storage',    value: 'manage-storage',    implies: [] },
         // The auth verbs. Users and groups are not DMS rows, so the verbs over them are SITE verbs
         // (rule 3), judged on the site row by dms-server's auth handlers (auth/utils/permissions.js).
         // They were on the auth pattern row until 2026-11-05 (scripts/sweep-site-grants.js moves them).

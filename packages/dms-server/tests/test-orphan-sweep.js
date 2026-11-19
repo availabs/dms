@@ -112,12 +112,30 @@ async function run(name, fn) {
     const plan = await planSweep(db, { config, apps: ['tapp'], only: ['unlisted_patterns', 'dead_containers', 'unlisted_children', 'other_kinds'] });
     const a = plan.apps[0];
     assert.deepStrictEqual(ids(a), [11, 12, 13, 104, 106, 108, 120, 121, 122, 200, 201, 401, 410]);
-    assert.deepStrictEqual(a.ids.other_kinds.map(Number).sort((x, y) => x - y), [401, 410]);
+    // the held pattern goes with what it holds, in the same category
+    assert.deepStrictEqual(a.ids.other_kinds.map(Number).sort((x, y) => x - y), [13, 401, 410]);
     assert.deepStrictEqual(a.blocked.map(b => Number(b.id)).sort((x, y) => x - y), [202, 400]);
     assert.strictEqual(Number(a.blocked.find(b => Number(b.id) === 400).by[0].id), 101);   // named inside element-data
     assert.strictEqual(a.held.length, 0);
     const out = await applySweep(db, plan, { config });
     assert.strictEqual(out.results[0].deleted, 13);
+    db.end();
+  });
+
+  await run('parents narrows the plan to one container (a pattern\'s Storage tab)', async () => {
+    const db = await fixture();
+    const plan = await planSweep(db, { config, apps: ['tapp'], parents: ['gone'], usage: true });
+    const a = plan.apps[0];
+    assert.deepStrictEqual(ids(a), [200, 201]);
+    assert.ok(a.groups.every(g => g.parent === 'gone' && g.bytes > 0));
+    assert.strictEqual(a.bytes, a.groups.reduce((s, g) => s + g.bytes, 0));
+    assert.ok(a.usage.find(u => u.type === 'gone|page' && u.rows === 2));
+    // the held map styles: only the pattern and its rows, with only other_kinds asked for
+    const held = await planSweep(db, { config, apps: ['tapp'], parents: ['maps'], only: ['other_kinds'] });
+    assert.deepStrictEqual(ids(held.apps[0]), [13, 410]);
+    const out = await applySweep(db, held, { config, expect: { tapp: { other_kinds: 2 } } });
+    assert.strictEqual(out.results[0].deleted, 2);
+    await assert.rejects(applySweep(db, plan, { config, expect: { tapp: { dead_containers: 5 } } }), /expected 5/);
     db.end();
   });
 
