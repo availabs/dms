@@ -34,19 +34,29 @@ export function expectFor(app, groups, only) {
     return { [app]: counts };
 }
 
-/** Load the plan for `parents` (none = the whole site), once `enabled` (the user may see it). `reload()` checks again. */
-export function useStoragePlan({ API_HOST, user, app, parents = [], enabled = true }) {
+/**
+ * Load the plan for `parents` (none = the whole site) and `only` (categories), once `enabled` (the user may
+ * see it). `reload()` checks again. `twoStep`: also asks for the quick plan, which skips the slow search
+ * for page and pattern rows and answers in seconds; `plan` is the quick one (`plan.quick`) until the full
+ * one lands.
+ */
+export function useStoragePlan({ API_HOST, user, app, parents = [], only, enabled = true, twoStep = false }) {
     const [state, setState] = React.useState({ plan: null, error: '', loading: true, checkedAt: null });
     const [tick, setTick] = React.useState(0);
-    const key = parents.join('\n');
+    const key = parents.join('\n') + '\t' + (only || []).join(',');
     React.useEffect(() => {
         if (!enabled || !app || !user?.authed || user?.isAuthenticating) return;
-        let live = true;
+        let live = true, full = false;
         setState(s => ({ ...s, loading: true, error: '' }));
-        dmsStoragePlan({ API_HOST, user, app, parents })
-            .then(plan => { if (live) setState({ plan, error: '', loading: false, checkedAt: new Date() }); })
+        if (twoStep) {
+            dmsStoragePlan({ API_HOST, user, app, parents, only, quick: true })
+                .then(plan => { if (live && !full) setState(s => ({ ...s, plan, checkedAt: new Date() })); })
+                .catch(() => {});                   // the full plan reports any error
+        }
+        dmsStoragePlan({ API_HOST, user, app, parents, only })
+            .then(plan => { full = true; if (live) setState({ plan, error: '', loading: false, checkedAt: new Date() }); })
             .catch(e => { if (live) setState(s => ({ ...s, error: e.message, loading: false })); });
         return () => { live = false; };
-    }, [API_HOST, app, key, tick, enabled, user?.token, user?.authed, user?.isAuthenticating]);
+    }, [API_HOST, app, key, tick, enabled, twoStep, user?.token, user?.authed, user?.isAuthenticating]);
     return { ...state, reload: () => setTick(t => t + 1) };
 }

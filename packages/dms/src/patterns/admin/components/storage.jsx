@@ -69,8 +69,8 @@ export function StorageUsage({ rows = [], countLabel = 'count' }) {
     );
 }
 
-/** One row of a Clean up card. No `onClean` (nothing to clean) shows "nothing to clean up". */
-export function CleanupRow({ title, facts, note, onClean, buttonLabel = 'Clean up', quiet = false, children }) {
+/** One row of a Clean up card. No `onClean` (nothing to clean) shows "nothing to clean up", or `pending` while it is still being checked. */
+export function CleanupRow({ title, facts, note, onClean, pending, buttonLabel = 'Clean up', quiet = false, children }) {
     const { UI, theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
     const t = { ...storageTheme, ...getComponentTheme(themeFromContext, 'admin.storage') };
     return (
@@ -79,7 +79,9 @@ export function CleanupRow({ title, facts, note, onClean, buttonLabel = 'Clean u
                 <span className={t.cleanTitle}>{title}</span>
                 <span className={t.cleanFacts}>{facts}</span>
                 <span className={t.spacer} />
-                {onClean
+                {pending
+                    ? <span className={t.cleanNothing}>{pending}</span>
+                    : onClean
                     ? <UI.Button activeStyle={quiet ? 'action' : 'danger'} onClick={onClean}>{buttonLabel}</UI.Button>
                     : <span className={t.cleanNothing}>nothing to clean up</span>}
             </div>

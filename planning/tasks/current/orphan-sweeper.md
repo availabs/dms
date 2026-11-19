@@ -239,6 +239,35 @@ Proposed, to confirm with a mockup before code:
     3 then 1 (backups written); "Delete them" took the held pattern + 2 symbologies; Clean up all took 5; a row
     added between plan and confirm → "Counts changed since you opened this" (409, nothing deleted); a viewer
     gets no nav item, is sent home, and no plan request is made.
+- [x] Faster plans (2026-11-19, owner: "storage route take a really long time for prod with actual data").
+  The time is the database-wide search for page/pattern-level candidates. Same answers, less reading
+  (`orphanSweep.js` header):
+  1. A narrowed plan searches only the candidates it deletes, then checks it does not hang on the others
+     (kept-if-they-stay comparison + do the rows they keep name one it deletes); if it does, it searches them
+     too. The pattern tab asks only for `unlisted_children`, so it never searches.
+  2. The app's own candidate rows are skipped by the search (most hits were sections naming their own page in
+     `parent_id`); a skipped row that ends up kept is read then. (Rejected: walking the JSON in Postgres with a
+     recursive CTE, 10 min vs 4.5; a tighter regex, 3 min and barely fewer rows.)
+  3. Postgres keeps a plan's search 15 min per app; the next plan (the clean up, Check again) re-reads only rows
+     written since by `xmin` (not `updated_at`: `parentId.js` and the `uda` updates don't bump it) and drops
+     references from deleted rows.
+  4. `quick` plan (no search; page/pattern candidates taken as kept, `unchecked`): the site page asks for it and
+     the full plan at once, and shows "checking links…" on Pages with no pattern, Extra pattern copies, the Kept
+     line and the totals until the full plan lands; Clean up all and Kept until you choose wait for it.
+  - Timings, mitigat-ny-prod, local copies, read-only. Pre-sweep (`sweep-base-1117`, 1,830 page/pattern
+    candidates): full 502 s → 352 s, pattern tab 498 s → 46 s, quick 46 s, a second plan (clean up) 51 s.
+    Post-sweep + 1 dead page (`sweep-scratch-1117`, prod's shape now): full 33 → 33 s, tab 33 → 13 s, quick 13 s,
+    second plan 33 → 13 s. The rest of a full plan is other apps' dataset tables (~200 s pre-sweep; not
+    skipped, owner's choice) and reading the app's rows (12 s post-sweep, 41 s pre-sweep).
+  - Same output as before: full plans identical (ids, groups, blocked, held); the tab's plan identical except
+    its `blocked` list (it no longer searches pages it would not delete; the tab doesn't show it).
+  - Tests: `test-orphan-sweep.js` 14/14 (new: every narrowed plan = the full plan cut to its scope, incl. a
+    section hanging on a linked page; a sections-only plan does no search; a skipped candidate that ends up kept
+    is read; quick). Reuse on the scratch copy: a link added by an UPDATE that leaves `updated_at` alone keeps the
+    page on the reused plan, removing it frees it (0.3 s each). Rig (:3458/:5197): the interim state shows (full
+    plan held back 6 s), then the full one; Pages with no pattern deleted 2, Unused sections 3, then 0 left.
+  - Mockup: `admin-site-storage.html` has the interim state (a full plan / checking links switch in the cobalt
+    note); checked 1280 + 390 (no horizontal scroll).
 - [ ] Register the site vocabulary on prod (`register-formats.js`) so `manage-storage` can be granted; until
       then only `*` / `<app> Admin` see the pages
 - [ ] Deploy (server + sites), then a plan on mitigat-ny-prod from the page

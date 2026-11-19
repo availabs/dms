@@ -10,6 +10,7 @@ import { useStoragePlan, expectFor, ownerKindsOf, kindLabel, fmtBytes, fmtNum, s
 
 const DEFAULT_ONLY = ['unlisted_children', 'dead_containers', 'unlisted_patterns'];
 const BY_PATTERN_ROWS = 7;
+const CHECKING = 'checking links…';
 
 // /list/storage (design_system_v6/pages/admin-site-storage.html): what the whole site's rows take up, and
 // cleaning up the rows nothing can reach. Pages whose pattern is gone and pattern rows no site lists have no
@@ -22,7 +23,7 @@ export default function SiteStorage({ item = {}, dataItems }) {
 	const navigate = useNavigate()
 	const { state: navState } = useNavigation()
 	const hasAccess = siteCan(user, app, authPermissions, MANAGE_STORAGE)
-	const { plan, error, loading, checkedAt, reload } = useStoragePlan({ ...React.useContext(AdminContext), parents: [], enabled: hasAccess })
+	const { plan, error, loading, checkedAt, reload } = useStoragePlan({ ...React.useContext(AdminContext), parents: [], enabled: hasAccess, twoStep: true })
 	const [job, setJob] = React.useState(null)
 	const [allPatterns, setAllPatterns] = React.useState(false)
 
@@ -41,9 +42,12 @@ export default function SiteStorage({ item = {}, dataItems }) {
 		<StorageHeader tag={app} checkedAt={checkedAt} loading={loading} onReload={reload} stats={stats} />
 	)
 	if (!plan) {
-		return <div className={t.page}>{header()}<div className={t.body}>{error ? <p className={t.error}>{error}</p> : <div className={t.loading}>Checking this site's storage. A big site takes a few minutes.</div>}</div></div>
+		return <div className={t.page}>{header()}<div className={t.body}>{error ? <p className={t.error}>{error}</p> : <div className={t.loading}>Checking this site's storage…</div>}</div></div>
 	}
 
+	// the quick plan (seconds) until the full one lands: pages and pattern rows are still being checked
+	// for links from other rows, so what depends on that waits
+	const pending = Boolean(plan.quick)
 	const usage = plan.usage || []
 	const groups = plan.groups || []
 	const ownerKinds = ownerKindsOf(plan.childRefs)
@@ -118,28 +122,28 @@ export default function SiteStorage({ item = {}, dataItems }) {
 		<div className={t.page}>
 			{header([
 				{ value: fmtBytes(totalBytes), label: 'all rows' },
-				{ value: fmtBytes(plan.bytes), label: 'unused', warn: plan.bytes > 0 },
-				{ value: fmtNum(plan.total), label: 'rows to clean up' },
+				{ value: pending ? '…' : fmtBytes(plan.bytes), label: 'unused', warn: !pending && plan.bytes > 0 },
+				{ value: pending ? '…' : fmtNum(plan.total), label: 'rows to clean up' },
 			])}
 			<div className={t.body}>
 				{error ? <p className={t.error}>{error}</p> : null}
 				<StorageUsage countLabel="rows" rows={[
 					{ label: 'In use', note: `${patterns.length} ${kindLabel('pattern', patterns.length)}`, count: totalRows - unusedRows - deadRows - sum(patternGroups, 'rows'), bytes: totalBytes - plan.bytes, tone: 'cobalt' },
 					{ label: unusedLabel, note: 'no page lists them', count: unusedRows, bytes: unusedBytes, tone: 'brick' },
-					{ label: 'Pages with no pattern', note: 'pages and their sections', count: deadRows, bytes: deadBytes, tone: 'amber' },
+					{ label: 'Pages with no pattern', note: pending ? CHECKING : 'pages and their sections', count: deadRows, bytes: deadBytes, tone: 'amber' },
 				]} />
 
 				<div className={t.section}>
 					<div className={t.sectionTitleRow}>
 						<h2 className={t.sectionTitle}>Clean up</h2>
 						<span className={t.spacer} />
-						{plan.total ? <CleanAllButton onClick={cleanAll} /> : null}
+						{plan.total && !pending ? <CleanAllButton onClick={cleanAll} /> : null}
 					</div>
 					<div className={t.card}>
-						<CleanupRow title="Pages with no pattern" facts={deadRows ? deadFacts : '0'}
+						<CleanupRow title="Pages with no pattern" facts={pending ? '' : deadRows ? deadFacts : '0'} pending={pending ? CHECKING : null}
 							note="Their pattern was deleted or renamed. Nothing links to them."
 							onClean={deadRows ? () => cleanOne('Clean up pages with no pattern', deadGroups, ['dead_containers', 'unlisted_children'], deadFacts, deadParents) : null}>
-							{formerPatterns.length ? (
+							{formerPatterns.length && !pending ? (
 								<details className={t.details}>
 									<summary className={t.detailsSummary}>{formerPatterns.length} former {kindLabel('pattern', formerPatterns.length)}</summary>
 									<div className={t.detailsTable}>
@@ -158,16 +162,16 @@ export default function SiteStorage({ item = {}, dataItems }) {
 						<CleanupRow title={unusedLabel} facts={unusedRows ? `${fmtNum(unusedRows)} · ${fmtBytes(unusedBytes)}` : '0'}
 							note={unusedRows ? `In ${unusedParents.length} ${kindLabel('pattern', unusedParents.length)}. Each pattern can also clean up its own.` : 'Sections no page lists.'}
 							onClean={unusedRows ? () => cleanOne(`Clean up ${unusedLabel.toLowerCase()}`, unusedGroups, ['unlisted_children'], `${fmtNum(unusedRows)} rows · ${fmtBytes(unusedBytes)}`, unusedParents) : null} />
-						<CleanupRow title="Extra pattern copies" facts={fmtNum(sum(patternGroups, 'rows'))}
+						<CleanupRow title="Extra pattern copies" facts={pending ? '' : fmtNum(sum(patternGroups, 'rows'))} pending={pending ? CHECKING : null}
 							note={copiesNote || 'Pattern rows no site lists.'}
 							onClean={patternGroups.length ? () => cleanOne('Clean up extra pattern copies', patternGroups, ['unlisted_patterns'], `${fmtNum(sum(patternGroups, 'rows'))} ${kindLabel('pattern', sum(patternGroups, 'rows'))}`) : null} />
 						<div className={t.cleanFooter}>
-							<span className={t.cleanFooterText}>Kept: {fmtNum(plan.blockedCount || 0)} still linked from another row · {fmtNum(plan.recentKept || 0)} changed in the last {plan.minAgeHours ?? 24} h</span>
+							<span className={t.cleanFooterText}>Kept: {pending ? CHECKING : `${fmtNum(plan.blockedCount || 0)} still linked from another row`} · {fmtNum(plan.recentKept || 0)} changed in the last {plan.minAgeHours ?? 24} h</span>
 						</div>
 					</div>
 				</div>
 
-				{held.length ? (
+				{held.length && !pending ? (
 					<div className={t.section}>
 						<h2 className={t.sectionTitlePad}>Kept until you choose</h2>
 						<p className={t.sectionNote}>Not in Clean up all. Like sources, these can be worth keeping when nothing uses them.</p>

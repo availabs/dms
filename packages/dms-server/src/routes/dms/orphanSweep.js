@@ -29,6 +29,19 @@
  * holds a value equal to the candidate's id, at any depth, keeps it (`blocked`, with the referrer named).
  * Keeping a row makes what it lists live again, so the rules run to a fixed point.
  *
+ * The search is the slow part (minutes on a big site), so it reads no more than it must, without
+ * changing the answer (2026-11-19):
+ *   - A NARROWED plan (`parents`, `kinds`, `only`) searches only the candidates it would delete. It then
+ *     checks that what it deletes does not hang on the others (a section whose page has no pattern): it
+ *     would have to stay if they were kept, or a row they keep names one it deletes. If it does, it
+ *     searches those too. A sections-only plan searches nothing.
+ *   - The app's OWN candidate rows are not read (their references count only once they are kept, and
+ *     most are the children of the candidates themselves). A skipped row that ends up kept is read then.
+ *   - On Postgres a plan's search is kept for 15 minutes per app; the next plan (the clean up after it,
+ *     Check again) re-reads only rows written since, by row version (`xmin`), and drops references from
+ *     rows deleted since.
+ *   - `quick` does no search: every page/pattern-level candidate is taken as kept (`unchecked`).
+ *
  * Rows created or updated within `minAgeHours` are kept (a section saved just before its page).
  * Container kinds (ownerDelete.js CONTAINER_KINDS) are never taken by the container rule.
  *
@@ -281,43 +294,130 @@ function valuesIn(value, ids, hits, key = '', refApp = null) {
 }
 
 /**
- * For each id in `ids` (Set of strings), the rows anywhere in the database whose data names it:
- * `Map(id -> [{ table, id, app, type }])`. Postgres narrows with a regex on the text, then reads the
- * matching rows 200 at a time (a page's data can be large; all of them at once does not fit).
+ * Search rows for references to `ids` (Set of strings): `Map(id -> [{ table, id, app, type, refApp }])`.
+ * `skip`: Map(table fullName -> Set of row ids) not read (an app's own candidates: their references only
+ * count once they are kept, and then planSweep searches them by `rows`). `rows`: Map(table fullName ->
+ * [row id]) reads only those rows. Postgres narrows with a regex on the text, then reads the matching
+ * rows 200 at a time (a page's data can be large; all of them at once does not fit).
  */
-async function scanReferrers(db, ids, { log = () => {} } = {}) {
+async function searchReferrers(db, tables, ids, { skip = new Map(), rows: only = null, log = () => {} } = {}) {
   const out = new Map();
   if (!ids.size) return out;
   const list = [...ids];
-  const tables = await dataTables(db);
   for (const t of tables) {
+    const onlyRows = only ? only.get(t.fullName) : null;
+    if (only && !(onlyRows && onlyRows.length)) continue;
+    const skipped = skip.get(t.fullName);
     const t0 = Date.now();
     let found = 0;
     if (isPg(db)) {
+      const skipIds = skipped && skipped.size ? [...skipped].map(Number) : null;
       for (const part of chunks(list, 3000)) {
         const re = `(^|[^0-9])(${part.join('|')})([^0-9]|$)`;
         const partIds = new Set(part);
+        if (onlyRows) {
+          for (const rowPart of chunks(onlyRows, 200)) {
+            found += collect(await q(db, `SELECT id, app, type, data FROM ${t.fullName} WHERE id = ANY($2) AND data::text ~ $1`, [re, rowPart.map(Number)]), t, partIds, out);
+          }
+          continue;
+        }
         let after = -1;
         for (;;) {
-          const rows = await q(db, `SELECT id, app, type, data FROM ${t.fullName} WHERE id > $2 AND data::text ~ $1 ORDER BY id LIMIT 200`, [re, after]);
+          const rows = skipIds
+            ? await q(db, `SELECT id, app, type, data FROM ${t.fullName} WHERE id > $2 AND NOT (id = ANY($3::bigint[])) AND data::text ~ $1 ORDER BY id LIMIT 200`, [re, after, skipIds])
+            : await q(db, `SELECT id, app, type, data FROM ${t.fullName} WHERE id > $2 AND data::text ~ $1 ORDER BY id LIMIT 200`, [re, after]);
           if (!rows.length) break;
           found += collect(rows, t, partIds, out);
           after = rows[rows.length - 1].id;
         }
+      }
+    } else if (onlyRows) {
+      for (const rowPart of chunks(onlyRows, 500)) {
+        const marks = rowPart.map((_, i) => `$${i + 1}`).join(', ');
+        found += collect(await q(db, `SELECT id, app, type, data FROM ${t.fullName} WHERE id IN (${marks})`, rowPart.map(Number)), t, ids, out);
       }
     } else {
       let after = -1;
       for (;;) {
         const rows = await q(db, `SELECT id, app, type, data FROM ${t.fullName} WHERE id > $1 ORDER BY id LIMIT 500`, [after]);
         if (!rows.length) break;
-        found += collect(rows, t, ids, out);
+        found += collect(skipped ? rows.filter(r => !skipped.has(String(r.id))) : rows, t, ids, out);
         after = rows[rows.length - 1].id;
       }
     }
     const secs = (Date.now() - t0) / 1000;
-    if (secs > 2 || found) log(`    scanned ${t.fullName}: ${found} reference(s) (${secs.toFixed(1)}s)`);
+    if (secs > 2 || found) log(`    searched ${t.fullName}${onlyRows ? ` (${onlyRows.length} row(s))` : ''}: ${found} reference(s) (${secs.toFixed(1)}s)`);
   }
   return out;
+}
+
+/** A table's name as `dataTables` gives it (quoted on Postgres), from either spelling. */
+function fullNameOf(tables, table) {
+  const bare = String(table).replace(/"/g, '');
+  const t = tables.find(x => x.fullName.replace(/"/g, '') === bare);
+  return t ? t.fullName : table;
+}
+
+/** Add `more` to `into` (both Map(id -> refs)), one entry per referring row. */
+function mergeRefs(into, more) {
+  let added = 0;
+  for (const [id, refs] of more) {
+    const have = into.get(id) || [];
+    const seen = new Set(have.map(r => `${r.table}#${r.id}`));
+    for (const r of refs) if (!seen.has(`${r.table}#${r.id}`)) { have.push(r); seen.add(`${r.table}#${r.id}`); added++; }
+    into.set(id, have);
+  }
+  return added;
+}
+
+// ---- reusing a search ------------------------------------------------------------------------------
+// A plan's search is kept for SEARCH_REUSE_MS per app, so the clean up that follows it (and Check again)
+// re-reads only the rows written since. "Written since" is Postgres's row version (`xmin`), which every
+// INSERT and UPDATE sets whatever the code path (`updated_at` is not bumped by all of them). Postgres only:
+// SQLite searches are local and fast.
+const SEARCH_REUSE_MS = 15 * 60 * 1000;
+const searches = new WeakMap();           // db -> Map(app -> { at, floor, table, ids, refs, skipped, searched })
+
+/** The oldest transaction still running (32 bits): any row written after this call has xmin at or after it. */
+async function xidFloor(db) {
+  const [r] = await q(db, `SELECT (txid_snapshot_xmin(txid_current_snapshot()) % 4294967296)::bigint AS x`);
+  return Number(r.x);
+}
+// at or after `floor`, modulo 2^32 (very old frozen rows can read as after: they are only read again)
+const writtenSince = (floor) => `((xmin::text::bigint - ${Number(floor)}) % 4294967296 + 4294967296) % 4294967296 < 2147483648`;
+
+/**
+ * The kept search for `app`, brought up to date: references from rows written or deleted since are
+ * dropped, and the rows written since are returned to be searched again (`written`: Map(table -> [id])).
+ */
+async function reuseSearch(db, app, table, tables) {
+  const kept = isPg(db) && searches.get(db)?.get(app);
+  if (!kept || kept.table !== table || Date.now() - kept.at > SEARCH_REUSE_MS) return null;
+  const written = new Map();
+  for (const t of tables) {
+    const ids = (await q(db, `SELECT id FROM ${t.fullName} WHERE ${writtenSince(kept.floor)}`)).map(r => String(r.id));
+    if (ids.length) written.set(t.fullName, ids);
+  }
+  const refs = new Map();
+  const byTable = new Map();                // table -> referring row ids still to check exist
+  for (const [id, list] of kept.refs) {
+    for (const r of list) {
+      const full = fullNameOf(tables, r.table);
+      if ((written.get(full) || []).includes(r.id)) continue;
+      if (!byTable.has(full)) byTable.set(full, new Set());
+      byTable.get(full).add(r.id);
+    }
+  }
+  const alive = new Set();
+  for (const [full, idSet] of byTable) {
+    for (const part of chunks([...idSet], 5000)) {
+      for (const r of await q(db, `SELECT id FROM ${full} WHERE id = ANY($1)`, [part.map(Number)])) alive.add(`${full}#${r.id}`);
+    }
+  }
+  for (const [id, list] of kept.refs) {
+    refs.set(id, list.filter(r => alive.has(`${fullNameOf(tables, r.table)}#${r.id}`)));
+  }
+  return { ids: new Set(kept.ids), refs, skipped: new Set(kept.skipped), searched: new Set(kept.searched), written };
 }
 
 function collect(rows, t, ids, out) {
@@ -338,7 +438,8 @@ function collect(rows, t, ids, out) {
 // ---- plan ----------------------------------------------------------------------------------------
 
 /**
- * Plan the sweep. `opts`: { config, apps?, only?: [category], minAgeHours = 24, parents?: [name], kinds?: [kind], usage?, log }.
+ * Plan the sweep. `opts`: { config, apps?, only?: [category], minAgeHours = 24, parents?: [name], kinds?: [kind], usage?, quick?, log }.
+ * `quick`: no database-wide search (see the header); the result has `quick` and `unchecked`.
  * `kinds` narrows to rows of those kinds (one Clean up button: unused sections only).
  * `parents` narrows what is planned (and held) to rows under those containers, and pattern rows with those
  * instance names: a pattern's Storage tab passes its own, the site page a former pattern's.
@@ -380,57 +481,156 @@ async function planSweep(db, opts = {}) {
     perApp.push({ app, table, rows, byId: new Map(rows.map(r => [r.id, r])), refs, hasPatternLists, notes });
   }
 
-  // First pass with no pins; then one database-wide scan for the non-child candidates.
-  const needScan = new Map();                           // id -> [app entry] (ids repeat across apps)
-  for (const a of perApp) {
-    if (a.skipped) continue;
-    const { candidates, childKinds } = computeCandidates(a.rows, { byOwnerKind: a.refs.byOwnerKind, pinned: new Set(), recentCutoff, hasPatternLists: a.hasPatternLists, takeOtherKinds });
-    a.first = candidates;
-    a.childKinds = childKinds;
-    for (const [id] of candidates) {
-      if (childKinds.has(a.byId.get(id).parsed.kind)) continue;
-      if (!needScan.has(id)) needScan.set(id, []);
-      needScan.get(id).push(a);
+  // Which page/pattern-level candidates face the database-wide search (children are judged by their
+  // lists). A full plan searches them all. A narrowed one searches only those it would delete, and then
+  // checks that what it would delete does not hang on the others; if it does, it searches those too.
+  // `quick`: no search at all; every page/pattern-level candidate is taken as kept (`unchecked` counts
+  // them), so what it lists is what goes whatever the search would say. A clean up never runs quick.
+  const quick = opts.quick === true;
+  const inPlan = (a, id, c) => only.includes(c.category) && inScope(a.byId.get(id));
+  const live = perApp.filter(a => !a.skipped);
+  const refsOf = (a) => ({ byOwnerKind: a.refs.byOwnerKind, recentCutoff, hasPatternLists: a.hasPatternLists, takeOtherKinds });
+  const tables = live.length ? await dataTables(db) : [];
+  const reusable = !quick && isPg(db) && live.length === 1;
+  const floor = reusable ? await xidFloor(db) : null;
+  const referrers = new Map();              // id -> [ref], for the ids in `searched`
+  const searched = new Set();
+  for (const a of live) {
+    a.pinned = new Set();                   // kept: something outside the plan names it
+    a.assumed = new Set();                  // quick: taken as kept without a search
+    a.pins = new Map();                     // id -> blocked entry
+    a.notRead = new Set();                  // own candidate rows a search skipped
+    a.readBack = new Set();                 // ...of them, read since (they are kept now)
+    a.wide = false;                         // search every page/pattern-level candidate
+    const first = computeCandidates(a.rows, { ...refsOf(a), pinned: new Set() });
+    a.childKinds = first.childKinds;
+    a.cur = first.candidates;
+    if (quick) {
+      for (const [id] of a.cur) if (!a.childKinds.has(a.byId.get(id).parsed.kind)) a.assumed.add(id);
+      a.cur = computeCandidates(a.rows, { ...refsOf(a), pinned: a.assumed }).candidates;
     }
   }
-  log(`  searching the whole database for ${needScan.size} page/pattern-level id(s)…`);
-  const referrers = await scanReferrers(db, new Set(needScan.keys()), { log });
+  const pageLevel = (a, id) => !a.childKinds.has(a.byId.get(id).parsed.kind);
+  const fullName = (table) => fullNameOf(tables, table);
 
-  for (const a of perApp) {
-    if (a.skipped) continue;
-    const pinned = new Set();
-    const blocked = [];
-    let candidates = a.first;
-    // Keeping a row can only shrink the set, so the scan above covers every later round.
+  // the search kept from the plan before this one (the clean up after a plan), brought up to date
+  if (reusable) {
+    const a = live[0];
+    const t0 = Date.now();
+    const kept = await reuseSearch(db, a.app, a.table, tables);
+    if (kept) {
+      for (const id of kept.ids) searched.add(id);
+      mergeRefs(referrers, kept.refs);
+      a.notRead = kept.skipped;
+      a.readBack = kept.searched;
+      const own = fullName(a.table);
+      for (const [full, ids] of kept.written) {
+        // a row of the app's own table written since joins the skipped ones (read back if it is kept);
+        // any other table's is searched now
+        if (full === own) for (const id of ids) { a.notRead.add(id); a.readBack.delete(id); }
+      }
+      const others = new Map([...kept.written].filter(([full]) => full !== own));
+      if (others.size && searched.size) mergeRefs(referrers, await searchReferrers(db, tables, searched, { rows: others, log }));
+      log(`  reused the search of ${searched.size} id(s), ${[...kept.written.values()].reduce((n, x) => n + x.length, 0)} row(s) written since (${((Date.now() - t0) / 1000).toFixed(1)}s)`);
+    }
+  }
+
+  // Keep what something outside the plan names, to a fixed point (keeping a row can only shrink the set).
+  const settle = (a) => {
+    const table = a.table.replace(/"/g, '');
+    const kept = new Set([...a.pinned, ...a.assumed]);
+    let candidates = computeCandidates(a.rows, { ...refsOf(a), pinned: kept }).candidates;
     for (let round = 0; round < 50; round++) {
       let added = false;
-      const table = a.table.replace(/"/g, '');
       for (const [id] of candidates) {
-        // only page/pattern-level rows face the database-wide check; children are judged by their lists
-        if (pinned.has(id) || a.childKinds.has(a.byId.get(id).parsed.kind) || !(referrers.get(id) || []).length) continue;
+        if (kept.has(id) || !pageLevel(a, id) || !(referrers.get(id) || []).length) continue;
         const outside = referrers.get(id).filter(ref =>
           !(ref.table === table && candidates.has(ref.id)) &&
           (ref.app === a.app ? !ref.refApp || ref.refApp === a.app : ref.refApp === a.app));
         if (!outside.length) continue;
-        pinned.add(id);
-        blocked.push({ id, type: a.byId.get(id).type, by: outside.slice(0, 5), more: Math.max(0, outside.length - 5) });
+        kept.add(id);
+        a.pinned.add(id);
+        a.pins.set(id, { id, type: a.byId.get(id).type, by: outside.slice(0, 5), more: Math.max(0, outside.length - 5) });
         added = true;
       }
       if (!added) break;
-      candidates = computeCandidates(a.rows, { byOwnerKind: a.refs.byOwnerKind, pinned, recentCutoff, hasPatternLists: a.hasPatternLists, takeOtherKinds }).candidates;
+      candidates = computeCandidates(a.rows, { ...refsOf(a), pinned: kept }).candidates;
     }
-    a.held = computeCandidates(a.rows, { byOwnerKind: a.refs.byOwnerKind, pinned, recentCutoff, hasPatternLists: a.hasPatternLists, takeOtherKinds }).held;
+    a.cur = candidates;
+  };
+
+  for (let pass = 0; pass < 30; pass++) {
+    let moved = false;
+    // 1. ids not searched yet
+    const need = new Set();
+    if (!quick) for (const a of live) for (const [id, c] of a.cur) if (pageLevel(a, id) && !searched.has(id) && (a.wide || inPlan(a, id, c))) need.add(id);
+    if (need.size) {
+      log(`  searching the whole database for ${need.size} page/pattern-level id(s)…`);
+      const skip = new Map();
+      for (const a of live) {
+        const own = new Set(a.cur.keys());
+        for (const id of own) { a.notRead.add(id); a.readBack.delete(id); }
+        skip.set(fullName(a.table), own);
+      }
+      mergeRefs(referrers, await searchReferrers(db, tables, need, { skip, log }));
+      for (const id of need) searched.add(id);
+      moved = true;
+    }
+    for (const a of live) settle(a);
+    // 2. skipped rows that are kept now: their references count, so read them
+    if (searched.size) {
+      for (const a of live) {
+        const back = [...a.notRead].filter(id => !a.cur.has(id) && !a.readBack.has(id));
+        if (!back.length) continue;
+        for (const id of back) a.readBack.add(id);
+        const full = fullName(a.table);
+        if (mergeRefs(referrers, await searchReferrers(db, tables, searched, { rows: new Map([[full, back]]), log }))) { settle(a); moved = true; }
+      }
+    }
+    // 3. narrowed: would keeping the unsearched candidates change what this plan deletes?
+    if (!quick) {
+      for (const a of live) {
+        if (a.wide) continue;
+        const unsearched = [...a.cur.keys()].filter(id => pageLevel(a, id) && !searched.has(id));
+        if (!unsearched.length) continue;
+        const kept = new Set([...a.pinned, ...unsearched]);
+        const ifKept = computeCandidates(a.rows, { ...refsOf(a), pinned: kept }).candidates;
+        const planned = (m) => [...m].filter(([id, c]) => inPlan(a, id, c)).map(([id, c]) => `${id}:${c.category}`).sort().join(',');
+        let hangs = planned(a.cur) !== planned(ifKept);
+        // ...or would the rows they keep name a row this plan deletes?
+        const freed = [...a.cur.keys()].filter(id => !ifKept.has(id));
+        if (!hangs && freed.length && searched.size) {
+          const full = fullName(a.table);
+          const found = await searchReferrers(db, tables, searched, { rows: new Map([[full, freed]]), log });
+          hangs = [...found.values()].some(list => list.length);
+        }
+        if (hangs) { a.wide = true; moved = true; log(`  ${a.app}: the plan hangs on other candidates; searching them too`); }
+      }
+    }
+    if (!moved) break;
+  }
+
+  for (const a of live) {
+    const pinned = new Set([...a.pinned, ...a.assumed]);
+    const candidates = a.cur;
+    a.held = computeCandidates(a.rows, { ...refsOf(a), pinned }).held;
     for (const [id] of [...a.held]) if (!inScope(a.byId.get(id))) a.held.delete(id);
     const wanted = (id, c) => only.includes(c.category) && inScope(a.byId.get(id));
+    a.unchecked = quick ? [...a.assumed].filter(id => inScope(a.byId.get(id))).length : 0;
     for (const [id, c] of [...candidates]) if (!wanted(id, c)) candidates.delete(id);
     // what only the age rule keeps (the "changed in the last N hours" line)
     a.recentKept = 0;
     if (recentCutoff) {
-      const all = computeCandidates(a.rows, { byOwnerKind: a.refs.byOwnerKind, pinned, recentCutoff: 0, hasPatternLists: a.hasPatternLists, takeOtherKinds }).candidates;
+      const all = computeCandidates(a.rows, { ...refsOf(a), pinned, recentCutoff: 0 }).candidates;
       for (const [id, c] of all) if (!candidates.has(id) && wanted(id, c)) a.recentKept++;
     }
     a.candidates = candidates;
-    a.blocked = blocked.filter(b => !candidates.has(b.id));
+    a.blocked = [...a.pins.values()].filter(b => !candidates.has(b.id));
+  }
+  if (reusable && searched.size) {
+    const a = live[0];
+    if (!searches.has(db)) searches.set(db, new Map());
+    searches.get(db).set(a.app, { at: Date.now(), floor, table: a.table, ids: new Set(searched), refs: referrers, skipped: a.notRead, searched: a.readBack });
   }
 
   const result = { at, splitMode, minAgeHours, apps: [] };
@@ -453,7 +653,7 @@ async function planSweep(db, opts = {}) {
     }
     result.apps.push({
       app: a.app, table: a.table, rowsInApp: a.rows.length, notes: a.notes, childRefsSource: a.refs.source,
-      counts, total: ids.length, bytes, recentKept: a.recentKept,
+      counts, total: ids.length, bytes, recentKept: a.recentKept, ...(quick ? { quick: true, unchecked: a.unchecked } : {}),
       groups: Object.values(groups).sort((x, y) => y.rows - x.rows),
       blocked: a.blocked,
       held: heldGroups(a, sizes),

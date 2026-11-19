@@ -139,6 +139,70 @@ async function run(name, fn) {
     db.end();
   });
 
+  await run('a narrowed plan is the full plan cut to its scope (it searches only what it would delete)', async () => {
+    const db = await fixture();
+    const full = (await planSweep(db, { config, apps: ['tapp'] })).apps[0];
+    const typeOf = new Map((await db.query('SELECT id, type FROM data_items__tapp')).rows.map(r => [String(r.id), r.type]));
+    const cut = (only, keep) => Object.entries(full.ids).filter(([c]) => only.includes(c)).flatMap(([, l]) => l)
+      .filter(id => keep(typeOf.get(id))).map(Number).sort((x, y) => x - y);
+    const kindOf = (t) => t.split('|').pop().split(':').pop();
+    const parentOf = (t) => (t.includes('|') ? t.split('|')[0] : '');
+    const scopes = [
+      // sections only: 203 hangs on page 202, which only a dataset row names, so it must stay
+      [{ kinds: ['component'], only: ['unlisted_children'] }, (t) => kindOf(t) === 'component'],
+      [{ parents: ['docs'], only: ['unlisted_children'] }, (t) => parentOf(t) === 'docs'],
+      [{ parents: ['gone'], only: ['dead_containers', 'unlisted_children'] }, (t) => parentOf(t) === 'gone'],
+      [{ only: ['unlisted_patterns'] }, () => true],
+      [{ parents: ['old'] }, (t) => parentOf(t) === 'old' || t === 'prod|old:pattern'],
+    ];
+    for (const [opts, keep] of scopes) {
+      const only = opts.only || ['unlisted_children', 'dead_containers', 'unlisted_patterns'];
+      const a = (await planSweep(db, { config, apps: ['tapp'], ...opts })).apps[0];
+      assert.deepStrictEqual(ids(a), cut(only, keep), JSON.stringify(opts));
+    }
+    db.end();
+  });
+
+  await run('a sections-only plan does no database-wide search', async () => {
+    const db = await fixture();
+    const lines = [];
+    // docs' history entries hang on no page with no pattern (its section 108 does: page 200 lists it)
+    const a = (await planSweep(db, { config, apps: ['tapp'], parents: ['docs'], kinds: ['page-edit'], only: ['unlisted_children'], log: (m) => lines.push(m) })).apps[0];
+    assert.deepStrictEqual(ids(a), [106]);
+    assert.ok(!lines.some(l => /searching the whole database/.test(l)), lines.join('\n'));
+    // docs' sections do: that plan searches
+    lines.length = 0;
+    const b = (await planSweep(db, { config, apps: ['tapp'], parents: ['docs'], kinds: ['component'], only: ['unlisted_children'], log: (m) => lines.push(m) })).apps[0];
+    assert.deepStrictEqual(ids(b), [104, 108]);
+    assert.ok(lines.some(l => /searching the whole database/.test(l)));
+    db.end();
+  });
+
+  await run('a skipped candidate that turns out kept is read: what it names is kept too', async () => {
+    const db = await fixture();
+    // 210 and 211 are pages with no pattern; a dataset row names 210, and 210 names 211
+    await db.query(`INSERT INTO data_items__tapp (id, app, type, data, created_at, updated_at) VALUES (210, 'tapp', 'gone|page', $1, $2, $2), (211, 'tapp', 'gone|page', '{}', $2, $2)`,
+      [JSON.stringify({ link: { id: '211' } }), OLD]);
+    await db.query(`INSERT INTO data_items__tapp__s5_v6_ds (id, app, type, data, created_at, updated_at) VALUES (2, 'tapp', 'ds|6:data', $1, $2, $2)`,
+      [JSON.stringify({ page_id: '210' }), OLD]);
+    const a = (await planSweep(db, { config, apps: ['tapp'] })).apps[0];
+    assert.deepStrictEqual(a.blocked.map(b => Number(b.id)).sort((x, y) => x - y), [202, 210, 211]);
+    assert.strictEqual(Number(a.blocked.find(b => Number(b.id) === 211).by[0].id), 210);
+    assert.deepStrictEqual(ids(a), [11, 12, 104, 106, 108, 120, 121, 122, 200, 201]);
+    db.end();
+  });
+
+  await run('quick: no search; page and pattern rows are taken as kept and counted as unchecked', async () => {
+    const db = await fixture();
+    const lines = [];
+    const a = (await planSweep(db, { config, apps: ['tapp'], quick: true, log: (m) => lines.push(m) })).apps[0];
+    assert.deepStrictEqual(ids(a), [104, 106]);
+    assert.strictEqual(a.quick, true);
+    assert.strictEqual(a.unchecked, 5);                  // 11, 12, 120, 200, 202
+    assert.ok(!lines.some(l => /searching/.test(l)));
+    db.end();
+  });
+
   await run('min-age 0 takes the recent row too', async () => {
     const db = await fixture();
     const plan = await planSweep(db, { config, apps: ['tapp'], minAgeHours: 0 });

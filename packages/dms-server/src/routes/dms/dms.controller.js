@@ -847,8 +847,8 @@ function createController(dbName = 'dms-sqlite', options = {}) {
     rowForDelete: ownerDelete.rowById,
 
     // The Storage pages (storageHttp.js): one app's usage and its orphan-sweep plan, and the clean up.
-    planStorage: async (app, { parents, kinds, only } = {}) => {
-      const plan = await orphanSweep.planSweep(dms_db, { config: { splitMode }, apps: [app], parents, kinds, only, usage: true });
+    planStorage: async (app, { parents, kinds, only, quick } = {}) => {
+      const plan = await orphanSweep.planSweep(dms_db, { config: { splitMode }, apps: [app], parents, kinds, only, quick, usage: true });
       const a = plan.apps[0] || { app, skipped: 'no rows' };
       const { ids, rows, byId, ...rest } = Object.fromEntries(Object.entries(a).filter(([k]) => !k.startsWith('_')));
       return { at: plan.at, minAgeHours: plan.minAgeHours, parents: parents || [], kinds: kinds || [], only: only || orphanSweep.DEFAULT_CATEGORIES,

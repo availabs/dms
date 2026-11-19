@@ -3,12 +3,14 @@
  * The admin Storage pages: what a site's rows take up, and cleaning up the rows nothing can reach
  * (orphanSweep.js has the rules; planning/tasks/current/orphan-sweeper.md, Phase 2).
  *
- *     POST /dms/:app/storage/plan    { parents?, kinds?, only? }          read-only: usage + the plan's numbers
+ *     POST /dms/:app/storage/plan    { parents?, kinds?, only?, quick? }  read-only: usage + the plan's numbers
  *     POST /dms/:app/storage/clean   { parents?, kinds?, only, expect }   back up, then delete what the plan lists
  *     GET  /dms/:app/storage/jobs/:job                              a running plan or clean, or its result
  *
  * `parents` narrows to rows under those containers (a pattern's instance name), `kinds` to rows of those
- * kinds, `only` picks categories
+ * kinds, `only` picks categories. `quick` (plan only) skips the database-wide search for page and pattern
+ * rows: it answers in seconds with them all taken as kept (`unchecked`), for the page to show while the
+ * full plan runs. A plan that names only what it deletes searches only those (orphanSweep.js).
  * (default: the three page-content ones; `other_kinds` only when named). A plan or a clean can take
  * minutes on a big site, longer than a proxy waits, so both run as a job: the POST answers with the
  * result when it is done within WAIT_MS, otherwise with `{ job }` for the client to poll.
@@ -35,7 +37,7 @@ function sweep(req, res) {
   const kinds = strings(body.kinds);
   const only = Array.isArray(body.only) && body.only.length ? body.only : DEFAULT_CATEGORIES;
   if (only.some(c => !CATEGORIES.includes(c))) { res.status(400).json({ error: `only takes: ${CATEGORIES.join(', ')}` }); return null; }
-  return { parents, kinds, only };
+  return { parents, kinds, only, ...(body.quick === true ? { quick: true } : {}) };
 }
 
 async function allowed(req, res) {
@@ -85,6 +87,7 @@ function registerStorageRoutes(app) {
       if (!user) return;
       const opts = sweep(req, res);
       if (!opts) return;
+      delete opts.quick;                  // a clean up always searches
       const expect = req.body && req.body.expect;
       if (!expect || typeof expect !== 'object') return res.status(400).json({ error: 'expect (the plan\'s counts) is required' });
       if ([...jobs.values()].some(j => j.app === req.params.app && j.kind === 'clean' && !j.done)) {

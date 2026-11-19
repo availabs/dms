@@ -9,6 +9,7 @@ import { StorageHeader, StorageUsage, CleanupRow, CleanupDialog } from '../../..
 import { useStoragePlan, expectFor, childKindsOf, ownerKindsOf, kindLabel, capitalize, fmtBytes, fmtNum, sum } from '../../../components/storageUtils';
 
 const TONES = ['cobalt', 'ink', 'graphite', 'amber', 'pencil'];
+const ONLY = ['unlisted_children'];
 // what each declared child kind is left behind by (the page pattern's; any other kind gets none)
 const LEFT_BY = { component: 'Left by publishing, discarding and removing sections.', 'page-edit': 'History no page points to.' };
 
@@ -22,7 +23,8 @@ export function StorageTab({ value }) {
     const t = { ...storageTheme, ...getComponentTheme(themeFromContext, 'admin.storage') };
     const instance = getInstance(value?.type || '');
     const parents = React.useMemo(() => (instance ? [instance] : []), [instance]);
-    const { plan, error, loading, checkedAt, reload } = useStoragePlan({ ...ctx, parents, enabled: siteCan(user, app, authPermissions, MANAGE_STORAGE) });
+    // only what this tab cleans up: no page or pattern row is in it, so the plan needs no database-wide search
+    const { plan, error, loading, checkedAt, reload } = useStoragePlan({ ...ctx, parents, only: ONLY, enabled: siteCan(user, app, authPermissions, MANAGE_STORAGE) });
     const [job, setJob] = React.useState(null);
 
     const header = (stats = []) => (

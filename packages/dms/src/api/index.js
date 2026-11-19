@@ -1019,7 +1019,8 @@ export async function dmsOwnerDelete(falcor, { API_HOST = '', user, app, kind, i
  * The Storage pages (dms-server routes/dms/storageHttp.js; orphan-sweeper.md Phase 2). A plan or a clean up
  * runs as a job on the server (minutes on a big site); these wait for it, polling every 3 s.
  *
- * dmsStoragePlan: read-only. `{ parents?, kinds?, only? }` narrow it. Resolves to the plan: usage by type,
+ * dmsStoragePlan: read-only. `{ parents?, kinds?, only? }` narrow it; `quick` skips the slow search for
+ * page and pattern rows (they come back as `unchecked`). Resolves to the plan: usage by type,
  * the clean-up groups with sizes, held and blocked rows, and `expect` for the clean up.
  */
 async function storageJob(API_HOST, user, app, res) {
@@ -1034,9 +1035,9 @@ async function storageJob(API_HOST, user, app, res) {
 	return body.result;
 }
 
-export async function dmsStoragePlan({ API_HOST = '', user, app, parents = [], kinds = [], only }) {
+export async function dmsStoragePlan({ API_HOST = '', user, app, parents = [], kinds = [], only, quick = false }) {
 	const res = await authedFetch(`${API_HOST}/dms/${encodeURIComponent(app)}/storage/plan`,
-		{ user, method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ parents, kinds, ...(only ? { only } : {}) }) });
+		{ user, method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ parents, kinds, ...(only ? { only } : {}), ...(quick ? { quick } : {}) }) });
 	return storageJob(API_HOST, user, app, res);
 }
 
