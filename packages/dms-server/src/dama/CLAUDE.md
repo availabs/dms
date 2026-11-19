@@ -242,8 +242,9 @@ Routes that queue a task **must** return `{ etl_context_id, source_id }`. `etl_c
 Reads of a source (the catalog, source and view rows, data rows, color domains, vector tiles) are judged by
 `routes/auth` (`canRead` → `authorize({ verb: 'read' })`) under the source rule the env format declares
 (`dmsEnv.format.js` `rules.source.ops.read`): a source whose own grants name no one is readable by
-anyone (a source is narrowed only by something on the source — `auth: { view: false }` narrows it to its
-own grantees); otherwise `view-source`, or any source permission that implies reading it, on the
+anyone (a source is narrowed only by something on the source — `reach: { inherit: false }` in its
+`auth_permissions` narrows it to its own grantees; `view: false` is the older spelling, still read the
+same way and never migrated); otherwise `view-source`, or any source permission that implies reading it, on the
 source's effective grants: its own, spread over its env's. An external source is judged FROM THE PGENV:
 its own grants are `data_manager.sources.auth_permissions`, and the grants above it are the `:dmsenv` row
 of the site the request names (`dms_app=<app>`, added to every request by `tagFalcorRequests`) whose
@@ -251,7 +252,9 @@ of the site the request names (`dms_app=<app>`, added to every request by `tagFa
 env row (`routes/auth/owners.js snapshotFor`, `dama/pgEnv.js`); nothing is stored in DMS for a pgEnv's
 sources or views. A request naming no site is REFUSED (`no site named`), and so is one from a site with
 no env row for the pgEnv (`not attached`; `scripts/attach-pgenv.js` creates the row). `${app} Admin` of
-the requesting site always reads. A datasets pattern lends nothing of its own: its grants were swept onto
+the requesting site always reads, unless the source or its env says `reach: { override: false }`.
+A source (or env) whose reach is limited is judged on its grants alone and enforced under every mode;
+see `documentation/admin-permissions.md` "Reach" (planning/tasks/current/auth-reach.md). A datasets pattern lends nothing of its own: its grants were swept onto
 the env row it points at (`scripts/sweep-datasets-grants.js`, rule 2).
 
 **A pgEnv source's grants are the pgEnv's, shared by every app on it** (owner, 2026-11-12). `uda.sources.update`

@@ -165,6 +165,9 @@ The test is deployment: **can a new pattern, type or app be added without editin
 `packages/dms` or `packages/dms-server`?** If it cannot, the design is wrong — not inconvenient,
 wrong. A library `switch` on a type name is a deployment blocker wearing a readable face.
 
+Every place a pattern, theme, server plugin or app plugs code in is listed in
+`documentation/extension-points.md`. Add a row there when you add one.
+
 ### The registry is the model to copy
 
 `packages/dms/src/patterns/registry.js` already does this properly, and says so: patterns register

@@ -4,6 +4,7 @@ import {
     InternalValidate as Validate,
     InternalAdmin as Admin,
     InternalTableCreate as SourceCreate,
+    Indexes,
 } from "../lazyPages";
 
 const InternalTableConfig = {
@@ -37,6 +38,14 @@ const InternalTableConfig = {
         // rows into the version: what the server's DMS publish / validate route requires (dama/upload/auth.js)
         reqPermissions: ['edit-source-data', 'update-source'],
         component: Validate,
+    },
+    // The source's database indexes: composite, covering, partial and expression ones an author adds,
+    // built in the background (setindex-composite-covering-indexes.md). Reached from the Admin page.
+    indexes: {
+        name: "Indexes",
+        path: "/indexes",
+        cdn: () => false,
+        component: Indexes,
     },
     sourceCreate: {
         name: "Create",

@@ -16,7 +16,7 @@ const { createController } = require('../dms/dms.controller.js');
 // KIND auth (routes/dms/dataAuth.js) — left in place, not deleted. Put this line back and
 // comment the next one out to move this surface back onto it.
 // Authorization comes from the switch, never from a named implementation. See routes/auth/index.js.
-const { assertDataWrite } = require('../auth');
+const { assertDataWrite, reachableRows } = require('../auth');
 const { getSubdomain } = require('../../utils/subdomain');
 const {
   isSplitType,
@@ -139,6 +139,7 @@ function isValidItemId(id) {
 }
 const {
   jsonMerge,
+  jsonExtract,
   currentTimestamp,
   typeCast,
 } = require('#db/query-utils.js');
@@ -196,6 +197,47 @@ function createSyncRoutes(dbName) {
    * Get the main (non-split) table for an app, ensuring it exists.
    * Mirrors the controller's mainTable() — resolves per-app tables when splitMode='per-app'.
    */
+  /**
+   * `reach` (routes/auth): drop the items a reach-limited row would refuse this caller. The sync
+   * routes judge no other read; an item whose row has no reach on itself or above passes untouched.
+   * A delta's items are change_log entries, whose `data` is the row as it WAS: each is judged on the
+   * row's grants and parent as they are NOW (one small read), so a row made private later stops
+   * handing out its older versions too.
+   */
+  async function withoutUnreachable(app, req, items, { changes = false } = {}) {
+    if (!items.length) return items;
+    const user = req.availAuthContext?.user || null;
+    const subdomain = getSubdomain(req);
+    const parse = (v) => (typeof v === 'string' ? (() => { try { return JSON.parse(v); } catch { return null; } })() : v);
+    let current = new Map();
+    if (changes) {
+      const ids = [...new Set(items.filter(c => c.data != null && isValidItemId(c.item_id)).map(c => Number(c.item_id)))];
+      if (ids.length) {
+        const table = await mainTable(app);
+        const rows = await dms_db.promise(
+          `SELECT id, ${jsonExtract('data', 'authPermissions', dbType, false)} AS ap, ${jsonExtract('data', 'auth_permissions', dbType, false)} AS ap2,
+                  ${jsonExtract('data', 'parent_id', dbType, false)} AS parent_id
+           FROM ${table} WHERE id IN (${ids.map((_, i) => `$${i + 1}`).join(',')})`,
+          ids
+        );
+        current = new Map(rows.map(r => [String(r.id), r]));
+      }
+    }
+    const rowOf = (item) => {
+      if (!changes) return { id: item.id, app, type: item.type, data: item.data };
+      const data = parse(item.data);
+      if (data == null) return null;
+      const now = current.get(String(item.item_id));
+      if (!now) return { id: item.item_id, app, type: item.type, data };
+      const nowData = { ...data };
+      for (const [k, col] of [['authPermissions', 'ap'], ['auth_permissions', 'ap2'], ['parent_id', 'parent_id']]) {
+        if (now[col] != null) nowData[k] = parse(now[col]); else delete nowData[k];
+      }
+      return { id: item.item_id, app, type: item.type, data: nowData };
+    };
+    return reachableRows(items, { app, user, subdomain, rowOf });
+  }
+
   async function mainTable(app) {
     const resolved = resolveTable(app, '', dbType, splitMode);
     // ensureTable() no-ops for the shared dms.data_items (legacy mode)
@@ -330,6 +372,8 @@ function createSyncRoutes(dbName) {
         );
         items = allItems.filter(item => !isSyncExcluded(item.type));
       }
+
+      items = await withoutUnreachable(app, req, items);
 
       const scope = skeleton ? `skeleton=${skeleton}` : pattern ? `pattern=${pattern}` : type ? `type=${type}` : 'full-app';
       const durationMs = Date.now() - t0;
@@ -480,6 +524,8 @@ function createSyncRoutes(dbName) {
       if (excludeSplit) {
         changes = changes.filter(c => !isSyncExcluded(c.type));
       }
+
+      changes = await withoutUnreachable(app, req, changes, { changes: true });
 
       const response = { changes, revision: Number(revision) };
       const payload = JSON.stringify(response);

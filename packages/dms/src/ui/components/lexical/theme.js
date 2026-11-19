@@ -245,7 +245,10 @@ export const lexicalTheme = {
     switch_buttonCheckedSpan: "translate-x-[20px]",
 
     // Link editor (flat)
-    linkEditor_base: "flex absolute top-0 left-0 z-10 max-w-[400px] w-full opacity-0 bg-[var(--t-panel)] border border-[var(--t-rule)] shadow-lg rounded-b-lg transition-opacity duration-500 will-change-transform",
+    // The link editor follows the caret on every line and is only FILLED on a link, so with no link
+    // it is an empty box at opacity 1: `empty:` drops its border and shadow, which otherwise drew a
+    // 400px line under the line being typed (2026-11-17).
+    linkEditor_base: "flex absolute top-0 left-0 z-10 max-w-[400px] w-full opacity-0 bg-[var(--t-panel)] border border-[var(--t-rule)] shadow-lg rounded-b-lg transition-opacity duration-500 will-change-transform empty:border-0 empty:shadow-none",
     linkEditor_button_active: "bg-[var(--t-well)]",
     linkEditor_button_base: "w-[20px] h-[20px] inline-block p-[6px] rounded-lg cursor-pointer mx-[2px]",
     linkEditor_button_hovered: "w-[20px] h-[20px] inline-block bg-[var(--t-well)]",
@@ -377,6 +380,8 @@ export const lexicalTheme = {
 
     // Typeahead popover (flat)
     typeaheadPopover_base: "bg-white shadow-[0_5px_10px_rgba(0,0,0,0.3)] rounded-[8px] mt-[25px]",
+    // the same menu opening ABOVE the caret, for an editor that sits at the bottom of the screen (a composer)
+    typeaheadPopover_above: "absolute bottom-full left-0 mb-7 z-50 bg-white shadow-[0_5px_10px_rgba(0,0,0,0.3)] rounded-[8px]",
     typeaheadPopover_ul_base: "p-0 list-none m-0 rounded-[8px] max-h-[200px] overflow-y-scroll scrollbar-none",
     typeaheadPopover_ul_li_base: "m-0 min-w-[180px] text-[14px] outline-none cursor-pointer rounded-[8px] hover:bg-gray-200",
     typeaheadPopover_ul_li_selected: "bg-gray-200",
@@ -888,6 +893,7 @@ export function buildLexicalInternalTheme(flatTheme) {
   // Build typeaheadPopover object
   nested.typeaheadPopover = {
     base: flatTheme.typeaheadPopover_base,
+    above: flatTheme.typeaheadPopover_above,
     ul: {
       base: flatTheme.typeaheadPopover_ul_base,
       li: {

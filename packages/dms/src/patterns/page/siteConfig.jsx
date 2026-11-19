@@ -2,7 +2,7 @@ import React from "react";
 import { useRouteError } from "react-router";
 import { parseIfJSON } from "./pages/_utils";
 import { initializePatternFormat } from "../../dms-manager/_utils";
-import { preloadPageSections, findPageItem, pageSectionTypes } from "../../api/preloadSectionData.js";
+import { preloadPageSections, findPageItem, pageSectionTypes, trimSectionsForView } from "../../api/preloadSectionData.js";
 
 // components
 import cmsFormat from "./page.format.js";
@@ -156,10 +156,18 @@ const pagesConfig = ({
     // bundle-split-initial-graph.md for the chunks themselves).
     preload: async (falcor, data, request, params) => {
       const raw = params?.['*'] || '';
-      const slug = raw.startsWith('edit/') ? raw.slice('edit/'.length) : raw;
+      const isEdit = raw.startsWith('edit/');
+      const slug = isEdit ? raw.slice('edit/'.length) : raw;
       preloadSectionComponents(pageSectionTypes(findPageItem(data, slug)));
-      // the registry tells the preload which section types fetch before render (preloadData) and how
-      return preloadEnabled ? preloadPageSections(falcor, data, request.url, patternFilters, slug, getRegisteredComponents()) : data;
+      // the registry tells the preload which section types fetch before render (preloadData) and how;
+      // draft sections only show in the editor
+      const components = getRegisteredComponents();
+      const loaded = preloadEnabled
+        ? await preloadPageSections(falcor, data, request.url, patternFilters, slug, components, { drafts: isEdit })
+        : data;
+      // a view page's data goes into its HTML: each section type leaves out what only its editor
+      // reads (after the preload, which builds requests from the full settings)
+      return isEdit ? loaded : trimSectionsForView(loaded, slug, components);
     },
     baseUrl,
     API_HOST,
@@ -227,7 +235,10 @@ const pagesConfig = ({
             "title", "index", "authPermissions", "url_slug","parent",
             "published", "description", "icon", "navOptions", "hide_in_nav", "nav_link",
             // needed when no page is registered at / and we're picking 0th page as /
-            "draft_sections", "draft_section_groups", "sections", "section_groups"
+            "sections", "section_groups"
+            // No draft_sections / draft_section_groups: only the editor shows them, and the edit
+            // route's own request reads the page's whole data. Listing them here put every page
+            // view's drafts into its loader data (page-hydration-payload.md).
           ],
         },
         children: [

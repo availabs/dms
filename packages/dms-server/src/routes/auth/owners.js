@@ -10,9 +10,11 @@
  *
  *     snapshotFor(address)       → { snap, row }       the subject, with the rows above it loaded
  *     grantsAt(snap, row, pos)   → grants | null        pos: self | parent | ancestor:<kind> | site
- *     ruleFor(snap, row)         → the kind's rule      declared in `formats` (formats.js), else the
+ *     ruleFor(snap, row)         → the kind's rule      a variant an ancestor names (`ruleVariants`), else
+ *                                                       declared in `formats` (formats.js), else the
  *                                                       stamp on the nearest ancestor, else built in
  *     mapsFor(snap, row)         → { maps, scope, publicRead }
+ *     reachFor(snap, row)        → { inherit, override, cut, limited }   `reach` along the same walk
  *
  * A row kind's rule and vocabulary are what the site's client DECLARED for it: the `formats` table
  * (formats.js, registered by scripts/register-formats.js), loaded with the snapshot as `snap.formats`.
@@ -32,7 +34,7 @@ const { getDb, loadConfig } = require('../../db');
 const { resolveSplitMode } = require('../../db/table-resolver');
 const { dmsMainTable } = require('../uda/utils');
 const { getKind, getParent, getInstance } = require('#db/type-utils.js');
-const { parseJson, resolveAuthPermissions, scopeOf, hasGrants, mergeAuthPermissions } = require('./grants');
+const { parseJson, resolveAuthPermissions, scopeOf, hasGrants, mergeAuthPermissions, reachOf } = require('./grants');
 const { vocabularyOf, fieldMaps } = require('./vocabulary');
 const { formatsFor } = require('./formats');
 const RULES = require('./rules');
@@ -51,18 +53,30 @@ function dmsDb() {
 
 // ---- rows ---------------------------------------------------------------------------------------
 
-/** A database row in the shape the walk reads: parsed, with its kind and the parent its type names. */
+/**
+ * The keys the walk reads off a row's `data`: its own grants, its stamped ancestry, a stamped vocabulary.
+ * A caller judging a row it read field by field fetches these (not the whole column) and hands them over
+ * as the row's `data` (dms.route.js `dataByIdResponse`).
+ */
+const AUTH_DATA_KEYS = ['authPermissions', 'auth_permissions', 'parent_id', 'authVocabulary'];
+
+/**
+ * A database row in the shape the walk reads: parsed, with its kind and the parent its type names.
+ * `parent` (the row above, already loaded) is never taken from the row handed in: a database row never
+ * carries one, and a top-level `parent` there is a projected data field (a page's nav `data.parent`), not
+ * a position on the walk. Only `externalRow` links one.
+ */
 function wrap(r, app) {
   const type = r.type || '';
   return {
     id: r.id, app, type, kind: getKind(type), instance: getInstance(type), parentKey: getParent(type),
-    parent: r.parent || null, data: parseJson(r.data) || {},
+    parent: null, data: parseJson(r.data) || {},
   };
 }
 
 /**
- * A row's OWN grants for one scope, resolved for the subdomain. `view: false` (a source narrowing
- * itself to its own grantees) rides out beside the grants.
+ * A row's OWN grants for one scope, resolved for the subdomain. `reach` (and the older `view: false`)
+ * rides out beside the grants; the walk reads it with `rowReach` / `reachFor`.
  */
 function grantsOf(row, scope, subdomain = '') {
   if (!row) return null;
@@ -299,39 +313,116 @@ const LEGACY_POSITIONS = {
   'source-by-slug': ['ancestor:dmsenv', 'ancestor:source'],
 };
 
+// ---- reach --------------------------------------------------------------------------------------
+//
+// `reach` (grants.js reachOf) is data on a row: `inherit: false` cuts every owner position above the
+// row, `override: false` turns off the `<app> Admin` shortcut. Both apply to the row and everything
+// under it, so a row's EFFECTIVE reach is read along the same walk its owner positions take. Nothing
+// here names a kind: a row is "above the cut" by its place on the walk, not by what it is.
+
+const OPEN_REACH = Object.freeze({ inherit: true, override: true });
+
+/** One row's own reach: from its stored grants, wherever in that value it is written (top level, a subdomain's entry, a scope). */
+function rowReach(row, subdomain = '') {
+  if (!row || !row.data) return OPEN_REACH;
+  const stored = parseJson(row.data.authPermissions !== undefined ? row.data.authPermissions : row.data.auth_permissions);
+  if (!stored || typeof stored !== 'object') return OPEN_REACH;
+  const resolved = resolveAuthPermissions(stored, subdomain);
+  const all = [stored, resolved, resolved && resolved.self, resolved && resolved.descendants].map(reachOf);
+  return { inherit: all.every(r => r.inherit), override: all.every(r => r.override) };
+}
+
 /**
- * The grants at `position` relative to `row`, or null when nothing is there (an owner that cannot
- * be found holds nothing: the judge fails closed). A list of positions is spread in order, later
- * entries replacing earlier ones per principal — a page's own grants over its pattern's.
+ * The effective reach of `row`: `{ inherit, override, cut, limited }`. `cut` is the nearest row on the
+ * walk (the row itself first) with `inherit: false`, or null; `override` is false when the row or any
+ * row above it says so. A row being created is judged in its parent, so its own payload is not read
+ * (`op: 'create'`). `limited`: either switch is off — the decision is then enforced whatever
+ * `DMS_AUTH_MODE` says (report.js).
  */
-function grantsAt(snap, row, position, { op = 'edit', subdomain = '' } = {}) {
+function reachFor(snap, row, { op = 'read', subdomain = '' } = {}) {
+  let cut = null, override = true;
+  const chain = op === 'create' ? [...ancestors(snap, row)] : [row, ...ancestors(snap, row)];
+  for (const r of chain) {
+    const x = rowReach(r, subdomain);
+    if (!x.override) override = false;
+    if (!x.inherit && !cut) cut = r;
+  }
+  return { inherit: !cut, override, cut, limited: !!cut || !override };
+}
+
+/** The grants of one position (or a spread list), with every row above `above` (the cut's ancestors) holding nothing. */
+function positionGrants(snap, row, position, { op, subdomain, above }) {
   const pos = LEGACY_POSITIONS[position] || position;
   if (Array.isArray(pos)) {
-    const parts = pos.map(p => grantsAt(snap, row, p, { op, subdomain }));
+    const parts = pos.map(p => positionGrants(snap, row, p, { op, subdomain, above }));
     if (parts.every(p => p == null)) return null;
-    // `view: false` on a row means "my own grantees only": that part alone, nothing lent to it
-    const narrowed = parts.filter(p => p && p.view === false).pop();
-    if (narrowed) return narrowed;
     return parts.reduce((acc, p) => (p == null ? acc : mergeAuthPermissions(acc || {}, p)), null);
   }
+  const cut = (r) => above && r && above.has(r);
   if (pos === 'self') return op === 'create' ? { groups: {}, users: {} } : grantsOf(row, 'self', subdomain);
-  if (pos === 'parent') return grantsOf(parentOf(snap, row), 'descendants', subdomain);
-  if (pos === 'site') return siteGrants(snap, subdomain);
+  if (pos === 'parent') { const p = parentOf(snap, row); return cut(p) ? null : grantsOf(p, 'descendants', subdomain); }
+  if (pos === 'site') return cut(snap.site) ? null : siteGrants(snap, subdomain);
   if (pos.startsWith('ancestor:')) {
     const kind = pos.slice('ancestor:'.length);
-    for (const a of ancestors(snap, row)) if (a.kind === kind) return grantsOf(a, 'descendants', subdomain);
+    for (const a of ancestors(snap, row)) if (a.kind === kind) return cut(a) ? null : grantsOf(a, 'descendants', subdomain);
     return null;
   }
   return null;
 }
 
 /**
- * The rule for `row`'s kind: the site's declaration (`formats`), else the stamp on the nearest
- * ancestor that carries one (`data.authRules`), else the built-in copy. Never read from the row
- * itself: its data is the caller's.
+ * The grants at `position` relative to `row`, or null when nothing is there (an owner that cannot
+ * be found holds nothing: the judge fails closed). A list of positions is spread in order, later
+ * entries replacing earlier ones per principal — a page's own grants over its pattern's.
+ *
+ * Under an `inherit: false` row (the row itself or one above it) every position above that row
+ * holds nothing. This generalises the source-only `view: false` branch that stood here before
+ * (2026-11-18, auth-reach.md). Under any limited reach, what is returned carries the effective
+ * `reach`, so the judge never reads it as blank ("granting nothing ⇒ readable by anyone"): a row
+ * that limits what reaches it is judged on its grants, and one naming no one is readable by no one.
+ */
+function grantsAt(snap, row, position, { op = 'edit', subdomain = '', reach = null } = {}) {
+  const r = reach || reachFor(snap, row, { op, subdomain });
+  const above = r.cut ? new Set(ancestors(snap, r.cut)) : null;
+  const g = positionGrants(snap, row, position, { op, subdomain, above });
+  if (!g || !r.limited) return g;
+  const own = g.reach && typeof g.reach === 'object' ? g.reach : {};
+  return { ...g, reach: { ...own, ...(r.cut ? { inherit: false } : {}), ...(r.override ? {} : { override: false }) } };
+}
+
+/**
+ * A NAMED VARIANT of a kind's rule, chosen for the rows beneath a container. A format may declare,
+ * beside a kind's rule (`rules: { data: … }`), a variant of it under `<kind>@<name>`
+ * (`rules: { 'data@author_only': … }`); it is no kind's rule by itself. A row names the variant
+ * that governs the rows of a kind beneath it — `data.ruleVariants: { data: 'author_only' }` — and
+ * the nearest ancestor naming one the site's `formats` declare wins. A name the formats don't declare
+ * (not registered yet) is passed over, so the kind's own rule answers: today's behaviour.
+ *
+ * Only DECLARED rules are chosen this way (never a stamp, never the built-in copy), and only from an
+ * ancestor, never the row itself. Changing `ruleVariants` on a stored row is checked like `authRules`
+ * (index.js `rulesWrite`): site `*`. Nothing here names a kind or a variant.
+ */
+function variantFor(snap, row) {
+  const rules = snap.formats && snap.formats.rules;
+  if (!rules || !row.kind) return null;
+  for (const a of ancestors(snap, row)) {
+    const named = a.data && a.data.ruleVariants && typeof a.data.ruleVariants === 'object' ? a.data.ruleVariants[row.kind] : null;
+    if (typeof named !== 'string' || !named) continue;
+    const rule = rules[`${row.kind}@${named}`];
+    if (rule && typeof rule === 'object' && rule.ops) return { name: named, rule, on: a };
+  }
+  return null;
+}
+
+/**
+ * The rule for `row`'s kind: a variant an ancestor names (`variantFor`), else the site's declaration
+ * (`formats`), else the stamp on the nearest ancestor that carries one (`data.authRules`), else the
+ * built-in copy. Never read from the row itself: its data is the caller's.
  */
 function ruleFor(snap, row) {
   const kind = row.kind;
+  const variant = variantFor(snap, row);
+  if (variant) return { rule: variant.rule, from: 'formats', variant: variant.name };
   const declared = snap.formats && snap.formats.rules[kind];
   if (declared) return { rule: declared, from: 'formats' };
   const stampedOn = (r) => (r && r.data.authRules && typeof r.data.authRules === 'object' && r.data.authRules[kind]) || null;
@@ -384,5 +475,6 @@ async function sourceOfView(env, viewId, app = null) {
 
 module.exports = {
   snapshotFor, appSnapshot, clearSnapshots, clearPgEnv, snapshotLoads: () => loads, grantsAt, grantsOf, ruleFor, mapsFor,
-  parentOf, ancestors, sourceOfView, isDmsEnv, dmsDb, LEGACY_POSITIONS,
+  reachFor, rowReach, wrap, variantFor,
+  parentOf, ancestors, sourceOfView, isDmsEnv, dmsDb, LEGACY_POSITIONS, AUTH_DATA_KEYS,
 };

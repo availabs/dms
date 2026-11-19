@@ -14,7 +14,8 @@ point at before starting a server or a script with defaults; on some machines th
 | Variable | Default | What it does |
 |---|---|---|
 | `PORT` | `3001` | HTTP port. |
-| `DMS_DB_ENV` | `dms-sqlite` | DMS database config (a file in `src/db/configs/`, without `.config.json`). |
+| `DMS_DB_CONFIG_DIRS` | — | Extra folders of database configs (`<name>.config.json`), colon-separated, searched in order before the built-in `src/db/configs/`, which is always searched last. Relative entries resolve against the working directory. A folder that doesn't exist, or a name found in two folders, throws. dms-template sets it to its root `db-configs/` (`src/db/config.js configDirs`). |
+| `DMS_DB_ENV` | `dms-sqlite` | DMS database config: a config name, without `.config.json`, found in `DMS_DB_CONFIG_DIRS` or `src/db/configs/`. |
 | `DMS_AUTH_DB_ENV` | `auth-sqlite` | Auth database config. |
 | `DAMA_DB_ENV` | — | An extra DAMA pgEnv to initialise at boot, besides those the configs declare. |
 | `DMS_SPLIT_MODE` | `per-app` | `legacy` or `per-app` table layout, when the config sets no `splitMode`. A legacy-layout database must say `legacy` here or in its config; since 2026-11-10 nothing infers it (see `../packages/dms-server/CLAUDE.md`). |

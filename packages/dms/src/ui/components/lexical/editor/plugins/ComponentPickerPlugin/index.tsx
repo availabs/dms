@@ -351,7 +351,10 @@ function buildStyleOptions(editor: LexicalEditor): ComponentPickerOption[] {
     );
 }
 
-export default function ComponentPickerMenuPlugin({ fileUploadInfo }): JSX.Element {
+// `include`: option titles to offer (the rest are left out, and so are the dynamic table sizes), for a
+// caller that wants a short menu (chat's composer). `placement: 'above'` opens the menu above the caret.
+// The menu carries `data-lexical-typeahead` while open, so a caller's own key handling can step aside.
+export default function ComponentPickerMenuPlugin({ fileUploadInfo, include = null, placement = 'below' }: { fileUploadInfo?: unknown; include?: string[] | null; placement?: 'below' | 'above' }): JSX.Element {
     const [editor] = useLexicalComposerContext();
     const [modal, showModal] = useModal();
     const [queryString, setQueryString] = useState<string | null>(null);
@@ -364,7 +367,8 @@ export default function ComponentPickerMenuPlugin({ fileUploadInfo }): JSX.Eleme
     });
 
     const options = useMemo(() => {
-        const baseOptions = getBaseOptions(editor, showModal, fileUploadInfo);
+        const allOptions = getBaseOptions(editor, showModal, fileUploadInfo);
+        const baseOptions = include ? allOptions.filter(option => include.includes(option.title)) : allOptions;
 
         if (!queryString) {
             return baseOptions;
@@ -373,14 +377,14 @@ export default function ComponentPickerMenuPlugin({ fileUploadInfo }): JSX.Eleme
         const regex = new RegExp(queryString, 'i');
 
         return [
-            ...getDynamicOptions(editor, queryString),
+            ...(include ? [] : getDynamicOptions(editor, queryString)),
             ...baseOptions.filter(
                 (option) =>
                     regex.test(option.title) ||
                     option.keywords.some((keyword) => regex.test(keyword)),
             ),
         ];
-    }, [editor, queryString, showModal]);
+    }, [editor, queryString, showModal, include]);
 
     const onSelectOption = useCallback(
         (
@@ -412,8 +416,9 @@ export default function ComponentPickerMenuPlugin({ fileUploadInfo }): JSX.Eleme
                 ) =>
                     anchorElementRef.current && options.length
                         ? ReactDOM.createPortal(
-                            <div className={`${theme.typeaheadPopover.base} ${theme.componentPickerMenu}`}>
-                                <ul>
+                            <div className={`${placement === 'above' ? theme.typeaheadPopover.above : theme.typeaheadPopover.base} ${theme.componentPickerMenu}`}
+                                 data-lexical-typeahead="">
+                                <ul className={theme.typeaheadPopover.ul.base}>
                                     {options.map((option, i: number) => (
                                         <ComponentPickerMenuItem
                                             index={i}

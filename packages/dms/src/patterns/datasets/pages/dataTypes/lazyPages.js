@@ -21,3 +21,4 @@ export const SchedulePage = lazyComponent('datasets/dataTypes/SchedulePage', () 
 export const RunsPage = lazyComponent('datasets/dataTypes/RunsPage', () => import("./schedule/RunsPage"));
 export const Outputs = lazyComponent('datasets/dataTypes/Outputs', () => import("./default/outputs"));
 export const Rules = lazyComponent('datasets/dataTypes/Rules', () => import("./default/rules"));
+export const Indexes = lazyComponent('datasets/dataTypes/Indexes', () => import("./default/indexes"));

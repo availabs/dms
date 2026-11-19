@@ -442,7 +442,10 @@ is ported later.
       `configure.js` KEY_RE), so nothing counts. Test in `qaOverviewPages`. Full client suite 904/907, the same
       3 unrelated failures.
 - Feature switches: moved to §5, step 1 (owner, 2026-10-13).
-- [ ] **`dms qa` CLI** (state, tickets, edit, close, enroll; dry run by default). It's also where the per-page
+- [ ] **`dms qa` CLI** (state, tickets, edit, close, enroll; dry run by default). **Tickets half built 2026-11-17**
+  (`installs`, `tickets`, `ticket`, `set`, `comment`, in dms-template `src/patterns/qa/cli/`, loaded through the CLI's
+  `.dmsrc` `commands`): dms-template's `planning/shared/tasks/current/qa-cli-ticket-commands.md`. `state` and
+  `enroll` are still open. It's also where the per-page
   blocker/major counts come back.
 - [ ] **Design mockups** as an install feature: a Design page per tracked page, and the QA ⇄ Design toggle.
 - [ ] Group the status menu by kind. This needs option groups in the shared select.

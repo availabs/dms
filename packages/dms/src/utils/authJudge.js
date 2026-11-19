@@ -9,6 +9,7 @@
 //   holds(user, grants, perms)                               the name-match over a grant
 //   fieldMaps(vocabulary) / verbsForFields(keys, maps, …)    which verbs an edit needs
 //   judge(rule, env, { op, keys, patch, row, maps, scope })  the interpreter over a kind's rule
+//                                                            (`{ perms, creator: true }`: the row's creator only)
 //
 // A rule comes from the registry (`getPatternType(type).authRules[kind]`); grants come from the rows
 // the client already holds (a pattern's `authPermissions`, the site's). See utils/adminPermissions.js.
@@ -50,6 +51,11 @@ function holds(user, ap, perms) {
     ...mine.flatMap(g => asList(groups[g])),
   ];
   return held.some(p => p === '*' || want.includes(p));
+}
+
+function reachOf(ap) {
+  const r = ap && typeof ap === 'object' && ap.reach && typeof ap.reach === 'object' ? ap.reach : {};
+  return { inherit: !(r.inherit === false || (ap && ap.view === false)), override: r.override !== false };
 }
 
 const isAppAdmin = (user, app) => !!app && ((user && user.groups) || []).some(g => g === `${app} Admin`);
@@ -130,7 +136,9 @@ const list  = (v) => [].concat(v == null ? [] : v);
 const STRUCTURAL = ['read', 'create', 'edit', 'delete'];
 
 const one = (c, defaultOwner) =>
-  c.blank !== undefined ? { blank: c.blank === true ? defaultOwner : c.blank } : { owner: c.owner || defaultOwner, perms: list(c.perms) };
+  c.blank !== undefined ? { blank: c.blank === true ? defaultOwner : c.blank }
+    : c.creator === true ? { owner: c.owner || defaultOwner, perms: list(c.perms), creator: true }
+    : { owner: c.owner || defaultOwner, perms: list(c.perms) };
 const req = (clause, defaultOwner) =>
   Array.isArray(clause) || typeof clause === 'string'
     ? [{ owner: defaultOwner, perms: list(clause) }]
@@ -143,7 +151,7 @@ const key = (owner) => (Array.isArray(owner) ? owner.join('+') : owner);
 const satisfied = (env, r) =>
   r.anyOf ? r.anyOf.some(alt => satisfied(env, alt))
     : r.blank !== undefined ? env.isBlank(env.grants[key(r.blank)])
-    : env.holds(env.grants[key(r.owner)], r.perms);
+    : env.holds(env.grants[key(r.owner)], r.perms) && (r.creator !== true || env.creator === true);
 
 function blankSwap(rule, env, row) {
   const c = rule.ifOwnerBlank;
@@ -156,7 +164,7 @@ function editRequirements(spec, defaultOwner, { keys, patch, maps, scope }) {
   if (Array.isArray(spec)) return req(spec, defaultOwner);
   const out = [];
   let rest = keys;
-  if (maps) {
+  if (maps && spec.fieldsFrom !== 'rule') {
     const { groups, covered } = verbsForFields(keys, maps, patch, scope);
     out.push(...groups.map(perms => ({ owner: defaultOwner, perms })));
     rest = keys.filter(k => !covered.includes(k));
@@ -195,7 +203,7 @@ function judge(rule, env, { op, keys = [], patch = {}, split = false, row = {}, 
   if (op === 'read' && rule.ops.read === undefined) return allow('read: open');
 
   const swap = blankSwap(rule, env, row);
-  const check = (r) => (swap && !r.anyOf && key(r.owner) === key(rule.owner) ? satisfied(env, swap) : satisfied(env, r));
+  const check = (r) => (swap && !r.anyOf && key(r.owner) === key(rule.owner) ? satisfied(env, r.creator ? { ...swap, creator: true } : swap) : satisfied(env, r));
 
   if (op === 'edit' && keys.length === 0 && rule.noChange) {
     if (check({ owner: rule.owner, perms: list(rule.noChange) })) return allow('no change');
@@ -218,23 +226,29 @@ function judge(rule, env, { op, keys = [], patch = {}, split = false, row = {}, 
       // A write refused on an owner that grants nothing is refused by the blank-row rule alone
       // (owner 2026-10-29: a row with no grants is read-only). `report.js` reads the mark.
       const blank = !swap && !r.anyOf && key(r.owner) === key(rule.owner) && own != null && env.isBlank(own);
+      // a requirement the caller holds the verb for but did not create the row: say so
+      const byCreator = env.creator !== true && (r.anyOf ? r.anyOf.some(a => a.creator === true) : r.creator === true);
       return blank ? deny(`missing ${p.join(' or ')}; blank row (no grants: edits need an explicit grant)`, { blank: true })
-                   : deny(`missing ${p.join(' or ')}`);
+                   : deny(`missing ${p.join(' or ')}${byCreator ? ' as the row\'s creator' : ''}`);
     }
   }
   return allow('granted');
 }
 
-/** The `env` a client judge runs with: the user, the grants per owner position, and the two predicates. */
-export function judgeEnv(user, grants) {
+/**
+ * The `env` a client judge runs with: the user, the grants per owner position, the two predicates,
+ * and `creator` (the user created the row being judged: its `created_by` is theirs).
+ */
+export function judgeEnv(user, grants, { creator = false } = {}) {
   return {
-    user, grants,
+    user, grants, creator: creator === true,
     holds: (ap, perms) => (ap == null ? false : holds(user, ap, perms)),
-    isBlank: (ap) => ap != null && !hasGrants(ap) && ap.view !== false,
+    // a limited `reach` (or the older `view: false`) beside blank grants means "no one" (dms-server routes/auth/index.js isBlank)
+    isBlank: (ap) => { if (ap == null || hasGrants(ap)) return false; const r = reachOf(ap); return r.inherit && r.override; },
   };
 }
 
 export {
-  parseJson, asList, resolveAuthPermissions, scopeOf, hasGrants, holds, isAppAdmin, mergeAuthPermissions,
+  parseJson, asList, resolveAuthPermissions, scopeOf, hasGrants, holds, reachOf, isAppAdmin, mergeAuthPermissions,
   fieldMaps, verbsForFields, judge, STRUCTURAL,
 };

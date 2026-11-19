@@ -14,6 +14,10 @@ import * as section from '../src/commands/section.js';
 import * as dataset from '../src/commands/dataset.js';
 import * as formats from '../src/commands/formats.js';
 import * as stack from '../src/commands/stack.js';
+import { pathToFileURL } from 'url';
+import { makeClient, resolvePattern, parseData, fetchById } from '../src/utils/data.js';
+import { output, outputError } from '../src/utils/output.js';
+import { loadDatasetRows } from '../../src/api/datasetRows.js';
 
 const program = new Command();
 
@@ -525,6 +529,26 @@ datasetCmd
     validateConfig(config, ['host', 'app', 'type']);
     await dataset.update(sourceId, rowId, config, { ...getOutputOptions(cmd), ...options });
   });
+
+// ============================================================================
+// APP COMMANDS - a host app's own command groups
+// ============================================================================
+
+// `.dmsrc` `commands` lists modules whose default export is called as `register({ program, helpers })`
+// and adds its commands to `program`, as the page-publish hook gets the CLI's helpers (commands/page.js
+// runPublishHook): a pattern type that lives in the app ships its commands, and the CLI holds none of
+// its code. One that fails to load is reported and skipped; the CLI's own commands still run.
+for (const path of resolveConfig().commands || []) {
+  try {
+    const { default: register } = await import(pathToFileURL(path).href);
+    await register({
+      program,
+      helpers: { getConfig, getOutputOptions, validateConfig, makeClient, resolvePattern, parseData, fetchById, loadDatasetRows, output, outputError },
+    });
+  } catch (error) {
+    console.error(`Warning: app commands not loaded from ${path}: ${error.message}`);
+  }
+}
 
 // Parse and run
 program.parse();

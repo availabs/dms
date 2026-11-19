@@ -10,6 +10,11 @@ function parseIfJSON(text, fallback = {}) {
     }
 }
 
+// Keys of a grants value that are not principals and not subdomains: `reach` (what reaches the row
+// without naming anyone, dms-server routes/auth/grants.js reachOf) and `view` (its older spelling of
+// `reach.inherit: false`). A loop over a grants value's keys skips them.
+export const GRANT_META_KEYS = ['reach', 'view'];
+
 // Used by route building (render/spa/utils/index.js pattern2routes) and the
 // admin panel's access checks (utils/adminPermissions.js). A raw
 // `pattern.authPermissions` is either the "old" flat `{groups,users}` shape, or the "new" subdomain-keyed shape

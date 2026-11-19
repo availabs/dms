@@ -17,7 +17,7 @@
  *      plugin authors know it exists.
  */
 
-import { Table, GisMap as Map, Metadata, SchedulePage, RunsPage, Outputs, Rules } from "./lazyPages";
+import { Table, GisMap as Map, Metadata, SchedulePage, RunsPage, Outputs, Rules, Indexes } from "./lazyPages";
 
 const defaultPages = {
   table: {
@@ -69,6 +69,14 @@ const defaultPages = {
     path: "/rules",
     cdn: () => false,
     component: Rules,
+  },
+  // The source's database indexes: composite, covering, partial and expression ones an author adds,
+  // built in the background (setindex-composite-covering-indexes.md). Reached from the Admin page.
+  indexes: {
+    name: "Indexes",
+    path: "/indexes",
+    cdn: () => false,
+    component: Indexes,
   },
 };
 

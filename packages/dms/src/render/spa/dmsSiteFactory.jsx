@@ -4,6 +4,7 @@ import { falcorGraph } from "@availabs/avl-falcor"
 import { cloneDeep } from "lodash-es"
 import { dmsDataLoader, withAuth, authProvider, dmsPageFactory, _setSyncAPI } from '../../'
 import { parseIfJSON } from '../../patterns/page/pages/_utils';
+import { loadServerCapabilities } from '../../api/index.js';
 import { getInstance } from '../../utils/type-utils';
 import { updateAttributes, updateRegisteredFormats } from "../../dms-manager/_utils";
 import { pattern2routes, getTenantSubdomain, resolveThemes } from './utils'
@@ -427,6 +428,8 @@ export default async function dmsSiteFactory(config) {
     if (themeRefsAttr) themeRefsAttr.refAttributes = ["data ->> 'name'"];
 
     falcor = falcor || falcorGraph(API_HOST)
+    // what the server supports (utils/serverCapabilities.js): read once, never awaited
+    loadServerCapabilities(falcor)
     let data = await dmsDataLoader(falcor, dmsConfigUpdated, `/`);
     // Skipped when patterns came back as no-access stubs (auth hiccup) —
     // a poisoned snapshot would default-theme the next boot. See snapshot.js.

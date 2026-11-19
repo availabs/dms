@@ -21,6 +21,8 @@ import { createSSRMiddleware } from './middleware.mjs'
  * @param {string} [config.serverBundle] - Built server entry (prod); default <root>/dist/server/entry-ssr.js.
  *   dms-server derives both from DMS_DIST_DIR so a build can live outside dist/.
  * @param {object} config.handlerConfig - Config passed to createHandler (apiHost, siteConfig, etc.)
+ * @param {Function} [config.getHeadTags] - async (req) => HTML for the page head, per request (dms-server's
+ *   app settings: the site's manifest, icons and service worker; site-app-settings-pwa.md)
  * @returns {Promise<{ invalidateRoutes: Function }>} drops the handler's per-host route cache (a no-op in dev)
  */
 export async function mountSSR(app, config) {
@@ -30,6 +32,7 @@ export async function mountSSR(app, config) {
     clientDir = path.resolve(root, 'dist/client'),
     serverBundle = path.resolve(root, 'dist/server/entry-ssr.js'),
     handlerConfig = {},
+    getHeadTags = null,
   } = config
 
   const isProduction = process.env.NODE_ENV === 'production'
@@ -68,6 +71,7 @@ export async function mountSSR(app, config) {
         // Will be replaced per-request below
         return null
       },
+      getHeadTags,
     })
 
     // Custom dev middleware that transforms the template per-request
@@ -89,6 +93,7 @@ export async function mountSSR(app, config) {
         const ssrMiddleware = createSSRMiddleware({
           getHandler: () => handler,
           getTemplate: () => template,
+          getHeadTags,
         })
 
         await ssrMiddleware(req, res, next)
@@ -123,6 +128,7 @@ export async function mountSSR(app, config) {
     app.use('*', createSSRMiddleware({
       getHandler: () => cachedHandler,
       getTemplate: () => cachedTemplate,
+      getHeadTags,
     }))
 
     console.log(`[SSR] Production mode — client ${clientDir}, server ${serverBundle}`)

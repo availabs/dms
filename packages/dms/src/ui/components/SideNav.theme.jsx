@@ -106,6 +106,9 @@ const sideNavTheme = {
       indicatorIcon: "ArrowRight",
       indicatorIconOpen: "ArrowDown",
       indicatorIconWrapper: "w-4 h-4 text-[var(--t-pencil)] transition-transform duration-150",
+      // The click target around that caret. It is drawn on every item, caret or not, so it takes
+      // room in the row even when empty (was a literal `pr-2` in SideNav.jsx until 2026-11-17).
+      indicatorWrapper: "pr-2",
       // Submenu wrappers
       subMenuWrapper_1: "ml-4 my-1 flex flex-col border-l border-[var(--t-rule)]",
       subMenuWrapper_2: "ml-4 my-1 flex flex-col border-l border-[var(--t-rule)]",
@@ -231,10 +234,15 @@ const sideNavTheme = {
       // Logo renders <Link><img|mark/>{title && <div/>}</Link> — hide only the TITLE (the second
       // div, present only when the theme sets one) and cap the mark, so a wordmark doesn't try to
       // fit in 56px. The mockups keep the mark alone at the top of the rail.
-      logoWrapper: 'flex items-center justify-center h-14 w-full flex-none border-b border-[var(--t-rule)] [&_a>div+div]:hidden [&_img]:size-6 [&_a]:justify-center',
+      // The logo row: the mark alone, centred; the site's title ("Admin", a brand name) has no room
+      // in 56px. The Logo widget draws its own band (Logo.theme.js), so this reaches into it:
+      // `a > div + div` is the title. `contents` keeps the wrapper out of the column's layout.
+      topMenuWrapper: 'contents [&_a]:justify-center [&_a]:px-0 [&_a]:w-full [&_a>div+div]:hidden [&_img]:size-6 [&_img]:object-contain',
       itemsWrapper: 'flex-1 w-full overflow-y-auto overflow-x-hidden py-4 flex flex-col items-center gap-1',
       menuItemWrapper: 'flex flex-col',
-      navItemRow: 'relative size-10 flex items-center justify-center rounded-md',
+      // a 44px tile with a 24px glyph: the rail's items are the only labels it has, so they are
+      // drawn large (owner, 2026-11-17)
+      navItemRow: 'relative size-11 flex items-center justify-center rounded-md',
       // the stretched, transparent label — see note 2 above
       navItemContent: 'absolute inset-0 z-10 text-transparent overflow-hidden',
       navitemSide: `
@@ -246,10 +254,12 @@ const sideNavTheme = {
         group w-full flex flex-col cursor-pointer
         [&>div>div:first-child]:border [&>div>div:first-child]:border-[var(--t-rule)]
         [&>div>div:first-child]:bg-[var(--t-panel)]`,
-      menuIconSide: 'w-5 h-5 text-[var(--t-graphite)] group-hover:text-[var(--t-ink)] transition-colors duration-150',
-      menuIconSideActive: 'w-5 h-5 text-[var(--t-ink)]',
+      menuIconSide: 'size-6 text-[var(--t-graphite)] group-hover:text-[var(--t-ink)] transition-colors duration-150',
+      menuIconSideActive: 'size-6 text-[var(--t-ink)]',
       // an icon rail has no room for child pages, group headings or carets
       indicatorIconWrapper: 'hidden',
+      // the caret's empty 8px box would push the glyph off centre in the tile
+      indicatorWrapper: 'hidden',
       sectionHeading: 'hidden',
       sectionDivider: 'my-2 w-6 border-t border-[var(--t-rule)]',
       navLabel: 'hidden',

@@ -81,13 +81,22 @@ async function main() {
     check(after.name === 'a2', 'uda.data.edit by the row key updates the right row');
   } catch (e) { fail('uda.data.edit by the row key updates the right row', e); }
 
-  // 4. an explicit isIndex column drives dataById only — `id` still resolves to the PK
+  // 4. an index flag is only an index: isIndex on action_id leaves dataById on ogc_fid
+  //    (setindex-composite-covering-indexes.md — indexing a filter column must not move the feature id)
   await db.query(`UPDATE data_manager.sources SET metadata = $1 WHERE source_id = $2`,
-    [JSON.stringify({ columns: columns.map((c) => (c.name === 'ogc_fid' ? { ...c, isIndex: true } : c)), isEditable: true }), src.source_id]);
-  const popup2 = await byId(V, [fid1], ['name']);
+    [JSON.stringify({ columns: columns.map((c) => (c.name === 'action_id' ? { ...c, isIndex: true } : c)), isEditable: true }), src.source_id]);
+  const popupIdx = await byId(V, [fid1], ['name']);
+  check(popupIdx[fid1]?.name === 'a2', 'isIndex on another column does not move the feature id off ogc_fid', popupIdx);
+
+  // 4b. an explicit isFeatureId column drives dataById only — `id` still resolves to the PK
+  await db.query(`UPDATE data_manager.sources SET metadata = $1 WHERE source_id = $2`,
+    [JSON.stringify({ columns: columns.map((c) => (c.name === 'action_id' ? { ...c, isFeatureId: true } : c)), isEditable: true }), src.source_id]);
+  const popup2 = await byId(V, [1000001], ['name']);
   const row2 = await firstRowId(V);
-  check(popup2[fid1]?.name === 'a2', 'isIndex column is honoured by dataById', popup2);
-  check(String(row2?.id) === '1000001', '`id` is not redirected by a dataById call with isIndex (old cache-poisoning bug)', row2);
+  check(popup2[1000001]?.name === 'a2', 'isFeatureId column is honoured by dataById', popup2);
+  check(String(row2?.id) === '1000001', '`id` is not redirected by a dataById call with isFeatureId (old cache-poisoning bug)', row2);
+  await db.query(`UPDATE data_manager.sources SET metadata = $1 WHERE source_id = $2`,
+    [JSON.stringify({ columns, isEditable: true }), src.source_id]);
 
   // 5. a PK change is picked up without a restart (cache TTL; 0 in this test)
   await db.query(`ALTER TABLE ${SCHEMA}.${TABLE} DROP CONSTRAINT ${TABLE}_pkey`);

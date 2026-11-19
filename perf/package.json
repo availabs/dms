@@ -1,0 +1,10 @@
+{
+  "name": "dms-perf",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Performance test for DMS sites: every page of a pattern, cold, warm and by an in-app click",
+  "dependencies": {
+    "playwright": "^1.60.0"
+  }
+}

@@ -92,6 +92,10 @@ export default function Editor(props): JSX.Element {
         /*showComments,*/
         showActionBar,
         placeholderText = '',
+        placeholderClassName,
+        hideFloatingToolbar = false,
+        componentPicker = null,
+        hideFloatingLinkEditor = false,
         ariaLabel = '',          // the accessible name of the editable region (a screen reader otherwise reads an unnamed text box)
         editable = true,
         hideControls,
@@ -103,7 +107,7 @@ export default function Editor(props): JSX.Element {
         theme,
         fileUploadInfo
     } = props;
-    const placeholder = <Placeholder>{placeholderText}</Placeholder>;
+    const placeholder = <Placeholder className={placeholderClassName}>{placeholderText}</Placeholder>;
     const [floatingAnchorElem, setFloatingAnchorElem] =
         useState<HTMLDivElement | null>(null);
     const [isLinkEditMode, setIsLinkEditMode] = useState(false);
@@ -155,7 +159,11 @@ export default function Editor(props): JSX.Element {
                 <DragDropPaste fileUploadInfo={ fileUploadInfo }/>
                 {/*<AutoFocusPlugin />*/}
                 <ClearEditorPlugin/>
-                <ComponentPickerPlugin fileUploadInfo={ fileUploadInfo }/>
+                {componentPicker?.hide ? null : (
+                    <ComponentPickerPlugin fileUploadInfo={ fileUploadInfo }
+                                           include={componentPicker?.include || null}
+                                           placement={componentPicker?.placement || 'below'}/>
+                )}
                 <EmojiPickerPlugin />
                 {/*<AutoEmbedPlugin/>*/}
                 <KeywordsPlugin/>
@@ -216,12 +224,16 @@ export default function Editor(props): JSX.Element {
                             <>
                                 <DraggableBlockPlugin anchorElem={floatingAnchorElem}/>
                                 {/*<CodeActionMenuPlugin anchorElem={floatingAnchorElem}/>*/}
-                                <FloatingLinkEditorPlugin anchorElem={floatingAnchorElem} isLinkEditMode={isLinkEditMode} setIsLinkEditMode={setIsLinkEditMode}/>
+                                {hideFloatingLinkEditor ? null : (
+                                    <FloatingLinkEditorPlugin anchorElem={floatingAnchorElem} isLinkEditMode={isLinkEditMode} setIsLinkEditMode={setIsLinkEditMode}/>
+                                )}
                                 <TableHoverActionsPlugin anchorElem={floatingAnchorElem} />
-                                <FloatingTextFormatToolbarPlugin
-                                    anchorElem={floatingAnchorElem}
-                                    showComments
-                                />
+                                {hideFloatingToolbar ? null : (
+                                    <FloatingTextFormatToolbarPlugin
+                                        anchorElem={floatingAnchorElem}
+                                        showComments
+                                    />
+                                )}
                             </>
                         )}
                     </>

@@ -25,11 +25,50 @@ const { authMode } = require('../../routes/auth/settings');
 const accessLog = require('../../access-log');
 const { authorizePublish } = require('./auth');
 const { envRowFor } = require('../../routes/auth');
+const { storedGrants } = require('../../routes/auth/grants');
 
 const IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif', '.heif', '.heic', '.tiff', '.svg'];
 const EFFICIENT_FORMATS = ['.avif', '.heif', '.heic'];
 const MAX_IMAGE_DIM = 1400;
 const MIN_SOURCE_NAME_LENGTH = 4;
+
+// `metadata`: extra keys a caller writes onto a NEW source's data (the chat pattern records which
+// install and channel a file was posted to). The keys the route owns, and the ones that decide
+// access, are refused rather than overwritten.
+const RESERVED_METADATA_KEYS = new Set([
+  'name', 'type', 'views', 'categories', 'description', 'config',
+  'auth_permissions', 'authPermissions', 'sources', 'dmsEnvId',
+]);
+
+/** The `metadata` field as an object, or a `{ error }`. Absent → `{}`. */
+function parseMetadata(raw) {
+  if (raw == null || raw === '') return {};
+  let value;
+  try { value = JSON.parse(raw); } catch (e) { return { error: 'metadata must be a JSON object' }; }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return { error: 'metadata must be a JSON object' };
+  const bad = Object.keys(value).filter(k => RESERVED_METADATA_KEYS.has(k));
+  if (bad.length) return { error: `metadata may not set ${bad.join(', ')}` };
+  return { value };
+}
+
+/**
+ * The `auth_permissions` field: the NEW source's own grants, written with the row, so a file can be
+ * private from the moment it exists (`reach`, routes/auth). Its own field rather than a `metadata` key:
+ * `metadata` stays unable to touch access. Judged as the create it is part of (`create-source` on the
+ * env, authorizePublish): it is only ever written on the source this request creates. Absent → null.
+ */
+function parseGrantsField(raw) {
+  if (raw == null || raw === '') return { value: null };
+  let value;
+  try { value = JSON.parse(raw); } catch (e) { return { error: 'auth_permissions must be a JSON object' }; }
+  const grants = storedGrants(value);
+  if (!grants) return { error: 'auth_permissions must be a JSON object' };
+  for (const k of ['groups', 'users']) {
+    if (grants[k] != null && (typeof grants[k] !== 'object' || Array.isArray(grants[k]))) return { error: `auth_permissions.${k} must be an object` };
+  }
+  if (grants.reach != null && (typeof grants.reach !== 'object' || Array.isArray(grants.reach))) return { error: 'auth_permissions.reach must be an object' };
+  return { value: grants };
+}
 
 function firstId(rows) {
   return rows?.[0]?.id != null ? +rows[0].id : null;
@@ -93,9 +132,26 @@ function createFileUploadDmsHandler(controller) {
           source_id: existingSourceIdRaw,
           source_name,
           file_name, file_type, directory, description, categories,
+          metadata: metadataRaw,
+          auth_permissions: grantsRaw,
         } = fields;
 
+        const metadata = parseMetadata(metadataRaw);
+        if (metadata.error) {
+          try { fs.unlinkSync(savedFilePath); } catch (e) {}
+          return res.status(400).json({ ok: false, error: metadata.error });
+        }
+        const grants = parseGrantsField(grantsRaw);
+        if (grants.error) {
+          try { fs.unlinkSync(savedFilePath); } catch (e) {}
+          return res.status(400).json({ ok: false, error: grants.error });
+        }
+
         const existingSourceId = existingSourceIdRaw ? +existingSourceIdRaw : null;
+        if (existingSourceId && grants.value) {
+          try { fs.unlinkSync(savedFilePath); } catch (e) {}
+          return res.status(400).json({ ok: false, error: 'auth_permissions applies only to a new source; change an existing source\'s grants with the source editor' });
+        }
 
         if (!owner_id || !owner_instance) {
           return res.status(400).json({ ok: false, error: 'owner_id and owner_instance are required' });
@@ -196,9 +252,11 @@ function createFileUploadDmsHandler(controller) {
           }
 
           const sourceData = {
+            ...metadata.value,
             name: source_name.trim(),
             type: 'file_upload',
           };
+          if (grants.value) sourceData.auth_permissions = grants.value;
           if (parsedCats) sourceData.categories = parsedCats;
           if (description) sourceData.description = description;
 
@@ -312,4 +370,4 @@ function createFileUploadDmsHandler(controller) {
   };
 }
 
-module.exports = { createFileUploadDmsHandler };
+module.exports = { createFileUploadDmsHandler, parseMetadata, parseGrantsField };

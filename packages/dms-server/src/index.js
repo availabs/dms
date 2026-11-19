@@ -149,11 +149,19 @@ registerAccessLogRoutes(app, { authDbEnv });
 // Format declarations — what scripts/register-formats.js registered for a site, read-only (routes/auth/formats.js)
 require('./routes/auth/formats').registerFormatRoutes(app);
 
+// Who a row's own grants name (users, and the members of the groups named), for anyone who may read
+// the row: GET /dms/:app/rows/:id/grantees (routes/auth/grantees.js)
+require('./routes/auth/grantees').registerGranteeRoutes(app, { authDbEnv });
+
 // Tenant domain aliases — the hub only (routes/domains; tenant-external-domains.md, Phase B)
 require('./routes/domains').registerDomainRoutes(app);
 
 // Deleting a tenant of the hub, with a backup first (routes/tenants; tenant-subdomain-uniqueness.md)
 require('./routes/tenants').registerTenantRoutes(app);
+
+// A site's icon, app name and colours; its manifest, icons and service worker by Host (routes/appSettings;
+// site-app-settings-pwa.md)
+require('./routes/appSettings').registerAppSettingsRoutes(app);
 
 // Deleting a pattern or a theme with what it owns, plan first, backup first (routes/dms/ownerDeleteHttp.js;
 // safe-delete-removes-rows.md)
@@ -404,6 +412,8 @@ async function setupAndListen() {
       serverEntry: '/src/entry-ssr.jsx',
       clientDir: path.join(distDir, 'client'),
       serverBundle: path.join(distDir, 'server', 'entry-ssr.js'),
+      // the site's manifest, icons and service worker in the page head (routes/appSettings)
+      getHeadTags: require('./routes/appSettings').headTags,
       handlerConfig: {
         apiHost: `http://localhost:${PORT}`,
         siteConfig: {

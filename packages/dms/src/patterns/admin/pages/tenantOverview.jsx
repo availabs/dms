@@ -6,13 +6,15 @@ import { siteCan, MANAGE_TENANTS } from '../../../utils/adminPermissions';
 import { editSiteTheme } from './editSite.theme'
 import { DomainsCard } from '../components/domainsCard'
 import { PgEnvsCard } from '../components/pgEnvsCard'
+import { AppSettingsCard } from '../components/appSettingsCard'
 
 // /list/tenants/:tenantId on the platform root of the tenant hub
 // (design_system_v6/pages/admin-tenant-overview.html): one tenant, opened from its name on the
 // Tenants page. Loads the site row ("edit", as TenantsPage) for its `tenants` list. It is the
 // tenant's settings page: the header, then one card per setting, stacked: domains
-// (components/domainsCard.jsx) and data environments, the pgEnvs the tenant is attached to
-// (components/pgEnvsCard.jsx; pgenv-config-on-the-site-row.md). One page for now; when the cards
+// (components/domainsCard.jsx), data environments, the pgEnvs the tenant is attached to
+// (components/pgEnvsCard.jsx; pgenv-config-on-the-site-row.md), and its app and icon
+// (components/appSettingsCard.jsx; site-app-settings-pwa.md). One page for now; when the cards
 // outgrow it, they become sub pages as the pattern editor's tabs are (patternEditor/index.jsx).
 // Still to port from the mockup: name editing, the pattern-subdomains card, the danger zone
 // (tenant-external-domains.md, Phase B).
@@ -79,6 +81,7 @@ export default function TenantOverviewPage({ item = {}, dataItems, params = {} }
 			<div className={t.tenantSettingsStack}>
 				<DomainsCard tenant={tenant.subdomain} onChange={setInfo} />
 				<PgEnvsCard tenant={tenant.subdomain} onChange={setPgEnvs} />
+				<AppSettingsCard tenant={tenant.subdomain} />
 			</div>
 		</div>
 	)

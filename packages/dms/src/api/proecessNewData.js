@@ -70,8 +70,14 @@ export async function processNewData (dataCache, activeIdsIntOrStr, stopFullData
     // Expand the selected items' dms-format refs concurrently — each item's
     // expansion is independent, and awaiting them one by one added a round trip
     // per item to the page load. See planning/tasks/current/boot-chain-fewer-serial-hops.md.
+    //
+    // The first item is expanded only when no item is active: it is what a route shows when
+    // nothing matched (the wrapper falls back to data[0]), and a list with no id or wildcard
+    // (e.g. the admin's site row) relies on it. Expanding it beside an active page put the home
+    // page's sections into every page's loader data (page-hydration-payload.md).
+    const noneActive = activeIds !== 'loadAll' && !newData.some(item => activeIds.includes(+item.id));
     await Promise.all(newData
-        .filter((item, i) => activeIds === 'loadAll' || activeIds.includes(+item.id) || i === 0)
+        .filter((item, i) => activeIds === 'loadAll' || activeIds.includes(+item.id) || (i === 0 && noneActive))
         .map(item => loadDmsFormats(item, dmsAttrsConfigs, format, falcor, dataByApp)));
 
     return newData

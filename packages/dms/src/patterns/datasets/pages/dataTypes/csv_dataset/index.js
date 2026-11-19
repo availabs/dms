@@ -1,4 +1,4 @@
-import { GisCreate as CreatePage, Table, Metadata, GisUploads as Uploads, Rules } from "../lazyPages";
+import { GisCreate as CreatePage, Table, Metadata, GisUploads as Uploads, Rules, Indexes } from "../lazyPages";
 
 const GisDatasetConfig = {
     table: {
@@ -24,6 +24,14 @@ const GisDatasetConfig = {
         path: "/rules",
         cdn: () => false, // reached from the Admin page
         component: Rules,
+    },
+    // The source's database indexes: composite, covering, partial and expression ones an author adds,
+    // built in the background (setindex-composite-covering-indexes.md). Reached from the Admin page.
+    indexes: {
+        name: "Indexes",
+        path: "/indexes",
+        cdn: () => false,
+        component: Indexes,
     },
     sourceCreate: {
         name: "Create",

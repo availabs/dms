@@ -47,6 +47,17 @@ export const permissionsTheme = {
     inheritedActionQuietStyle: 'permInheritedQuiet',
 
     note: 't-proseXS text-[var(--t-pencil)]',
+
+    // reach: the four presets (UI.Button named styles), the two switches under them, the warning
+    // shown when site admins are kept out (auth-reach.md)
+    reachWrapper: 'flex flex-col gap-2',
+    reachPresets: 'flex flex-wrap gap-1.5',
+    reachPresetStyle: 'permInheritedQuiet',
+    reachPresetActiveStyle: 'permInherited',
+    reachSwitches: 'flex flex-wrap gap-x-4 gap-y-1.5',
+    reachSwitchRow: 'flex items-center gap-2',
+    reachSwitchLabel: 't-proseSM text-[var(--t-graphite)]',
+    reachWarning: 't-proseXS text-[var(--t-brick)]',
 }
 
 export default permissionsTheme

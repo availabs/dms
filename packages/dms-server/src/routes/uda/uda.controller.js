@@ -17,10 +17,11 @@ const { getSettings } = require('./uda.tasks.controller');
 const { translatePgToSqlite, detectRealPrimaryKey, resolvePrimaryKey } = require('./query_sets/postgres');
 const { createDamaView, cloneViewTable } = require('../../dama/upload/metadata');
 const { clearPgEnv } = require('../auth/owners');
-const { normaliseGrants } = require('../auth/grants');
+const { normaliseGrants, carryReach } = require('../auth/grants');
 const { parseJsonish, readAuthority, applySet, applyClear } = require('./authority');
 const { getViewLineage, getSourceLineage } = require('../../dama/lineage');
 const { ensureSourceRules } = require('../../dama/rules');
+const sourceIndexes = require('./source_indexes');
 
 const pgIdent = n => (n.length <= 63 ? n : n.slice(0, 63));
 
@@ -307,7 +308,7 @@ async function getSourceById(env, ids, attributes) {
 const METADATA_CAS_ATTEMPTS = 5;
 
 // Metadata keys only their own write paths may change; updateSource keeps the stored values.
-const SERVER_OWNED_METADATA_KEYS = ['authority', 'rules'];
+const SERVER_OWNED_METADATA_KEYS = ['authority', 'rules', 'indexes'];
 
 // The stored metadata as text (the CAS token) plus its parsed value ({} when absent or not an object).
 async function readSourceMetadata(ess, sourceId) {
@@ -460,7 +461,9 @@ async function updateSource(env, sourceId, updates) {
   // A generic write that carries `metadata` replaces the whole blob. It must never change or drop
   // the server-owned keys: `metadata.authority` (only setAuthoritativeView / clearAuthoritativeView
   // write it) and `metadata.rules` (only dama/rules setSourceRule writes it — the rule's triggers
-  // live in the database, so a stale copy here would misreport them). Keep the stored values,
+  // live in the database, so a stale copy here would misreport them), and `metadata.indexes` (only
+  // source_indexes.js writes it; the Metadata page saves a copy loaded before an index was added).
+  // Keep the stored values,
   // ignore any incoming ones, and write metadata by compare-and-swap.
   if (Object.prototype.hasOwnProperty.call(updates, 'metadata')) {
     const { metadata, ...rest } = updates;
@@ -475,6 +478,18 @@ async function updateSource(env, sourceId, updates) {
     });
     if (!Object.keys(rest).length) return rows;
     updates = rest;
+  }
+
+  // a grants write that leaves `reach` out keeps the stored one (routes/auth/grants.js carryReach)
+  if (Object.prototype.hasOwnProperty.call(updates, 'auth_permissions') && updates.auth_permissions != null) {
+    const { rows: was } = isDms
+      ? await db.query(`SELECT data FROM ${await dmsMainTable(db, app, splitMode)} WHERE id = $1`, [sourceId])
+      : await db.query(`SELECT auth_permissions FROM ${db.type === 'postgres' ? 'data_manager.sources' : 'sources'} WHERE source_id = $1`, [sourceId]);
+    const stored = was[0] ? (isDms ? (parseJsonish(was[0].data) || {}).auth_permissions : was[0].auth_permissions) : null;
+    const next = carryReach(stored, updates.auth_permissions);
+    if (next !== updates.auth_permissions) {
+      updates = { ...updates, auth_permissions: typeof updates.auth_permissions === 'string' ? JSON.stringify(next) : next };
+    }
   }
 
   if (isDms) {
@@ -942,115 +957,47 @@ const parseIfJSON = str => {
     return {}
   }
 }
+// The per-column Index toggle: flag the column (`isIndex`) and build or drop its single-column
+// index, `idx_<table>_<col>`, on every table behind the source. The build itself is the shared one
+// in source_indexes.js: in the background (CREATE INDEX CONCURRENTLY, a DAMA/DMS task) on Postgres,
+// inline on SQLite. The flag is only an index: the feature id is no longer read from it
+// (resolveFeatureIdColumn, setindex-composite-covering-indexes.md).
 async function setIndexColumn(env, sourceId, columnName, enable) {
-  const { isDms, db, app, splitMode } = await getEssentials({ env });
-
-  if (isDms) {
-    const tbl = await dmsMainTable(db, app, splitMode);
-    const { rows } = await db.query(
-      `SELECT data, type FROM ${tbl} WHERE id = $1`,
-      [Number(sourceId)]
-    );
-    if (!rows.length) throw new Error(`Source ${sourceId} not found`);
-
-    const { data, type: dmsRowType } = rows[0];
-    const config = parseIfJSON(data.config) || {};
-    const cols = config.attributes || [];
-
-    const updatedCols = cols.map(c => {
-      if (c.name !== columnName) return c;
-      if (enable) return { ...c, isIndex: true };
-      const { isIndex: _, ...rest } = c;
-      return rest;
-    });
-
-    await updateSource(env, sourceId, { config: { ...config, attributes: updatedCols } });
-
-    // DDL: manage expression indexes on each view's split table
-    const sourceSlug = getInstance(dmsRowType);
-    const views = data.views || [];
-    const viewIds = views.map(v => (typeof v === 'object' ? v.id : v)).filter(Boolean);
-    const safeCol = sanitizeName(columnName);
-
-    for (const viewId of viewIds) {
-      if (!safeCol) continue;
-      const dataType = `${sourceSlug}|${viewId}:data`;
-      const { schema: ts, table: tn } = resolveTable(app, dataType, db.type, splitMode, Number(sourceId));
-      const fqt = db.type === 'postgres' ? `${ts}.${tn}` : tn;
-      const idxName = pgIdent(`idx_${sanitize(tn)}_${sanitize(safeCol)}`);
-
-      if (enable) {
-        const expr = db.type === 'postgres'
-          ? `((data->>'${safeCol}'))`
-          : `(json_extract(data, '$.${safeCol}'))`;
-        try {
-          await db.query(`CREATE INDEX IF NOT EXISTS ${idxName} ON ${fqt} ${expr}`);
-        } catch (e) {
-          // Split table may not exist yet (no data uploaded) — safe to skip
-          console.warn(`[setIndex] create DMS index skipped (${fqt}): ${e.message}`);
-        }
-      } else {
-        try {
-          await db.query(db.type === 'postgres'
-            ? `DROP INDEX IF EXISTS ${ts}.${idxName}`
-            : `DROP INDEX IF EXISTS ${idxName}`);
-        } catch (e) {
-          console.warn(`[setIndex] drop DMS index: ${e.message}`);
-        }
-      }
-    }
-    return;
-  }
-
-  // External (DAMA) source
-  const srcTbl = db.type === 'postgres' ? 'data_manager.sources' : 'sources';
-  const { rows } = await db.query(
-    `SELECT metadata FROM ${srcTbl} WHERE source_id = $1`,
-    [Number(sourceId)]
-  );
-  if (!rows.length) throw new Error(`Source ${sourceId} not found`);
-
-  const raw = rows[0].metadata;
-  const metadata = parseIfJSON(raw);
-  const cols = metadata.columns || [];
-
-  const updatedCols = cols.map(c => {
+  const ess = await getEssentials({ env });
+  const { isDms, db, app, splitMode } = ess;
+  const flag = (cols) => cols.map(c => {
     if (c.name !== columnName) return c;
     if (enable) return { ...c, isIndex: true };
     const { isIndex: _, ...rest } = c;
     return rest;
   });
 
-  await updateSource(env, sourceId, { metadata: { ...metadata, columns: updatedCols } });
+  if (isDms) {
+    const tbl = await dmsMainTable(db, app, splitMode);
+    const { rows } = await db.query(`SELECT data FROM ${tbl} WHERE id = $1`, [Number(sourceId)]);
+    if (!rows.length) throw new Error(`Source ${sourceId} not found`);
+    const config = parseIfJSON(rows[0].data.config) || {};
+    await updateSource(env, sourceId, { config: { ...config, attributes: flag(config.attributes || []) } });
+  } else {
+    const srcTbl = db.type === 'postgres' ? 'data_manager.sources' : 'sources';
+    const { rows } = await db.query(`SELECT metadata FROM ${srcTbl} WHERE source_id = $1`, [Number(sourceId)]);
+    if (!rows.length) throw new Error(`Source ${sourceId} not found`);
+    const metadata = parseIfJSON(rows[0].metadata);
+    await updateSource(env, sourceId, { metadata: { ...metadata, columns: flag(metadata.columns || []) } });
+  }
 
-  // DDL: manage indexes on each DAMA view's data table
-  const viewsTbl = db.type === 'postgres' ? 'data_manager.views' : 'views';
-  const { rows: viewRows } = await db.query(
-    `SELECT table_schema, table_name FROM ${viewsTbl} WHERE source_id = $1 AND table_name IS NOT NULL`,
-    [Number(sourceId)]
-  );
-  const safeCol = sanitizeName(columnName);
-
-  for (const { table_schema, table_name } of viewRows) {
-    if (!table_schema || !table_name || !safeCol) continue;
-    const fqt = db.type === 'postgres' ? `${table_schema}.${table_name}` : table_name;
-    const idxName = pgIdent(`idx_${sanitize(table_name)}_${sanitize(safeCol)}`);
-
-    if (enable) {
-      try {
-        await db.query(`CREATE INDEX IF NOT EXISTS ${idxName} ON ${fqt} ("${safeCol}")`);
-      } catch (e) {
-        console.warn(`[setIndex] create DAMA index skipped (${fqt}): ${e.message}`);
-      }
-    } else {
-      try {
-        await db.query(db.type === 'postgres'
-          ? `DROP INDEX IF EXISTS ${table_schema}.${idxName}`
-          : `DROP INDEX IF EXISTS ${idxName}`);
-      } catch (e) {
-        console.warn(`[setIndex] drop DAMA index: ${e.message}`);
-      }
-    }
+  let spec;
+  try {
+    spec = sourceIndexes.normalizeSpec({ columns: [columnName] }, { isDms });
+  } catch (e) {
+    console.warn(`[setIndex] no index for column ${JSON.stringify(columnName)}: ${e.message}`);
+    return;
+  }
+  try {
+    await sourceIndexes.applyIndex(ess, env, sourceId, enable ? 'create' : 'drop', spec);
+  } catch (e) {
+    // The flag is saved; the Indexes panel shows the index as missing and can build it again.
+    console.warn(`[setIndex] ${enable ? 'build' : 'drop'} not started for ${columnName}: ${e.message}`);
   }
 }
 
@@ -1358,6 +1305,8 @@ module.exports = {
   updateSource,
   setAuthoritativeView,
   clearAuthoritativeView,
+  readSourceMetadata,
+  mutateSourceMetadata,
   getHiddenCategories,
   hiddenCategoryClause,
   LIFECYCLE_CATEGORIES,

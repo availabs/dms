@@ -1573,6 +1573,9 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                                     defaultPermission={attributes?.authPermissions?.defaultPermission}
                                     heading='on this section'
                                     inheritedFrom='the page'
+                                    // a section row's reads are open on the server (no `read` op on
+                                    // `component`), so `reach` could not make one private: not offered
+                                    reachSwitches={[]}
                                 />
                             )
                         }

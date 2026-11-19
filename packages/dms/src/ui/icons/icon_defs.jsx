@@ -774,6 +774,13 @@ export const File = (props) => (
   </svg>
 )
 
+// attach a file (chat's composer)
+export const Paperclip = (props) => (
+  <svg width={24} height={24} {...T6} {...props}>
+    <path d="m19.5 11.5-7.4 7.4a4.6 4.6 0 0 1-6.5-6.5l7.8-7.8a3.1 3.1 0 0 1 4.4 4.4l-7.8 7.8a1.5 1.5 0 0 1-2.2-2.2l7.1-7.1"/>
+  </svg>
+)
+
 export const TableColumns = (props) => (
   <svg width={24} height={24} {...T6} {...props}>
     <rect x="3.5" y="4.5" width="5" height="15" rx="1.5"/>
@@ -795,6 +802,9 @@ export const Grid = (props) => (
 // shield (e.g. the submenu chevron). v6 paths; registered 2026-10-08.
 export const ChevronRight = (props) => (
   <svg width={24} height={24} {...T6} {...props}><path d="M9.5 6l6 6-6 6"/></svg>
+)
+export const ChevronLeft = (props) => (
+  <svg width={24} height={24} {...T6} {...props}><path d="M14.5 6l-6 6 6 6"/></svg>
 )
 export const Trash = (props) => (
   <svg width={24} height={24} {...T6} {...props}><path d="M4.5 6.5h15M9.5 6V4.5h5V6M6.5 6.5l.8 13h9.4l.8-13M10 10.5v5M14 10.5v5"/></svg>
@@ -868,4 +878,41 @@ export const Padding = (props) => (
 )
 export const Border = (props) => (
   <svg width={24} height={24} {...T6} {...props}><rect x="3.5" y="3.5" width="17" height="17" rx="2" strokeDasharray="2 2.5"/><path d="M3.5 20.5h17" strokeWidth="2.25"/></svg>
+)
+
+// Text formatting, for a compact editor bar (chat's composer, 2026-11-17). Same T6 stroke as the
+// glyphs above, so a format bar reads as part of the same set as the buttons around it.
+export const Bold = (props) => (
+  <svg width={24} height={24} {...T6} strokeWidth={2.25} {...props}><path d="M7.5 5h5.25a3.5 3.5 0 0 1 0 7H7.5zM7.5 12h6.25a3.5 3.5 0 0 1 0 7H7.5z"/></svg>
+)
+export const Italic = (props) => (
+  <svg width={24} height={24} {...T6} {...props}><path d="M10.5 5h7M6.5 19h7M14 5l-4 14"/></svg>
+)
+export const Underline = (props) => (
+  <svg width={24} height={24} {...T6} {...props}><path d="M7.5 4.5v6.5a4.5 4.5 0 0 0 9 0V4.5M5.5 19.5h13"/></svg>
+)
+export const Strikethrough = (props) => (
+  <svg width={24} height={24} {...T6} {...props}><path d="M4.5 12h15M16.3 7.6c-.5-1.9-2.2-3.1-4.3-3.1-2.5 0-4.4 1.4-4.4 3.3 0 1.6 1.1 2.6 3.3 3.2M7.6 16.3c.5 1.9 2.3 3.2 4.6 3.2 2.6 0 4.5-1.4 4.5-3.4 0-.8-.3-1.5-.8-2.1"/></svg>
+)
+export const ListBullet = (props) => (
+  <svg width={24} height={24} {...T6} {...props}><path d="M9.5 6.5h10M9.5 12h10M9.5 17.5h10"/><path d="M5 6.5h.01M5 12h.01M5 17.5h.01" strokeWidth={2.5}/></svg>
+)
+export const ListNumbered = (props) => (
+  <svg width={24} height={24} {...T6} {...props}><path d="M10.5 6.5h9M10.5 12h9M10.5 17.5h9M4.5 5l1.25-.75V9M4.25 14.6c.2-.6.7-1 1.4-1 .8 0 1.35.5 1.35 1.2 0 1.2-2.75 2-2.75 3.5H7"/></svg>
+)
+export const Quote = (props) => (
+  <svg width={24} height={24} {...T6} {...props}><path d="M5 5v14M9.5 7h10M9.5 12h10M9.5 17h6.5"/></svg>
+)
+export const Code = (props) => (
+  <svg width={24} height={24} {...T6} {...props}><path d="M9 7.5 4.5 12 9 16.5M15 7.5l4.5 4.5-4.5 4.5"/></svg>
+)
+export const CodeBlock = (props) => (
+  <svg width={24} height={24} {...T6} {...props}><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M10 9.5 7.5 12l2.5 2.5M14 9.5l2.5 2.5-2.5 2.5"/></svg>
+)
+// "Aa": show or hide a formatting bar
+export const TextFormat = (props) => (
+  <svg width={24} height={24} {...T6} {...props}><path d="M3 17.5 7.25 6.5l4.25 11M4.6 13.5h5.3"/><circle cx="16.75" cy="15" r="2.5"/><path d="M19.25 12.5v5M3 20.5h18"/></svg>
+)
+export const At = (props) => (
+  <svg width={24} height={24} {...T6} {...props}><circle cx="12" cy="12" r="3.5"/><path d="M15.5 12v1.25a2.5 2.5 0 0 0 5 0V12a8.5 8.5 0 1 0-3.4 6.8"/></svg>
 )

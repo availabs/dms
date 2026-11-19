@@ -19,6 +19,10 @@
  * `read`: what earns a read of the row. A kind with no `read` op is open on read. `{ blank: owner }`
  * says a row is readable when that owner grants nothing (a row with no grants is read-only, owner
  * 2026-10-29); a source is narrowed only by something ON THE SOURCE, so its clause names `self`.
+ *
+ * `adminAlways`: rows of this kind cannot switch off the `<app> Admin` shortcut — a write setting
+ * `reach.override: false` on one is refused (the site and pattern rows: sealing one would lock the
+ * site's admins out of it). A rule without it allows the switch (planning/tasks/current/auth-reach.md).
  */
 const SOURCE_READ = ['view-source', 'update-source', 'edit-source-data', 'create-view', 'delete-source', 'edit-source-permissions'];
 const readOr = (blank, perms) => ({ anyOf: [{ blank }, { perms }] });
@@ -26,6 +30,8 @@ const readOr = (blank, perms) => ({ anyOf: [{ blank }, { perms }] });
 module.exports = {
   site: {
     owner: 'site',
+    // `reach.override: false` is refused on this row (routes/auth/index.js sealRefused)
+    adminAlways: true,
     ops: {
       create: ['*'],
       delete: ['*'],
@@ -42,6 +48,7 @@ module.exports = {
 
   pattern: {
     owner: 'self',
+    adminAlways: true,
     escape: { owner: 'site', perms: ['*'] },
     // a pattern with no grants is open to whoever may see the pattern list
     ifOwnerBlank: { owner: 'site', perms: ['view-pattern-list'] },

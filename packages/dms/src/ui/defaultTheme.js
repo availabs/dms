@@ -82,6 +82,7 @@ const fonts = [
         --t-ink:      #181A1F;
         --t-graphite: #50545C;
         --t-pencil:   #8F929A;
+        --t-quiet:    #676B73;
         --t-rule:     #E2E0D6;
         --t-rule-strong: #C9C6B8;
         --t-cobalt:   #0A46D8;
@@ -119,6 +120,7 @@ const fonts = [
         --t-ink:      #EDEDE7;
         --t-graphite: #A8ABB4;
         --t-pencil:   #6B6F78;
+        --t-quiet:    #8A8E97;
         --t-rule:     #2A2D34;
         --t-rule-strong: #3B3F49;
         --t-cobalt:   #7B9CFF;
@@ -174,6 +176,23 @@ const fonts = [
 
         .t-noteLG { font-family: "Caveat", "Segoe Print", cursive; font-size: 21px; line-height: 1.3; font-weight: 600; }
         .t-noteMD { font-family: "Caveat", "Segoe Print", cursive; font-size: 17px; line-height: 1.3; font-weight: 600; }
+
+        /* Chat surface type (design_system_v6/_shared.css §4b; the chat pattern's theme files use
+           these): an application surface's density, every size from --c-size (14px). --t-quiet is
+           the quiet text tone that still passes WCAG AA (times, counts). */
+        :root { --c-size: 14px; --c-msg-top: 10px; --c-msg-bottom: 2px; --c-follow: 1px; --c-row-y: 4px; }
+        [data-density="compact"] { --c-msg-top: 4px; --c-msg-bottom: 1px; --c-follow: 0px; --c-row-y: 2px; }
+        .c-body  { font-family: var(--t-font-prose, "IBM Plex Sans", system-ui, sans-serif); font-size: var(--c-size); line-height: 1.45; font-weight: 400; letter-spacing: 0; }
+        .c-name  { font-family: var(--t-font-prose, "IBM Plex Sans", system-ui, sans-serif); font-size: var(--c-size); line-height: 1.35; font-weight: 600; letter-spacing: -0.003em; }
+        .c-head  { font-family: var(--t-font-display, var(--font-display, "IBM Plex Sans", system-ui, sans-serif)); font-size: calc(var(--c-size) + 3px); line-height: 1.25; font-weight: 500; letter-spacing: 0; }
+        .c-rail  { font-family: var(--t-font-prose, "IBM Plex Sans", system-ui, sans-serif); font-size: calc(var(--c-size) - 0.5px); line-height: 20px; }
+        .c-small { font-family: var(--t-font-prose, "IBM Plex Sans", system-ui, sans-serif); font-size: calc(var(--c-size) - 1.5px); line-height: 1.4; }
+        .c-topic { font-family: var(--t-font-prose, "IBM Plex Sans", system-ui, sans-serif); font-size: calc(var(--c-size) - 1px); line-height: 1.4; }
+        .c-time  { font-family: var(--t-font-prose, "IBM Plex Sans", system-ui, sans-serif); font-size: calc(var(--c-size) - 2.5px); line-height: 1.3; font-weight: 400; font-variant-numeric: tabular-nums; letter-spacing: 0; }
+        .c-label { font-family: var(--t-font-prose, "IBM Plex Sans", system-ui, sans-serif); font-size: calc(var(--c-size) - 2.5px); line-height: 1.3; font-weight: 600; letter-spacing: 0.01em; }
+        .c-pill  { font-family: var(--t-font-prose, "IBM Plex Sans", system-ui, sans-serif); font-size: calc(var(--c-size) - 3.5px); line-height: 1; font-weight: 600; font-variant-numeric: tabular-nums; }
+        .c-initials { font-size: calc(var(--c-size) * 0.78); font-weight: 600; letter-spacing: 0.02em; }
+        .c-quiet { color: var(--t-quiet); }
 
         /* Faint fading graph-paper texture behind a centered hero/auth band
            (design_system_v6/_shared.css's .t6-sheet-fade) — pure CSS, only
