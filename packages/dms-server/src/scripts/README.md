@@ -83,7 +83,42 @@ Config files live in `src/db/configs/<name>.config.json`. Examples:
 npm run test:db-copy    # 61 integration tests (SQLite to SQLite)
 ```
 
+## sweep-orphans.js
+
+Removes rows nothing in the database can reach. Dry run by default, with counts and sizes per app; `--apply`
+backs up and deletes. Task: `planning/tasks/current/orphan-sweeper.md` (library planning).
+
+```bash
+node src/scripts/sweep-orphans.js --db <config> [--app <app>]… [--only <category>,…] [--min-age <hours>] [--json]
+node src/scripts/sweep-orphans.js --db <config> --apply [--expect '<json>'] [--drop-schemas a,b]
+```
+
+- **unlisted_children**: rows of a kind a format declares as a child (`childRefs`: a page's `sections`,
+  `draft_sections`, `history`) that no live row lists. A list and a single ref both count.
+- **dead_containers**: page-content rows (the kinds `childRefs` names) under a container no live row is: a page
+  whose pattern is gone, and its rows.
+- **unlisted_patterns**: pattern rows no site lists. `duplicate` (a listed pattern row has the same type: only the
+  row goes) or `alone` (its rows go with it).
+- **other_kinds**, opt-in (only when `--only` names it): rows of any other kind whose pattern is gone (map
+  symbologies), and an unlisted pattern that still holds such rows. Like sources they can be worth keeping with
+  nothing pointing at them, so by default they are kept and listed as `held`.
+- Rows inside JSON stored as text (a section's `element-data`) are read too.
+- Page- and pattern-level candidates are searched for in every `data_items*` table of the database, split tables
+  included. A row that names one keeps it (`kept, still referenced`). Another app's row counts only when its
+  `{id, ref}` names this app (ids are per app).
+- Rows created or updated within `--min-age` hours (default 24) are kept.
+- Junk `dms_*` schemas (empty, test runs, no app of their own) are listed. They are dropped only when named with
+  `--drop-schemas` on an `--apply`.
+- No change_log entries (open clients keep stale copies until they reload). Backup: gzipped NDJSON in `DMS_DELETE_BACKUP_DIR`
+  (default `var/delete-backups`). Opens the database directly: no init, no migrations.
+- Test: `npm run test:orphan-sweep`.
+
 ## cleanup-db.js
+
+> ⚠ **Do not run with `--delete`** (2026-11-17, `orphan-sweeper.md`). It reads `history` as an array, but pages
+> store one `{id, ref}`, so it flags live page history (1,871 of 1,873 on mitigat-ny-prod). Without `--app` it
+> also deletes every app's ids from the first app's table. `copy-db.js --skip-orphans` uses the same detectors,
+> so a copy made with it loses live page history too. Use `sweep-orphans.js`.
 
 Analyze a DMS database for orphaned rows — content items whose parent no longer exists — and optionally delete them. The DMS schema has no foreign key constraints, so deleting a parent (site, pattern, page, source) silently orphans all its children.
 
