@@ -7,8 +7,8 @@
 // A page is "fast" under the first limit, "ok" under the second, "slow" past it.
 // Score = the share of pages that are fast, plus half the share that are ok.
 export const THRESHOLDS = {
-  load: { visible: [2500, 4000], usable: [3500, 7000], complete: [5000, 10000] },
-  click: { visible: [500, 1000], usable: [500, 1000], complete: [1000, 2500] },
+  load: { visible: [500, 1000], usable: [1000, 3000], complete: [3000, 5000] },   // owner, 2026-11-20
+  click: { visible: [200, 500], usable: [500, 1000], complete: [1000, 2500] },    // fast limits: owner, 2026-11-20
 };
 export const GOALS = [
   { key: 'visible', name: 'See it', metric: 'lcp', what: 'main content painted' },

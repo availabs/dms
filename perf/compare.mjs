@@ -2,7 +2,7 @@
 import { aggregate, METRICS, VISITS } from './aggregate.mjs';
 import { verdict } from './stats.js';
 
-const COMPARED = ['complete', 'idle', 'lcp', 'fcp', 'ttfb', 'bytes', 'dataRequests'];
+const COMPARED = ['complete', 'usable', 'idle', 'lcp', 'fcp', 'ttfb', 'tbt', 'bytes', 'dataRequests', 'componentRequests'];
 
 export function compareRuns(base, cand) {
   const A = aggregate(base.visits), B = aggregate(cand.visits);

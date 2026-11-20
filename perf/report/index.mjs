@@ -127,6 +127,102 @@ function timeSection(agg, profile, thresholds) {
   </div></section>`;
 }
 
+/** The scorecard for two runs: each cell is before → after. */
+function scoreCompareSection(aggA, aggB, profA, profB, names) {
+  const A = scores(aggA.pages, profA), B = scores(aggB.pages, profB);
+  const rows = A.map((r) => ({ a: r, b: B.find((x) => x.visit === r.visit) })).filter((x) => x.b);
+  if (!rows.length) return '';
+  const tone = (n) => (n == null ? '' : n >= 75 ? 'fast' : n >= 50 ? 'ok' : 'slow');
+  const dist = (g) => `<div class="dist">${['fast', 'ok', 'slow'].filter((k) => g[k]).map((k) => `<i class="g-${k}" style="flex:${g[k]}" title="${GRADE_NAME[k]}: ${g[k]} page(s)"></i>`).join('')}</div>`;
+  const cellOf = (ga, gb) => {
+    if (ga.score == null && gb.score == null) return `<div class="score none"><span class="g">${ga.name}</span><span class="n">–</span><span class="d">not measured</span></div>`;
+    const d = ga.score == null || gb.score == null ? null : gb.score - ga.score;
+    return `<div class="score ${tone(gb.score)}"><span class="g">${ga.name}</span>
+      <span class="n"><span class="was">${ga.score ?? '–'} →</span> ${gb.score ?? '–'}${d ? ` <span class="delta ${d > 0 ? 'faster' : 'slower'}">${d > 0 ? '+' : '−'}${Math.abs(d)}</span>` : ''}</span>
+      ${dist(ga)}${dist(gb)}
+      <span class="d">${ga.fast}/${ga.ok}/${ga.slow} → ${gb.fast}/${gb.ok}/${gb.slow} fast/ok/slow</span>
+      <span class="d lim">fast ≤ ${secs(ga.limits[0])} · ok ≤ ${secs(ga.limits[1])}</span></div>`;
+  };
+  const head = `<div class="sc-head"></div>${rows[0].a.goals.map((g) => `<div class="sc-head"><b>${g.name}</b><span>${g.what}</span></div>`).join('')}`;
+  const body = rows.map(({ a, b }) => `<div class="sc-row"><b>${a.name}</b><span>${a.what} · ${a.pages} pages</span></div>${a.goals.map((g, i) => cellOf(g, b.goals[i])).join('')}`).join('');
+  return `<section id="scores"><div class="wrap">
+    <h2>Scores, ${esc(names[0])} → ${esc(names[1])}</h2>
+    <p class="lede">0 to 100: the share of pages that are fast, plus half the share that are ok. In each cell the upper bar is before, the lower bar after.</p>
+    <div class="scorecard">${head}${body}</div>
+    <div class="legend"><span><span class="sw box g-fast"></span>${GRADE_MARK.fast} Fast</span><span><span class="sw box g-ok"></span>${GRADE_MARK.ok} OK</span><span><span class="sw box g-slow"></span>${GRADE_MARK.slow} Slow</span></div>
+  </div></section>`;
+}
+
+/** Paired stacked columns: each page before and after, split by where the time went. */
+function pairedColumnChart(pairs, { title, limits, names }) {
+  const MAXP = 30;
+  const rows = pairs.map((x) => ({ ...x, ta: phaseTotal(x.a.phases), tb: phaseTotal(x.b.phases) })).sort((x, y) => y.ta - x.ta);
+  const shown = rows.slice(0, MAXP), n = shown.length;
+  if (!n) return '';
+  const L = 52, R = 64, T = 12, B = 70, H = 320;
+  const groupW = Math.max(30, Math.min(150, Math.floor(1000 / n))), colW = Math.floor((groupW - 8) / 2);
+  const W = Math.max(1000 + L + R, L + R + n * groupW);
+  const max = Math.max(limits[1] * 1.1, ...shown.map((r) => Math.max(r.ta, r.tb)));
+  const niceStep = (() => { const raw = max / 4; const pw = 10 ** Math.floor(Math.log10(raw)); return [1, 2, 2.5, 5, 10].map((k) => k * pw).find((s) => s >= raw); })();
+  const top = Math.ceil(max / niceStep) * niceStep;
+  const y = (v) => T + (1 - v / top) * (H - T - B);
+  let svg = `<svg viewBox="0 0 ${W} ${H}" style="min-width:${Math.min(W, Math.max(320, n * 34 + L + R))}px" role="img" aria-label="${esc(title)}">`;
+  for (let v = 0; v <= top + 1e-9; v += niceStep) svg += `<line class="gridline" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text class="axis" x="${L - 8}" y="${y(v) + 4}" text-anchor="end">${esc(fmtMs(v))}</text>`;
+  const used = new Set();
+  const column = (x, ph, total, label, path) => {
+    let acc = 0, out = '';
+    for (const p of PHASES) {
+      const v = ph[p.key] || 0; if (v <= 0) continue; used.add(p.key);
+      const y1 = y(acc + v), h = Math.max(0, y(acc) - y1 - (acc > 0 && y(acc) - y1 > 3 ? 1 : 0));
+      out += `<rect x="${x}" y="${y1}" width="${colW}" height="${h}" fill="var(--p-${p.key})"/>`; acc += v;
+    }
+    return out + `<rect class="hit" x="${x}" y="${T}" width="${colW}" height="${H - T - B}" fill="transparent" data-tip="${esc(`${path}\n${label}: ${fmtMs(total)} · ${GRADE_NAME[grade(total, limits)]}\n${phaseTip(ph)}`)}"/>`;
+  };
+  shown.forEach((r, i) => {
+    const x = L + i * groupW + 3;
+    svg += column(x, r.a.phases, r.ta, names[0], r.a.path) + column(x + colW + 2, r.b.phases, r.tb, names[1], r.a.path);
+    svg += `<text class="axis" x="${x + colW / 2}" y="${H - B + 12}" text-anchor="middle">B</text><text class="axis" x="${x + colW * 1.5 + 2}" y="${H - B + 12}" text-anchor="middle">A</text>`;
+    svg += `<text class="axis" x="${x + colW}" y="${H - B + 28}" text-anchor="end" transform="rotate(-35 ${x + colW} ${H - B + 28})">${esc((r.a.path.split('/').filter(Boolean).pop() || '/').slice(0, 22))}</text>`;
+  });
+  [['fast', limits[0]], ['ok', limits[1]]].forEach(([k, v]) => {
+    svg += `<line class="limit" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text class="axis" x="${W - R + 6}" y="${y(v) + 4}">${k} ≤ ${esc(secs(v))}</text>`;
+  });
+  svg += '</svg>';
+  return `<div class="chart"><h3>${esc(title)}</h3>${phaseLegend(used)}<div class="scroll">${svg}</div><div class="tip"></div><p class="small">Each page has two columns: B is before (${esc(names[0])}), A is after (${esc(names[1])}).${rows.length > n ? ` The ${n} slowest pages before, of ${rows.length}.` : ''} Hover a column for its numbers.</p></div>`;
+}
+
+/** Where the time goes in two runs: share bars on one scale, then paired columns per page. */
+function timeCompareSection(aggA, aggB, profA, profB, names) {
+  const kinds = KINDS.map((k) => {
+    const pa = aggA.pages.filter((p) => p.profile === profA && p.visit === k.visit && p.phases);
+    const pb = new Map(aggB.pages.filter((p) => p.profile === profB && p.visit === k.visit && p.phases).map((p) => [p.path, p]));
+    return { ...k, pairs: pa.filter((p) => pb.has(p.path)).map((p) => ({ a: p, b: pb.get(p.path) })) };
+  }).filter((k) => k.pairs.length);
+  if (!kinds.length) return '';
+  const used = new Set(), says = [];
+  const bars = kinds.map((k) => {
+    const sumOf = (side) => Object.fromEntries(PHASES.map((p) => [p.key, k.pairs.reduce((a, x) => a + (x[side].phases[p.key] || 0), 0) / k.pairs.length]));
+    const sa = sumOf('a'), sb = sumOf('b'), ta = phaseTotal(sa), tb = phaseTotal(sb), scale = Math.max(ta, tb) || 1;
+    const row = (sum, total, name) => `<div class="share-row"><div class="share-k"><b>${k.name}</b><span>${esc(name)} · ${fmtMs(total)} average page</span></div><div class="share" style="width:${(100 * total / scale).toFixed(1)}%">${PHASES.filter((p) => sum[p.key] > 0).map((p) => {
+      used.add(p.key);
+      const pct = 100 * sum[p.key] / total;
+      return `<i style="flex:${pct.toFixed(2)};background:var(--p-${p.key})" title="${p.name}: ${fmtMs(sum[p.key])} (${pct.toFixed(0)}%)">${pct * total / scale >= 11 ? `<span>${p.name} ${fmtMs(sum[p.key])}</span>` : ''}</i>`;
+    }).join('')}</div></div>`;
+    const moved = PHASES.map((p) => ({ p, d: (sb[p.key] || 0) - (sa[p.key] || 0) })).sort((x, y) => Math.abs(y.d) - Math.abs(x.d))[0];
+    if (Math.abs(tb - ta) >= 50) says.push(`<li><b>${k.name}:</b> the average page goes from ${fmtMs(ta)} to ${fmtMs(tb)}. The largest part of that is <b>${moved.p.name}</b>: ${fmtMs(sa[moved.p.key] || 0)} → ${fmtMs(sb[moved.p.key] || 0)}.</li>`);
+    return row(sa, ta, names[0]) + row(sb, tb, names[1]);
+  }).join('');
+  const charts = kinds.map((k) => pairedColumnChart(k.pairs, { title: `${k.name}: each page before and after, by where the time went`, limits: THRESHOLDS[k.kind].complete, names })).join('');
+  return `<section id="time"><div class="wrap">
+    <h2>Where the time goes, before and after</h2>
+    <p class="lede">The wait until a page is all there, split by what the browser was waiting on. Both bars of a pair are on the same scale, so a shorter bar is a shorter wait.</p>
+    <div class="shares">${bars}</div>
+    <ul class="findings">${says.join('')}</ul>
+    ${phaseLegend(used)}
+    ${charts}
+  </div></section>`;
+}
+
 /** A number with its spread: the median, and min–max under it. */
 const cell = (s, unit, { range = true } = {}) => {
   if (!s) return '<td class="num">–</td>';
@@ -466,10 +562,8 @@ function comparison(base, cand, cmp) {
         `<tr><td class="k">${labels[i]}</td><td class="path">${esc(s.path)}</td>${cell(s.complete, 'ms')}${cell(J.cand[i].complete, 'ms')}${cell(s.cumulative, 'ms', { range: false })}${cell(J.cand[i].cumulative, 'ms', { range: false })}<td class="num">${fmtCount(s.dataRequests?.median)} → ${fmtCount(J.cand[i].dataRequests?.median)}</td></tr>`).join('')}</tbody></table></div>
     </div></section>`;
   }
-  const aggOf = (l) => aggregate(l.visits);
-  const sb = scores(aggOf(base).pages, base.run.config.profiles[0]), sc = scores(aggOf(cand).pages, cand.run.config.profiles[0]);
-  const scoreRows = sb.map((r) => { const o = sc.find((x) => x.visit === r.visit); return o ? `<tr><td class="k">${r.name}</td>${r.goals.map((g, i) => { const a = g.score, b = o.goals[i].score; return `<td class="num ${a == null || b == null || a === b ? 'same' : b > a ? 'faster' : 'slower'}">${a ?? '–'} → ${b ?? '–'}</td>`; }).join('')}</tr>` : ''; }).join('');
-  const scoreTable = scoreRows ? `<h3>Scores, before → after</h3><div class="tbl-wrap"><table><thead><tr><th>Visit</th>${sb[0].goals.map((g) => `<th class="num">${g.name}</th>`).join('')}</tr></thead><tbody>${scoreRows}</tbody></table></div><p class="small">0 to 100: the share of pages that are fast, plus half the share that are ok.</p>` : '';
+  const aggA = aggregate(base.visits), aggB = aggregate(cand.visits);
+  const profA = base.run.config.profiles[0], profB = cand.run.config.profiles[0], names = [cmp.base.label, cmp.cand.label];
   return {
     title: `Performance: ${cmp.base.label} → ${cmp.cand.label}`,
     body: `<header class="top"><div class="wrap">
@@ -479,10 +573,11 @@ function comparison(base, cand, cmp) {
       <p class="meta">before: ${runMeta(base.run)}<br><br>after: ${runMeta(cand.run)}</p>
     </div></header>
     ${cmp.modeDiffers.length ? `<section><div class="wrap"><div class="callout info"><b>The two runs are in different modes:</b> ${cmp.modeDiffers.map(esc).join(', ')}. This comparison is between modes, not between versions of the code.</div></div></section>` : ''}
+    ${scoreCompareSection(aggA, aggB, profA, profB, names)}
+    ${timeCompareSection(aggA, aggB, profA, profB, names)}
     <section id="overview"><div class="wrap">
       <h2>Did it move?</h2>
       <div class="tiles">${headline}</div>
-      ${scoreTable}
       <div class="tbl-wrap"><table><thead><tr><th>Visit</th><th>Number</th><th class="num">Median page before</th><th class="num">After</th><th class="num">Change</th><th class="num">75th-percentile page</th><th class="num">Pages faster</th><th class="num">Slower</th><th class="num">No change</th></tr></thead><tbody>${summaryRows}</tbody></table></div>
       <p class="small">"Change" is coloured only when at least one page moved by more than the noise.</p>
       <div class="tbl-wrap"><table><thead><tr><th>Mode</th><th>${esc(cmp.base.label)}</th><th>${esc(cmp.cand.label)}</th></tr></thead><tbody>${modeLine('ssr', 'Server-rendered')}${modeLine('sync', 'Sync')}${modeLine('preload', 'Preload')}${modeLine('devBuild', 'Dev build')}</tbody></table></div>

@@ -10,6 +10,7 @@ import { LexicalComposer } from '@lexical/react/LexicalComposer';
 import { LexicalCollaboration } from '@lexical/react/LexicalCollaborationContext';
 
 import {OnChangePlugin} from '@lexical/react/LexicalOnChangePlugin';
+import { createPortal, flushSync } from 'react-dom';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
 import { $getRoot, $createParagraphNode, $createTextNode } from 'lexical';
 // import { merge, cloneDeep } from 'lodash-es'
@@ -33,6 +34,23 @@ function isLexicalJSON(str) {
 }
 
 
+// Editors whose content is set in the same turn of the event loop are attached in one React commit.
+// One at a time, each attach would dirty the page's layout under the next editor still mounting.
+// The flush is a microtask and commits synchronously, so it lands before the browser paints: a
+// section that remounts on the client has no server HTML to show in the meantime, and a timer here
+// let a blank frame through each time.
+let showQueue = [];
+let showQueued = false;
+function showTogether(show) {
+    showQueue.push(show);
+    if (showQueued) return;
+    showQueued = true;
+    queueMicrotask(() => {
+        const queue = showQueue;
+        showQueue = []; showQueued = false;
+        flushSync(() => queue.forEach((fn) => fn()));
+    });
+}
 
 // `plugins`: extra Lexical plugins (React elements) a caller renders inside this editor's
 // LexicalComposer, so they can use `useLexicalComposerContext`. The library knows nothing about
@@ -118,8 +136,28 @@ export default function Lexicals ({value, hideControls, hideFloatingToolbar = fa
   const staticFirst = !editable && !isCollab;
   const [live, setLive] = React.useState(!staticFirst);
   React.useLayoutEffect(() => { if (!live) setLive(true); }, [live]);
+  // The live editor mounts outside the document and is attached once its content is set. A page has
+  // dozens of these. Lexical reads style and layout while it mounts (getComputedStyle on the root, the
+  // DOM selection on every commit), and every editor's own DOM writes made the next one's reads
+  // recalculate the whole page: ~160 ms apiece, 12 s on a page with 73. Writes to a detached tree
+  // leave the page clean, so those reads cost nothing, and attaching the editors together is one
+  // layout. Until then the server's HTML stays on screen. Both wrappers are `display: contents`, so
+  // the editor's box sits in the layout where it always did.
+  // planning/tasks/current/lexical-view-keep-empty-text-paragraphs.md
+  const [shown, setShown] = React.useState(!staticFirst);
+  const onContentSet = React.useCallback(() => showTogether(() => setShown(true)), []);
+  const holder = React.useRef(null);
+  const offPage = React.useMemo(() => {
+    if (!staticFirst || typeof document === 'undefined') return null;
+    const el = document.createElement('div');
+    el.style.display = 'contents';
+    return el;
+  }, [staticFirst]);
+  React.useLayoutEffect(() => {
+    if (shown && offPage && holder.current && offPage.parentNode !== holder.current) holder.current.appendChild(offPage);
+  }, [shown, offPage]);
 
-  if (!live) {
+  const staticView = () => {
     const html = import.meta.env?.SSR && isLexicalJSON(value)
       ? getHtmlSync(value, undefined, undefined, { nestedTheme: nestedLexicalTheme, dmsTheme: theme })
       : '';
@@ -144,7 +182,10 @@ export default function Lexicals ({value, hideControls, hideFloatingToolbar = fa
         </div>
       </div>
     );
-  }
+  };
+  // The static block keeps its place in the tree from the first render until the live editor is shown,
+  // so React keeps the server's DOM node (and its HTML) instead of mounting an empty one.
+  if (!live) return <>{staticView()}{null}</>;
 
   const inner = (
     <LexicalComposer key={isCollab ? `collab-${collabId}` : id} initialConfig={initialConfig}>
@@ -180,6 +221,7 @@ export default function Lexicals ({value, hideControls, hideFloatingToolbar = fa
             editable={editable}
             theme={nestedLexicalTheme}
             fileUploadInfo={ fileUploadInfo }
+            onContentSet={onContentSet}
           />
         )}
       </div>
@@ -187,7 +229,7 @@ export default function Lexicals ({value, hideControls, hideFloatingToolbar = fa
     </LexicalComposer>
   );
 
-  return (
+  const editorTree = (
     <PageActionsContext onSetPageParam={onSetPageParam}>
       <LexicalThemeContext.Provider value={theme}>
         {isCollab ? (
@@ -198,15 +240,19 @@ export default function Lexicals ({value, hideControls, hideFloatingToolbar = fa
       </LexicalThemeContext.Provider>
     </PageActionsContext>
   );
+
+  return (
+    <>
+    {shown ? null : staticView()}
+    {offPage ? <div ref={holder} style={{ display: 'contents' }} /> : null}
+    {offPage ? createPortal(editorTree, offPage) : editorTree}
+    </>
+  );
 }
 
-function UpdateEditor({ value, hideControls, onChange, bgColor, theme, editable, fileUploadInfo, placeholderText, ariaLabel, placeholderClassName, hideFloatingToolbar, hideFloatingLinkEditor, componentPicker }) {
+function UpdateEditor({ value, hideControls, onChange, bgColor, theme, editable, fileUploadInfo, placeholderText, ariaLabel, placeholderClassName, hideFloatingToolbar, hideFloatingLinkEditor, componentPicker, onContentSet }) {
     const isFirstRender = React.useRef(true);
-    // In view mode the composer is created with this value (initialConfig.editorState), so the effect
-    // below has nothing to do on mount. Setting the same state again is a second full commit per
-    // editor: ~100 ms each on a page with dozens of rich-text sections
-    // (planning/tasks/current/lexical-view-double-set-state.md).
-    const lastValue = React.useRef(!editable && isLexicalJSON(value) ? value : undefined);
+    const lastValue = React.useRef();
     const [editor] = useLexicalComposerContext();
 
     React.useEffect(() => {
@@ -229,6 +275,7 @@ function UpdateEditor({ value, hideControls, onChange, bgColor, theme, editable,
                 paragraph.append($createTextNode(""));
                 root.append(paragraph);
             });
+            onContentSet?.();
             return;
         }
 
@@ -237,6 +284,7 @@ function UpdateEditor({ value, hideControls, onChange, bgColor, theme, editable,
             // lexical calls flushSync that results in a warning. queueMicrotask is a fix for that.
             queueMicrotask(() => {
                 editor.setEditorState(newEditorState);
+                onContentSet?.();
             });
         } else {
             // plain text
@@ -247,6 +295,7 @@ function UpdateEditor({ value, hideControls, onChange, bgColor, theme, editable,
                 paragraph.append($createTextNode(value));
                 root.append(paragraph);
             });
+            onContentSet?.();
         }
     }, [editor, value]);
 
