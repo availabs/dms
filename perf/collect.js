@@ -21,7 +21,7 @@ export function collector() {
   const P = window.__dmsPerf = {
     paints: {}, lcp: null, cls: 0, longTasks: [], softNavs: [], marks: [],
     inflight: 0, lastActivity: 0, lastVisible: 0, lastClick: null, urlChanges: [],
-    loadingSeen: false, last: {},
+    loadingSeen: false, last: {}, res: [], loadingEls: new Set(),
   };
   // `kind` says what was active; the last time of each kind is kept, to explain a slow page
   const touch = (kind, visible, t) => {
@@ -44,6 +44,11 @@ export function collector() {
   observe('resource', (e) => {
     const data = e.initiatorType === 'fetch' || e.initiatorType === 'xmlhttprequest' || e.initiatorType === 'beacon';
     touch(data ? 'fetch' : 'resource', !data, e.responseEnd || e.startTime);
+    // 2: a component's data (dataset rows: Falcor's uda / dama routes); 1: other data (the page's own
+    // content, sync, tracking); 0: a file
+    let kind = 0;
+    if (data) { let u = e.name; try { u = decodeURIComponent(u); } catch { /* keep it raw */ } kind = /\[\s*"(uda|dama)"/.test(u) ? 2 : 1; }
+    P.res.push([e.startTime, e.responseEnd || e.startTime, kind]);
   });
   observe('mark', (e) => { if (e.name.startsWith('dms:')) P.marks.push([e.name, e.startTime]); });
   // Chrome 151+ (or --enable-features=SoftNavigationHeuristics): paints for an in-app navigation
@@ -126,7 +131,7 @@ export function collector() {
     const started = now();
     const tick = () => {
       const loading = loadingCount();
-      if (loading > 0) { P.loadingSeen = true; touch('loading', true); }
+      if (loading > 0) { P.loadingSeen = true; touch('loading', true); document.querySelectorAll('[data-dms-loading]').forEach((el) => P.loadingEls.add(el)); }
       if (document.readyState !== 'complete') touch('document', true);
       if (P.inflight > 0) touch('busy', false);
       const busy = P.inflight > 0 || loading > 0 || document.readyState !== 'complete';
@@ -139,6 +144,48 @@ export function collector() {
     };
     tick();
   });
+
+  // Where the time between `since` and `until` went. Every millisecond gets one label, the first that
+  // applies: server (before the document's first byte), script (a main-thread task over 50 ms: the page
+  // is frozen), cdata (a component's data request in flight), data (any other data request in flight),
+  // files (the document, an image, script, stylesheet or font downloading), other (short tasks, layout,
+  // paint, timers).
+  P.phases = (since, until) => {
+    const cats = ['server', 'script', 'cdata', 'data', 'files'];
+    const nav = performance.getEntriesByType('navigation')[0];
+    const iv = [
+      since === 0 && nav ? [[0, nav.responseStart]] : [],
+      P.longTasks.map(([s, d]) => [s, s + d]),
+      P.res.filter((r) => r[2] === 2).map((r) => [r[0], r[1]]),
+      P.res.filter((r) => r[2] === 1).map((r) => [r[0], r[1]]),
+      P.res.filter((r) => !r[2]).map((r) => [r[0], r[1]]).concat(since === 0 && nav ? [[nav.responseStart, nav.responseEnd]] : []),
+    ];
+    const ev = [];
+    iv.forEach((list, ci) => list.forEach(([a, b]) => {
+      a = Math.max(a, since); b = Math.min(b, until);
+      if (b > a) { ev.push([a, ci, 1]); ev.push([b, ci, -1]); }
+    }));
+    ev.sort((x, y) => x[0] - y[0]);
+    const open = [0, 0, 0, 0, 0], out = { server: 0, script: 0, cdata: 0, data: 0, files: 0, other: 0 };
+    let t = since;
+    for (const [at, ci, d] of ev) {
+      if (at > t) { const k = open.findIndex((n) => n > 0); out[k < 0 ? 'other' : cats[k]] += at - t; t = at; }
+      open[ci] += d;
+    }
+    if (until > t) out.other += until - t;
+    return out;
+  };
+  // When the page can be used: from `from` (the main content's paint), the first moment with no
+  // main-thread task over 50 ms running and none starting in the next second.
+  P.usable = (from) => {
+    let t = from;
+    for (const [s, d] of P.longTasks.slice().sort((a, b) => a[0] - b[0])) {
+      if (s + d <= t) continue;
+      if (s - t >= 1000) break;
+      t = s + d;
+    }
+    return t;
+  };
 
   // What the runner reads once the page is complete.
   P.read = (since = 0) => {
@@ -157,7 +204,7 @@ export function collector() {
       tbt: tasks.filter(([s]) => fcp == null || s >= fcp).reduce((a, [, d]) => a + Math.max(0, d - 50), 0),
       longestTask: tasks.reduce((a, [, d]) => Math.max(a, d), 0),
       marks: P.marks, softNavs: P.softNavs, urlChanges: P.urlChanges, lastClick: P.lastClick,
-      loadingSeen: P.loadingSeen,
+      loadingSeen: P.loadingSeen, loadingSections: P.loadingEls.size,
       heap: performance.memory ? performance.memory.usedJSHeapSize : null,
       resources: performance.getEntriesByType('resource').length,
     };

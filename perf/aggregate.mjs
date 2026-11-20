@@ -6,6 +6,7 @@ export const METRICS = [
   { key: 'ttfb', label: 'Server responded', unit: 'ms', get: (v) => v.ms?.ttfb, floor: 50 },
   { key: 'fcp', label: 'First paint', unit: 'ms', get: (v) => v.ms?.fcp, floor: 50 },
   { key: 'lcp', label: 'Main content', unit: 'ms', get: (v) => v.ms?.lcp, floor: 50 },
+  { key: 'usable', label: 'Usable', unit: 'ms', get: (v) => v.ms?.usable, floor: 50 },
   { key: 'complete', label: 'Complete', unit: 'ms', get: (v) => v.ms?.complete, floor: 50 },
   { key: 'idle', label: 'Idle', unit: 'ms', get: (v) => v.ms?.idle, floor: 50 },
   { key: 'tbt', label: 'Blocking time', unit: 'ms', get: (v) => v.tbt, floor: 50 },
@@ -14,6 +15,8 @@ export const METRICS = [
   { key: 'dataBytes', label: 'Data transferred', unit: 'bytes', get: (v) => v.bytes?.data, floor: 10240 },
   { key: 'hydrationBytes', label: 'Hydration data', unit: 'bytes', get: (v) => v.bytes?.hydration, floor: 10240 },
   { key: 'dataRequests', label: 'Data requests', unit: 'count', get: (v) => v.requests?.data, floor: 0.5 },
+  { key: 'componentRequests', label: 'Component data requests', unit: 'count', get: (v) => v.requests?.component, floor: 0.5 },
+  { key: 'componentMs', label: 'Component data time', unit: 'ms', get: (v) => v.phases?.cdata, floor: 50 },
   { key: 'duplicates', label: 'Duplicate requests', unit: 'count', get: (v) => v.requests?.duplicates, floor: 0.5 },
 ];
 export const metric = (key) => METRICS.find((m) => m.key === key);
@@ -36,9 +39,12 @@ export function aggregate(visits) {
     return {
       key: g.key, profile: g.profile, visit: g.visit, path: g.path, page: g.page, from: ok[0]?.from,
       n: ok.length,
+      // where the time went, from the repetition whose Complete is the median one
+      phases: (() => { const r = ok.filter((v) => v.ms.complete != null).sort((x, y) => x.ms.complete - y.ms.complete); const m = r[Math.floor((r.length - 1) / 2)]; return m ? (m.phases || { unknown: m.ms.complete }) : null; })(),
       metrics: Object.fromEntries(METRICS.map((m) => [m.key, summarize(ok.map(m.get))])),
       flags: {
         errors: count((v) => v.error), timedOut: count((v) => v.timedOut), noLink: count((v) => v.noLink),
+        orphan: count((v) => v.orphan), navStale: count((v) => v.navStale),
         stale: count((v) => v.staleContent), fullLoad: count((v) => v.fullLoad), scripted: count((v) => v.scriptedClick),
         hydration: count((v) => v.errors?.hydration > 0), console: count((v) => (v.errors?.console || 0) + (v.errors?.page || 0) > 0),
         badStatus: count((v) => v.status >= 400), networkFree: count((v) => v.networkFree),

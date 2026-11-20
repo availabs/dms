@@ -28,6 +28,7 @@ export default function register({ program, helpers }) {
     .option('--config <file>', 'A JSON run config; flags override it')
     .option('--label <name>', 'A name for this run (part of its folder name)')
     .option('--runs <n>', 'Repetitions of every visit (default 5)')
+    .option('--parallel <n>', 'Browsers measuring at once (default 3); 1 for numbers no other page competed with')
     .option('--sample <n>', 'Visit n pages spread across the pattern instead of all of them')
     .option('--pages <slugs>', 'Visit these pages only (comma-separated slugs)')
     .option('--pages-from <run-dir>', "Visit the same pages and journey as a saved run")
@@ -51,7 +52,7 @@ export default function register({ program, helpers }) {
         pages = choosePages(allPages, { pages: saved.filter((s) => allPages.some((p) => p.slug === s)) });
       } else pages = choosePages(allPages, cfg);
       if (!pages.length) throw new Error(`Pattern ${pattern.name} has no published pages to visit`);
-      log(`${pattern.name}: ${pages.length} of ${allPages.filter((p) => p.published).length} published pages · ${cfg.runs} run(s) · ${cfg.visits.join(', ')} · ${cfg.target}`);
+      log(`${pattern.name}: ${pages.length} of ${allPages.filter((p) => p.published).length} published pages · ${cfg.runs} run(s) · ${cfg.parallel} at a time · ${cfg.visits.join(', ')} · ${cfg.target}`);
       const { outDir, run } = await runPerf(cfg, { pattern, pages, allPages, repoRoot: root, connection: { host: connection.host, app: connection.app, type: connection.type } }, log);
       log(`saved ${run.counts.visits} visits to ${outDir}`);
       if (options.report !== false) {

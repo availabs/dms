@@ -202,7 +202,11 @@ export default function Lexicals ({value, hideControls, hideFloatingToolbar = fa
 
 function UpdateEditor({ value, hideControls, onChange, bgColor, theme, editable, fileUploadInfo, placeholderText, ariaLabel, placeholderClassName, hideFloatingToolbar, hideFloatingLinkEditor, componentPicker }) {
     const isFirstRender = React.useRef(true);
-    const lastValue = React.useRef();
+    // In view mode the composer is created with this value (initialConfig.editorState), so the effect
+    // below has nothing to do on mount. Setting the same state again is a second full commit per
+    // editor: ~100 ms each on a page with dozens of rich-text sections
+    // (planning/tasks/current/lexical-view-double-set-state.md).
+    const lastValue = React.useRef(!editable && isLexicalJSON(value) ? value : undefined);
     const [editor] = useLexicalComposerContext();
 
     React.useEffect(() => {

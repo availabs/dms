@@ -62,17 +62,22 @@ function networkLog(page) {
       const bytes = { doc: 0, js: 0, css: 0, img: 0, font: 0, data: 0, other: 0, total: 0 };
       const seen = new Map();
       let data = 0, bad = 0;
+      const kinds = Object.fromEntries(['component', 'content', 'sync', 'tracking', 'other'].map((k) => [k, { n: 0, bytes: 0, ms: 0 }]));
       for (const e of entries) {
         const b = BUCKET[e.type] || 'other';
         bytes[b] += e.bytes; bytes.total += e.bytes;
         if (e.status >= 400) bad++;
-        if (DATA_TYPES.has(e.type)) { data++; seen.set(e.key, (seen.get(e.key) || 0) + 1); }
+        if (DATA_TYPES.has(e.type)) {
+          data++; seen.set(e.key, (seen.get(e.key) || 0) + 1);
+          const k = kinds[dataKind(e)]; k.n++; k.bytes += e.bytes; k.ms += e.ms;
+        }
       }
       const dups = [...seen.entries()].filter(([, n]) => n > 1);
       const hydration = errors.console.concat(errors.page).filter((t) => HYDRATION.test(t)).length;
       return {
         bytes,
-        requests: { total: entries.length, data, duplicates: dups.reduce((a, [, n]) => a + n - 1, 0), failed: errors.failed.length + bad },
+        dataKinds: kinds,
+        requests: { total: entries.length, data, component: kinds.component.n, duplicates: dups.reduce((a, [, n]) => a + n - 1, 0), failed: errors.failed.length + bad },
         duplicateRequests: dups.slice(0, 5).map(([k, n]) => `${n}× ${readable(k).slice(0, 220)}`),
         slowestRequests: entries.filter((e) => DATA_TYPES.has(e.type)).sort((x, y) => y.ms - x.ms).slice(0, 3).map((e) => ({ ms: e.ms, bytes: e.bytes, what: readable(e.key).slice(0, 220) })),
         errors: { console: errors.console.length, page: errors.page.length, hydration, samples: errors.page.concat(errors.console).slice(0, 3) },
@@ -100,8 +105,18 @@ const within = (promise, ms, fallback) => {
     new Promise((resolve, reject) => { timer = setTimeout(() => (fallback instanceof Error ? reject(fallback) : resolve(fallback)), ms); }),
   ]);
 };
+/** What a data request is for. Component data is dataset rows (Falcor's uda / dama routes). */
+const dataKind = (e) => {
+  const u = readable(e.key);
+  if (/\/sync\//.test(e.url)) return 'sync';
+  if (/\/track\//.test(e.url)) return 'tracking';
+  if (/\[\s*"(uda|dama)"/.test(u)) return 'component';
+  if (/\[\s*"dms"/.test(u)) return 'content';
+  return 'other';
+};
 const readable = (url) => { try { return decodeURIComponent(url); } catch { return url; } };
 const round = (v) => (typeof v === 'number' ? Math.round(v * 10) / 10 : v);
+const roundAll = (o) => Object.fromEntries(Object.entries(o || {}).map(([k, v]) => [k, Math.round(v)]));
 
 /** A document load: cold or warm, depending on what the context already holds. */
 async function loadVisit(ctx, cfg, url) {
@@ -127,13 +142,15 @@ async function measureLoad(page, net, cfg, url, out) {
     try { html = resp ? await within(resp.text(), 5000, '') : ''; } catch { /* body gone after a redirect */ }
     const doc = detectFromHtml(html);
     Object.assign(out, await net.summary());
-    out.ms = { ttfb: round(m.ttfb), fcp: round(m.fcp), lcp: round(m.lcp?.time ?? null), domContentLoaded: round(m.domContentLoaded), load: round(m.load), complete: round(done.complete), idle: round(done.idle) };
+    const usable = await inPage(page, (from) => window.__dmsPerf.usable(from), m.lcp?.time ?? m.fcp ?? 0);
+    out.ms = { ttfb: round(m.ttfb), fcp: round(m.fcp), lcp: round(m.lcp?.time ?? null), usable: round(usable), domContentLoaded: round(m.domContentLoaded), load: round(m.load), complete: round(done.complete), idle: round(done.idle) };
+    out.phases = roundAll(await inPage(page, (u) => window.__dmsPerf.phases(0, u), done.complete));
     out.lastActivity = Object.fromEntries(Object.entries(done.last || {}).map(([k, v]) => [k, Math.round(v)]));
     out.timedOut = done.timedOut; out.stuck = done.timedOut ? { inflight: done.inflight, loading: done.loading } : undefined;
     out.cls = round(m.cls * 1000) / 1000; out.tbt = round(m.tbt); out.longestTask = round(m.longestTask);
     out.lcpElement = m.lcp ? m.lcp.tag : null;
     out.bytes.hydration = doc.hydrationBytes; out.bytes.docDecoded = m.docDecoded;
-    out.serverTiming = m.serverTiming; out.marks = m.marks; out.loadingSeen = m.loadingSeen; out.heap = m.heap;
+    out.serverTiming = m.serverTiming; out.marks = m.marks; out.loadingSeen = m.loadingSeen; out.loadingSections = m.loadingSections; out.heap = m.heap;
     out.finalPath = norm(new URL(page.url()).pathname);
     out.mode = { ...doc, ...(await inPage(page, detectInPage)) };
   }
@@ -209,13 +226,17 @@ async function measureClick(page, net, cfg, targetPaths) {
   const soft = out.fullLoad ? null : m.softNavs.slice(before.softNavs).find((s) => s.start >= since - 5);
   const urlChange = out.fullLoad ? null : (m.urlChanges.find(([t]) => t >= since - 5) || [])[0];
   Object.assign(out, await net.summary());
+  const painted = out.fullLoad ? (m.lcp?.time ?? m.fcp ?? 0) : (soft?.lcp ?? soft?.fcp ?? since);
+  const usable = await inPage(page, (from) => window.__dmsPerf.usable(from), painted);
+  out.phases = roundAll(await inPage(page, ([a, b]) => window.__dmsPerf.phases(a, b), [since, done.complete]));
   out.ms = {
+    usable: rel(usable),
     urlChange: rel(urlChange ?? null),
     fcp: out.fullLoad ? rel(m.fcp) : (soft?.fcp != null ? rel(soft.fcp) : null),
     lcp: out.fullLoad ? rel(m.lcp?.time ?? null) : (soft?.lcp != null ? rel(soft.lcp) : null),
     complete: rel(done.complete), idle: rel(done.idle),
   };
-  for (const k of ['complete', 'idle']) if (out.ms[k] < 0) out.ms[k] = 0;
+  for (const k of ['complete', 'idle', 'usable']) if (out.ms[k] < 0) out.ms[k] = 0;
   out.lastActivity = Object.fromEntries(Object.entries(done.last || {}).map(([k, v]) => [k, Math.round(v + shift)]).filter(([, v]) => v >= 0));
   out.timedOut = done.timedOut;
   out.cls = round(((out.fullLoad ? m.cls : m.cls - before.cls)) * 1000) / 1000;
@@ -247,7 +268,7 @@ export async function runPerf(cfg, site, log = () => {}) {
     version: 1, label: cfg.label, started: new Date().toISOString(), finished: null,
     config: { ...cfg, out: undefined }, connection, pattern,
     pages: pages.map((p) => ({ id: p.id, slug: p.slug, path: p.path, title: p.title })),
-    home: home.path, journey: null, mode: null,
+    home: home.path, journey: null, mode: null, links: {},
     environment: {
       chrome: browser.version(), platform: `${os.platform()} ${os.release()}`, cpu: os.cpus()[0]?.model, cores: os.cpus().length,
       memoryGB: Math.round(os.totalmem() / 2 ** 30), node: process.version, host: os.hostname(),
@@ -276,86 +297,125 @@ export async function runPerf(cfg, site, log = () => {}) {
 
     const reuse = cfg.pagesFrom ? JSON.parse(fs.readFileSync(path.join(path.resolve(cfg.pagesFrom), 'run.json'), 'utf8')) : null;
     if (reuse?.journey) run.journey = reuse.journey;
+    if (reuse?.links) run.links = { ...reuse.links };
+    const linkable = [...new Set([...allPages.filter((x) => x.published).map((x) => norm(x.path)), basePath])];
 
     for (const profile of cfg.profiles) {
       void PROFILES[profile];
       const setMode = (out) => { if (!run.mode && out.mode) { run.mode = { ...out.mode, preload: pattern.preload_data }; saveRun(); } };
       const t0 = Date.now();
       const mins = () => Math.round((Date.now() - t0) / 60000);
+      // `cfg.parallel` browsers work through `items` at once; `work(take, w)` runs in each
+      const together = async (items, work) => {
+        let next = 0, stop = null;
+        const take = () => (stop || next >= items.length ? null : { item: items[next], i: next++ });
+        await Promise.all(Array.from({ length: Math.max(1, Math.min(cfg.parallel, items.length)) }, (_, w) =>
+          work(take, w).catch((e) => { stop = stop || e; })));
+        if (stop) throw stop;
+      };
+      const linksOf = async (page) => (await within(inPage(page, linkedPaths, linkable), 5000, [])).map((x) => (x === basePath ? norm(home.path) : x));
       for (let rep = 1; rep <= cfg.runs; rep++) {
+        const tag = `[${profile}] run ${rep}/${cfg.runs}`;
         // cold: a new browser profile for every page
         if (cfg.visits.includes('cold')) {
-          for (const [i, p] of pages.entries()) {
-            log(`[${profile}] run ${rep}/${cfg.runs} · cold ${i + 1}/${pages.length} ${p.path} · ${mins()} min in`);
-            const ctx = await newContext();
-            try {
-              const cold = await loadVisit(ctx, cfg, urlOf(p));
-              setMode(cold.out);
-              record({ profile, rep, page: p.slug, path: p.path, visit: 'cold', ...cold.out, mode: undefined });
-              await within(cold.page.close(), 5000, null);
-            } finally { await within(ctx.close(), 10000, null); }
-          }
+          await together(pages, async (take) => {
+            for (let job; (job = take());) {
+              const p = job.item;
+              log(`${tag} · cold ${job.i + 1}/${pages.length} ${p.path} · ${mins()} min in`);
+              const ctx = await newContext();
+              try {
+                const cold = await loadVisit(ctx, cfg, urlOf(p));
+                setMode(cold.out);
+                if (!cold.out.error) run.links[norm(p.path)] = await linksOf(cold.page).catch(() => []);
+                record({ profile, rep, page: p.slug, path: p.path, visit: 'cold', ...cold.out, mode: undefined });
+                await within(cold.page.close(), 5000, null);
+              } finally { await within(ctx.close(), 10000, null); }
+            }
+          });
           saveRun();
         }
 
-        // warm: one browser that has already been to the site (assets cached, sync's copy saved)
+        // warm: a browser that has already been to the site (assets cached, sync's copy saved)
         // opens every page's URL directly. The visit that primes it isn't recorded.
         if (cfg.visits.includes('warm')) {
-          const ctx = await newContext();
-          try {
-            log(`[${profile}] run ${rep}/${cfg.runs} · warm: first visit to ${home.path}, not recorded`);
-            const prime = await loadVisit(ctx, cfg, urlOf(home));
-            if (prime.out.error) throw new Error(`${urlOf(home)} did not load: ${prime.out.error}`);
-            setMode(prime.out);
-            await within(prime.page.close(), 5000, null);
-            for (const [i, p] of pages.entries()) {
-              log(`[${profile}] run ${rep}/${cfg.runs} · warm ${i + 1}/${pages.length} ${p.path} · ${mins()} min in`);
-              const warm = await loadVisit(ctx, cfg, urlOf(p));
-              record({ profile, rep, page: p.slug, path: p.path, visit: 'warm', ...warm.out, mode: undefined });
-              await within(warm.page.close(), 5000, null);
-            }
-          } finally { await within(ctx.close(), 10000, null); }
+          await together(pages, async (take) => {
+            const ctx = await newContext();
+            try {
+              const prime = await loadVisit(ctx, cfg, urlOf(home));
+              if (prime.out.error) throw new Error(`${urlOf(home)} did not load: ${prime.out.error}`);
+              setMode(prime.out);
+              await within(prime.page.close(), 5000, null);
+              for (let job; (job = take());) {
+                const p = job.item;
+                log(`${tag} · warm ${job.i + 1}/${pages.length} ${p.path} · ${mins()} min in`);
+                const warm = await loadVisit(ctx, cfg, urlOf(p));
+                if (!warm.out.error) run.links[norm(p.path)] = await linksOf(warm.page).catch(() => []);
+                record({ profile, rep, page: p.slug, path: p.path, visit: 'warm', ...warm.out, mode: undefined });
+                await within(warm.page.close(), 5000, null);
+              }
+            } finally { await within(ctx.close(), 10000, null); }
+          });
           saveRun();
         }
 
-        // click: one session walks the pattern, clicking from each page to the next. A page with no
-        // link from where the session is gets reached from its parent, else from the home page.
+        // click: a session walks the pattern, clicking from each page to the next. A page the session
+        // isn't on a link to is reached from a page known to link to it (the loads above, or the run
+        // named in --pages-from, recorded who links to whom); a page nothing links to is skipped.
         if (cfg.visits.includes('click')) {
-          const ctx = await newContext();
-          let cur = null;
-          const open = async (p) => {
-            if (cur) await within(cur.page.close(), 5000, null);
-            cur = await loadVisit(ctx, cfg, urlOf(p));
-            return !cur.out.error;
-          };
-          const herePath = () => norm(new URL(cur.page.url()).pathname);
-          try {
-            log(`[${profile}] run ${rep}/${cfg.runs} · click: landing on ${home.path}, not recorded`);
-            if (!(await open(home))) throw new Error(`${urlOf(home)} did not load: ${cur.out.error}`);
-            setMode(cur.out);
-            // a page can't be clicked to from itself: the one the session starts on goes last
-            const start = herePath();
-            const order = [...pages.filter((p) => !pathsOf(p).includes(start)), ...pages.filter((p) => pathsOf(p).includes(start))];
-            for (const [i, p] of order.entries()) {
-              log(`[${profile}] run ${rep}/${cfg.runs} · click ${i + 1}/${order.length} ${p.path} · ${mins()} min in`);
-              let from = herePath();
-              let out = await clickVisit(cur.page, cur.net, cfg, pathsOf(p));
-              if (out.noLink) {
-                const parent = p.parent && allPages.find((x) => x.id === p.parent && x.published);
-                for (const src of [parent, home].filter((x, k, a) => x && x.path !== p.path && a.indexOf(x) === k && !pathsOf(x).includes(from))) {
-                  if (!(await open(src))) continue;
-                  from = herePath();
-                  out = await clickVisit(cur.page, cur.net, cfg, pathsOf(p));
-                  if (!out.noLink) break;
-                }
-              }
-              record({ profile, rep, page: p.slug, path: p.path, visit: 'click', from, ...out });
-              // a click that failed leaves the session somewhere unknown: start it again
-              if (out.error || out.timedOut || out.urlNeverChanged) {
+          const inbound = new Map();
+          for (const [src, targets] of Object.entries(run.links)) for (const t of targets) { if (!inbound.has(t)) inbound.set(t, []); inbound.get(t).push(src); }
+          const known = Object.keys(run.links).length > 0;
+          const size = Math.ceil(pages.length / Math.max(1, Math.min(cfg.parallel, pages.length)));
+          const slices = []; for (let i = 0; i < pages.length; i += size) slices.push(pages.slice(i, i + size));
+          let done = 0;
+          await together(slices, async (take) => {
+            for (let job; (job = take());) {
+              const ctx = await newContext();
+              let cur = null;
+              const open = async (pathOrPage) => {
+                if (cur) await within(cur.page.close(), 5000, null);
+                cur = await loadVisit(ctx, cfg, cfg.target + (pathOrPage.path || pathOrPage));
+                cur.fresh = true;   // a document load, not an in-app navigation
+                return !cur.out.error;
+              };
+              const herePath = () => norm(new URL(cur.page.url()).pathname);
+              try {
                 if (!(await open(home))) throw new Error(`${urlOf(home)} did not load: ${cur.out.error}`);
-              }
+                setMode(cur.out);
+                for (const p of job.item) {
+                  log(`${tag} · click ${++done}/${pages.length} ${p.path} · ${mins()} min in`);
+                  const base = { profile, rep, page: p.slug, path: p.path, visit: 'click' };
+                  const targets = pathsOf(p), me = norm(p.path);
+                  const parent = p.parent && allPages.find((x) => x.id === p.parent && x.published);
+                  // pages that link to this one, best first: its parent, the home page, then any other
+                  const linkers = (inbound.get(me) || []).filter((s) => s !== me);
+                  const rank = (s) => (parent && s === norm(parent.path) ? 0 : s === norm(home.path) ? 1 : 2);
+                  const sources = known ? [...linkers].sort((a, b) => rank(a) - rank(b)) : [parent, home].filter(Boolean).map((x) => norm(x.path)).filter((s) => s !== me);
+                  if (known && !sources.length) { record({ ...base, noLink: true, orphan: true }); continue; }
+                  // already on the page: click to it from a page that links to it
+                  if (targets.includes(herePath()) && !(sources[0] && await open(sources[0]))) { record({ ...base, noLink: true }); if (!(await open(home))) throw new Error(`${urlOf(home)} did not load`); continue; }
+                  let from = herePath();
+                  let out = await clickVisit(cur.page, cur.net, cfg, targets);
+                  // the page links to it when loaded directly, but not after the session navigated to it
+                  const navStale = out.noLink && linkers.includes(from) && !cur.fresh;
+                  if (out.noLink) {
+                    for (const src of [...(navStale ? [from] : []), ...sources.filter((s) => s !== from)].slice(0, 2)) {
+                      if (!(await open(src))) continue;
+                      from = herePath();
+                      out = await clickVisit(cur.page, cur.net, cfg, targets);
+                      if (!out.noLink) break;
+                    }
+                  }
+                  cur.fresh = false;
+                  record({ ...base, from, ...out, ...(navStale ? { navStale: true } : {}) });
+                  // a click that failed leaves the session somewhere unknown: start it again
+                  if (out.error || out.timedOut || out.urlNeverChanged) {
+                    if (!(await open(home))) throw new Error(`${urlOf(home)} did not load: ${cur.out.error}`);
+                  }
+                }
+              } finally { await within(ctx.close(), 10000, null); }
             }
-          } finally { await within(ctx.close(), 10000, null); }
+          });
           saveRun();
         }
       }

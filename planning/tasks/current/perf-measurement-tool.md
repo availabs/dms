@@ -454,6 +454,37 @@ completes at 1.6–1.9 s with it: each load also asks `/sync/bootstrap?skeleton`
 IndexedDB, and re-renders. Not measured: signed-in editing, offline, or live updates, which are what sync is
 for.
 
+## Report redesign, parallel runs, and the availabs.com script time (2026-11-20)
+
+- **Report** now leads with a scorecard (first load / returning load / navigate × see it / use it / all there,
+  0–100 = % of pages fast + half the % ok; limits in `score.mjs`) and "Where the time goes": the wait until
+  Complete split into Server, Scripts, Component data, Page data, Files, Other (`collect.js` `phases`), as
+  share bars and one stacked column per page. New numbers per visit: `usable`, `phases`, `dataKinds`
+  (component / content / sync / tracking), `loadingSections`.
+- **Runner**: `--parallel` (default 3; 1 is the careful number). Loads record which pages each page links to
+  (`run.links`); the click pass uses that to pick a page that links to the target, skips pages nothing links
+  to (`orphan`), and flags a link that is there on a direct load but missing after an in-app navigation
+  (`navStale`). NOT YET RUN: written while a MitigateNY run was using the machine.
+- **Finding, MitigateNY**: after the session clicks to a hazard page (e.g. `/assess_risk/natural_hazards/drought`),
+  the link to its `mitigation_strategy` child is not in the DOM, though it is on a direct load of the same page.
+  That is why those pages had no click measurement. To confirm with the new `navStale` flag.
+- **availabs.com vs the local production build**: no difference beyond noise
+  (`scratchpad/hub-test/perf/2026-11-20-1312-availabs-local/compare-availabs-live.html`).
+- **availabs.com script time** (CPU profile of `/work`, local production build; 12.5 of 15.7 s sampled in two
+  Lexical functions). Each rich-text section in view mode swaps its server HTML for a live read-only Lexical
+  editor in a layout effect (`ui/components/lexical/editor/index.tsx`, `staticFirst`). `/work` has 73 of them,
+  `/lab` 60, `/home` 40, `/platform` 37.
+  - 7.3 s: `UpdateEditor`'s effect calls `editor.setEditorState()` in a microtask on mount, although
+    `initialConfig.editorState` already holds the same value. The commit runs Lexical's
+    `$internalCreateSelection`, which reads the DOM selection (~100 ms per editor).
+  - 4.2 s: `setRootElement` → reconcile → `$setElementIndent` → `getComputedStyle()` on each editor's root: a
+    forced style recalculation per editor (~58 ms each), against ~10,700 CSS rules.
+  - Options, not built: (1) skip the redundant `setEditorState` on first mount in view mode; (2) keep the
+    static HTML and go live only when a section nears the viewport, on idle or on first interaction; (3) never
+    mount Lexical in view: static HTML (also generated in the browser for in-app navigation) with delegated
+    handlers for collapsibles and buttons; (4) fewer CSS rules in the bundle (all themes ship together).
+  - Tracking: each measured page view posts `/track/visit`; a live run adds its visits to the site's data.
+
 ## Decided (owner, 2026-11-18)
 
 1. **The target is a setting of each run.** Runs are saved as JSON on disk, and the report compares saved

@@ -9,6 +9,7 @@ export const DEFAULTS = {
   profiles: ['public'],
   visits: ['warm', 'click', 'journey'],   // 'cold' (a new profile per page) is opt-in: it is the slow one
   runs: 5,
+  parallel: 3,             // browsers measuring at once. 1 is the careful number: pages don't compete for the CPU or the server
   sample: null,            // N pages spread across the pattern; null = every published page
   pages: null,             // explicit slugs
   pagesFrom: null,         // reuse a saved run's page list and journey
@@ -32,6 +33,7 @@ export function resolveRunConfig(options = {}) {
     label: options.label, target: options.target, pattern: options.pattern,
     profiles: list(options.profiles), visits: list(options.visits), pages: list(options.pages),
     runs: options.runs != null ? +options.runs : undefined,
+    parallel: options.parallel != null ? +options.parallel : undefined,
     sample: options.sample != null ? +options.sample : undefined,
     journeySteps: options.journeySteps != null ? +options.journeySteps : undefined,
     quietMs: options.quietMs != null ? +options.quietMs : undefined,
@@ -46,5 +48,6 @@ export function resolveRunConfig(options = {}) {
   const known = ['cold', 'warm', 'click', 'journey'];
   for (const v of cfg.visits) if (!known.includes(v)) throw new Error(`Unknown visit type "${v}" (have: ${known.join(', ')})`);
   if (!(cfg.runs >= 1)) throw new Error('--runs must be 1 or more');
+  if (!(cfg.parallel >= 1)) throw new Error('--parallel must be 1 or more');
   return cfg;
 }

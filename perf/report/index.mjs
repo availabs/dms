@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { aggregate, METRICS, VISITS, metric } from '../aggregate.mjs';
+import { scores, grade, THRESHOLDS, KINDS } from '../score.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -13,6 +14,118 @@ const fmtCount = (v) => (v == null ? '–' : Number.isInteger(v) ? String(v) : v
 const fmtScore = (v) => (v == null ? '–' : v.toFixed(3));
 const fmt = (unit) => ({ ms: fmtMs, bytes: fmtBytes, count: fmtCount, score: fmtScore }[unit]);
 const VISIT_NAME = { cold: 'Cold load', warm: 'Returning load', click: 'In-app click' };
+
+// Where a page's time goes. The order is the stacking order, bottom to top.
+const PHASES = [
+  { key: 'server', name: 'Server', what: 'waiting for the first byte of the page' },
+  { key: 'script', name: 'Scripts', what: 'the browser is running scripts and the page is frozen (tasks over 50 ms)' },
+  { key: 'cdata', name: 'Component data', what: "waiting on a component's data request: dataset rows for a table, card, graph or map" },
+  { key: 'data', name: 'Page data', what: "waiting on other data requests: the page's own content, sync, tracking" },
+  { key: 'files', name: 'Files', what: 'downloading the page, images, scripts, styles and fonts' },
+  { key: 'other', name: 'Other', what: 'short tasks, layout, paint and timers' },
+  { key: 'unknown', name: 'Not broken down', what: 'this run was saved before the breakdown existed' },
+];
+const phaseTotal = (ph) => PHASES.reduce((a, p) => a + (ph?.[p.key] || 0), 0);
+const phaseLegend = (used) => `<div class="legend">${PHASES.filter((p) => used.has(p.key)).map((p) => `<span title="${esc(p.what)}"><span class="sw box" style="background:var(--p-${p.key})"></span>${p.name}</span>`).join('')}</div>`;
+const GRADE_NAME = { fast: 'Fast', ok: 'OK', slow: 'Slow' };
+const GRADE_MARK = { fast: '●', ok: '◐', slow: '○' };
+const secs = (ms) => `${+(ms / 1000).toFixed(1)} s`;
+
+/** One thin stacked bar: a page's time by phase, on a shared scale. */
+const miniStack = (ph, max, title) => {
+  if (!ph) return '';
+  const segs = PHASES.filter((p) => ph[p.key] > 0).map((p) => `<i style="width:${(100 * ph[p.key] / max).toFixed(2)}%;background:var(--p-${p.key})"></i>`).join('');
+  return `<div class="stack" title="${esc(title)}">${segs}</div>`;
+};
+const phaseTip = (ph) => PHASES.filter((p) => ph?.[p.key] > 0).map((p) => `${p.name} ${fmtMs(ph[p.key])}`).join('\n');
+
+/** The scorecard: kinds of visit down, goals across. */
+function scoreSection(agg, profile, thresholds) {
+  const rows = scores(agg.pages, profile, thresholds);
+  if (!rows.length) return '';
+  const tone = (n) => (n == null ? '' : n >= 75 ? 'fast' : n >= 50 ? 'ok' : 'slow');
+  const cellOf = (g) => {
+    if (g.score == null) return `<div class="score none"><span class="g">${g.name}</span><span class="n">–</span><span class="d">not measured</span></div>`;
+    const bar = ['fast', 'ok', 'slow'].filter((k) => g[k]).map((k) => `<i class="g-${k}" style="flex:${g[k]}" title="${GRADE_NAME[k]}: ${g[k]} page(s)"></i>`).join('');
+    return `<div class="score ${tone(g.score)}"><span class="g">${g.name}</span><span class="n">${g.score}</span>
+      <div class="dist">${bar}</div>
+      <span class="d">${g.fast} fast · ${g.ok} ok · ${g.slow} slow${g.unmeasured ? ` · ${g.unmeasured} not measured` : ''}</span>
+      <span class="d lim">fast ≤ ${secs(g.limits[0])} · ok ≤ ${secs(g.limits[1])}</span></div>`;
+  };
+  const head = `<div class="sc-head"></div>${rows[0].goals.map((g) => `<div class="sc-head"><b>${g.name}</b><span>${g.what}</span></div>`).join('')}`;
+  const body = rows.map((r) => `<div class="sc-row"><b>${r.name}</b><span>${r.what} · ${r.pages} pages</span></div>${r.goals.map(cellOf).join('')}`).join('');
+  return `<section id="scores"><div class="wrap">
+    <h2>Scores</h2>
+    <p class="lede">0 to 100: the share of pages that are fast, plus half the share that are ok. Each kind of visit is scored against three goals.</p>
+    <div class="scorecard">${head}${body}</div>
+    <div class="legend"><span><span class="sw box g-fast"></span>${GRADE_MARK.fast} Fast</span><span><span class="sw box g-ok"></span>${GRADE_MARK.ok} OK</span><span><span class="sw box g-slow"></span>${GRADE_MARK.slow} Slow</span></div>
+  </div></section>`;
+}
+
+/** Stacked columns: one per page, slowest first, split by where the time went. */
+function columnChart(pages, { title, limits }) {
+  const rows = pages.filter((p) => p.phases).map((p) => ({ p, total: phaseTotal(p.phases) })).sort((a, b) => b.total - a.total);
+  if (!rows.length) return '';
+  const n = rows.length, L = 52, R = 64, T = 12, B = n <= 14 ? 64 : 16, H = 300;
+  const colW = Math.max(4, Math.min(110, Math.floor(1000 / n))), gap = colW >= 8 ? 2 : 1;
+  const W = Math.max(1000 + L + R, L + R + n * colW);
+  const max = Math.max(limits[1] * 1.1, ...rows.map((r) => r.total));
+  const niceStep = (() => { const raw = max / 4; const pw = 10 ** Math.floor(Math.log10(raw)); return [1, 2, 2.5, 5, 10].map((k) => k * pw).find((s) => s >= raw); })();
+  const top = Math.ceil(max / niceStep) * niceStep;
+  const y = (v) => T + (1 - v / top) * (H - T - B);
+  let svg = `<svg viewBox="0 0 ${W} ${H}" style="min-width:${Math.min(W, Math.max(320, n * 7 + L + R))}px" role="img" aria-label="${esc(title)}">`;
+  for (let v = 0; v <= top + 1e-9; v += niceStep) svg += `<line class="gridline" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text class="axis" x="${L - 8}" y="${y(v) + 4}" text-anchor="end">${esc(fmtMs(v))}</text>`;
+  const used = new Set();
+  rows.forEach(({ p, total }, i) => {
+    const x = L + i * colW;
+    let acc = 0;
+    for (const ph of PHASES) {
+      const v = p.phases[ph.key] || 0;
+      if (v <= 0) continue;
+      used.add(ph.key);
+      const y1 = y(acc + v), h = Math.max(0, y(acc) - y1 - (acc > 0 && y(acc) - y1 > 3 ? 1 : 0));
+      svg += `<rect x="${x + gap / 2}" y="${y1}" width="${colW - gap}" height="${h}" fill="var(--p-${ph.key})"/>`;
+      acc += v;
+    }
+    const g = grade(total, limits);
+    svg += `<rect class="hit" x="${x}" y="${T}" width="${colW}" height="${H - T - B}" fill="transparent" data-tip="${esc(`${p.path}\n${fmtMs(total)} · ${GRADE_NAME[g]}\n${phaseTip(p.phases)}`)}"/>`;
+    if (n <= 14) svg += `<text class="axis" x="${x + colW / 2}" y="${H - B + 14}" text-anchor="end" transform="rotate(-35 ${x + colW / 2} ${H - B + 14})">${esc(p.path.split('/').filter(Boolean).pop() || '/')}</text>`;
+  });
+  [['fast', limits[0]], ['ok', limits[1]]].forEach(([k, v]) => {
+    svg += `<line class="limit" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text class="axis" x="${W - R + 6}" y="${y(v) + 4}">${k} ≤ ${esc(secs(v))}</text>`;
+  });
+  svg += '</svg>';
+  return `<div class="chart"><h3>${esc(title)}</h3>${phaseLegend(used)}<div class="scroll">${svg}</div><div class="tip"></div>${n > 14 ? '<p class="small">One column per page, slowest on the left. Hover a column for the page and its numbers; the table below has every page.</p>' : ''}</div>`;
+}
+
+/** Where the time goes, per kind of visit: share bars, then a column per page. */
+function timeSection(agg, profile, thresholds) {
+  const kinds = KINDS.map((k) => ({ ...k, pages: agg.pages.filter((p) => p.profile === profile && p.visit === k.visit && p.phases) })).filter((k) => k.pages.length);
+  if (!kinds.length) return '';
+  const used = new Set(), says = [];
+  const bars = kinds.map((k) => {
+    const sum = Object.fromEntries(PHASES.map((p) => [p.key, k.pages.reduce((a, pg) => a + (pg.phases[p.key] || 0), 0)]));
+    const total = phaseTotal(sum) || 1;
+    const segs = PHASES.filter((p) => sum[p.key] > 0).map((p) => {
+      used.add(p.key);
+      const pct = 100 * sum[p.key] / total;
+      return `<i style="flex:${pct.toFixed(2)};background:var(--p-${p.key})" title="${p.name}: ${pct.toFixed(0)}% · ${fmtMs(sum[p.key] / k.pages.length)} on the average page">${pct >= 9 ? `<span>${p.name} ${pct.toFixed(0)}%</span>` : ''}</i>`;
+    }).join('');
+    const topPhase = PHASES.filter((p) => p.key !== 'unknown').sort((a, b) => sum[b.key] - sum[a.key])[0];
+    if (sum[topPhase.key] > 0) says.push(`<li><b>${k.name}:</b> ${(100 * sum[topPhase.key] / total).toFixed(0)}% of the wait is <b>${topPhase.name}</b> (${topPhase.what}); ${fmtMs(sum[topPhase.key] / k.pages.length)} of ${fmtMs(total / k.pages.length)} on the average page.</li>`);
+    return `<div class="share-row"><div class="share-k"><b>${k.name}</b><span>${fmtMs(total / k.pages.length)} average page</span></div><div class="share">${segs}</div></div>`;
+  }).join('');
+  const defs = `<dl class="defs">${PHASES.filter((p) => used.has(p.key)).map((p) => `<dt><span class="sw box" style="background:var(--p-${p.key})"></span>${p.name}</dt><dd>${p.what[0].toUpperCase() + p.what.slice(1)}.</dd>`).join('')}</dl>`;
+  const charts = kinds.map((k) => columnChart(k.pages, { title: `${k.name}: every page, by where the time went`, limits: thresholds[k.kind].complete })).join('');
+  return `<section id="time"><div class="wrap">
+    <h2>Where the time goes</h2>
+    <p class="lede">The wait until a page is all there, split by what the browser was waiting on. Every millisecond is counted once.</p>
+    <div class="shares">${bars}</div>
+    <ul class="findings">${says.join('')}</ul>
+    ${defs}
+    ${charts}
+  </div></section>`;
+}
 
 /** A number with its spread: the median, and min–max under it. */
 const cell = (s, unit, { range = true } = {}) => {
@@ -37,7 +150,7 @@ function runMeta(run) {
   const e = run.environment || {};
   return [
     `${esc(run.connection?.app)}+${esc(run.connection?.type)} · pattern ${esc(run.pattern?.name)}`,
-    `${run.pages.length} pages × ${run.config.runs} run(s) · ${esc(run.config.visits.join(', '))}`,
+    `${run.pages.length} pages × ${run.config.runs} run(s) · ${run.config.parallel > 1 ? `${run.config.parallel} pages at a time` : 'one page at a time'} · ${esc(run.config.visits.join(', '))}`,
     `started ${esc(run.started?.slice(0, 16).replace('T', ' '))} UTC`,
     `Chrome ${esc(e.chrome)} · ${esc(e.cpu)} (${e.cores} cores) · ${esc(e.host)}`,
     `commits: app ${esc(e.commits?.app)} · dms ${esc(e.commits?.dms)}`,
@@ -118,15 +231,17 @@ const DEFINITIONS = `
   <dt>Server responded</dt><dd>First byte of the document (TTFB).</dd>
   <dt>First paint</dt><dd>Something is on screen (FCP).</dd>
   <dt>Main content</dt><dd>The largest element is painted (LCP). For an in-app click it needs Chrome's soft-navigation entries, and a real (not scripted) click.</dd>
+  <dt>Usable</dt><dd>The page has stopped freezing: after Main content, the first moment with no main-thread task over 50 ms running and none starting in the next second. A click or scroll before this can go unanswered.</dd>
   <dt>Complete</dt><dd>The page the visitor sees has stopped arriving: no section carries <code>data-dms-loading</code>, no nodes are being added, no image, script or stylesheet is still loading. Measured once the browser is idle, as the time of the last visible change. A map's canvas repainting is not seen.</dd>
   <dt>Idle</dt><dd>The browser has nothing left to do: Complete, plus background requests (sync's bootstrap, prefetches) and long tasks.</dd>
   <dt>Blocking time</dt><dd>The part of every main-thread task past 50 ms, after First paint.</dd>
   <dt>Cold / returning / click</dt><dd>Cold: a new browser profile, straight to the URL. Returning: a browser that has already been to the site (its files cached, sync's copy of the site saved) goes straight to the URL. Click: one session walks the pattern, clicking the real link from each page to the next. Times for a click run from the click.</dd>
+  <dt>Scores</dt><dd>For each goal a page is fast, ok or slow against two limits (shown under each score). Score = % of pages fast + half the % ok. A page with no measurement (no link to click) is left out.</dd>
   <dt>Median, range</dt><dd>Each visit is repeated. Cells show the median, with min – max under it. "Median page" and "75th-percentile page" are taken across the pages' medians.</dd>
 </dl>`;
 
 function overviewTable(agg, profile) {
-  const cols = ['ttfb', 'fcp', 'lcp', 'complete', 'idle', 'tbt', 'bytes', 'dataRequests'];
+  const cols = ['ttfb', 'fcp', 'lcp', 'usable', 'complete', 'idle', 'tbt', 'bytes', 'dataRequests'];
   const head = `<tr><th>Visit</th><th class="num">Pages</th>${cols.map((k) => `<th class="num">${esc(metric(k).label)}</th>`).join('')}</tr>`;
   const rows = VISITS.map((v) => agg.overall[`${profile}|${v}`]).filter(Boolean).map((o) =>
     `<tr><td class="k">${VISIT_NAME[o.visit]}</td><td class="num">${o.count}</td>${cols.map((k) => {
@@ -171,8 +286,20 @@ function findings(run, agg, profile) {
   const stale = sum('stale'), full = clicks.filter((p) => p.flags.fullLoad).length, noLink = clicks.filter((p) => p.flags.noLink && !p.n).length;
   if (stale) out.push(`<b>${stale} page-visit(s) changed the URL but not the page</b> (stale content after a click). See Problems.`);
   if (full) out.push(`<b>${full} page(s) reloaded the whole document on a click</b> instead of navigating in the app.`);
-  if (noLink) out.push(`${noLink} page(s) have no link from their parent, the home page or the page before them, so they have no click measurement.`);
+  if (noLink) out.push(`${noLink} page(s) have no click measurement: no measured page links to them, so a visitor reaches them only by URL.`);
+  const navStale = clicks.filter((p) => p.flags.navStale).length;
+  if (navStale) out.push(`<b>${navStale} page(s) lost their link after an in-app navigation:</b> the page before them links to them when loaded directly, but the link was not there after the session clicked its way to that page. See Problems.`);
   if (sum('hydration')) out.push(`<b>Hydration errors</b> on ${sum('hydration')} page-visit group(s): React threw the server's HTML away there.`);
+  {
+    const lp = agg.pages.filter((p) => p.visit === loadVisit && p.profile === profile && p.n && p.metrics.componentRequests?.median != null);
+    if (lp.length) {
+      const fetching = lp.filter((p) => p.metrics.componentRequests.median > 0);
+      const share = (() => { const t = lp.reduce((a, p) => a + phaseTotal(p.phases), 0); return t ? 100 * lp.reduce((a, p) => a + (p.phases?.cdata || 0), 0) / t : 0; })();
+      out.push(fetching.length
+        ? `<b>Components fetching data in the browser:</b> ${fetching.length} of ${lp.length} pages send component data requests on a ${loadName} (${fmtCount(medianOf(fetching.map((p) => p.metrics.componentRequests.median)))} on the median such page). Waiting on them is ${share.toFixed(0)}% of the total wait.`
+        : `<b>No component fetches data in the browser</b> on a ${loadName}: every page's data requests are for its own content, sync or tracking.`);
+    }
+  }
   const dup = load?.duplicates.p50;
   if (dup >= 1) out.push(`<b>Duplicate requests:</b> the median page sends ${fmtCount(dup)} data request(s) it has already sent in the same load.`);
   return out;
@@ -223,20 +350,21 @@ function pagesSection(agg, profile) {
       if (p.flags.fullLoad) f.push(`<span class="pill warn">click: full load</span>`);
       if (visit === main && p.flags.loadingSeen) f.push(`<span class="pill">sections loaded in browser</span>`);
       if (visit === 'click' && p.flags.noLink && !p.n) f.push(`<span class="pill">no link</span>`);
+      if (p.flags.navStale) f.push(`<span class="pill warn">link missing after navigation</span>`);
     }
     return f.join(' ');
   };
   const rows = [...byPath.entries()].sort((a, b) => (b[1][main]?.metrics.complete?.median || 0) - (a[1][main]?.metrics.complete?.median || 0)).map(([p, v]) => {
     const c = v[main]?.metrics, w = v.warm?.metrics, k = v.click?.metrics;
     const slow = v[main]?.samples.slowest;
-    const bar = c?.complete ? `<div class="bar" title="complete ${fmtMs(c.complete.median)}; main content ${fmtMs(c.lcp?.median)}"><i style="width:${(100 * c.complete.median / maxComplete).toFixed(1)}%"></i>${c.lcp ? `<b style="left:${(100 * c.lcp.median / maxComplete).toFixed(1)}%"></b>` : ''}</div>` : '';
-    return `<tr><td class="path">${esc(p)}</td><td data-v="${c?.complete?.median ?? ''}">${bar}</td>${cell(c?.ttfb, 'ms', { range: false })}${cell(c?.fcp, 'ms', { range: false })}${cell(c?.lcp, 'ms', { range: false })}${cell(c?.complete, 'ms')}${cell(c?.idle, 'ms', { range: false })}${cell(c?.tbt, 'ms', { range: false })}${main === 'cold' ? cell(w?.complete, 'ms') : ''}${cell(k?.complete, 'ms')}${cell(k?.dataRequests, 'count', { range: false })}${cell(c?.bytes, 'bytes', { range: false })}${cell(c?.hydrationBytes, 'bytes', { range: false })}${cell(c?.dataRequests, 'count', { range: false })}${cell(c?.duplicates, 'count', { range: false })}<td class="small">${slow ? `${fmtMs(slow.ms)} · ${fmtBytes(slow.bytes)} · ${esc(slow.what.slice(0, 120))}` : ''}</td><td>${flagsOf(v)}</td></tr>`;
+    const bar = c?.complete ? miniStack(v[main].phases, maxComplete, `${fmtMs(c.complete.median)}\n${phaseTip(v[main].phases)}`) : '';
+    return `<tr><td class="path">${esc(p)}</td><td data-v="${c?.complete?.median ?? ''}">${bar}</td>${cell(c?.ttfb, 'ms', { range: false })}${cell(c?.fcp, 'ms', { range: false })}${cell(c?.lcp, 'ms', { range: false })}${cell(c?.usable, 'ms', { range: false })}${cell(c?.complete, 'ms')}${cell(c?.idle, 'ms', { range: false })}${cell(c?.tbt, 'ms', { range: false })}${main === 'cold' ? cell(w?.complete, 'ms') : ''}${cell(k?.usable, 'ms', { range: false })}${cell(k?.complete, 'ms')}${cell(k?.dataRequests, 'count', { range: false })}${cell(c?.bytes, 'bytes', { range: false })}${cell(c?.hydrationBytes, 'bytes', { range: false })}${cell(c?.dataRequests, 'count', { range: false })}${cell(c?.componentRequests, 'count', { range: false })}${cell(c?.duplicates, 'count', { range: false })}<td class="small">${slow ? `${fmtMs(slow.ms)} · ${fmtBytes(slow.bytes)} · ${esc(slow.what.slice(0, 120))}` : ''}</td><td>${flagsOf(v)}</td></tr>`;
   }).join('');
   return `<section id="pages"><div class="wrap">
     <h2>Every page</h2>
-    <p class="lede">One row per page, slowest ${mainName} first. The bar is that load's Complete; the tick on it is Main content. Click a column to sort.</p>
+    <p class="lede">One row per page, slowest ${mainName} first. The bar is that load's wait until Complete, coloured by where the time went (legend above). Click a column to sort.</p>
     <input class="filter" data-for="pages-table" type="search" placeholder="Filter pages" aria-label="Filter pages">
-    <div class="tbl-wrap"><table id="pages-table" data-sortable><thead><tr><th data-sort>Page</th><th data-sort>${main === 'cold' ? 'Cold load' : 'Load'}</th><th class="num" data-sort>Server responded</th><th class="num" data-sort>First paint</th><th class="num" data-sort>Main content</th><th class="num" data-sort>Complete</th><th class="num" data-sort>Idle</th><th class="num" data-sort>Blocking time</th>${main === 'cold' ? '<th class="num" data-sort>Warm: complete</th>' : ''}<th class="num" data-sort>Click: complete</th><th class="num" data-sort>Click: data requests</th><th class="num" data-sort>Transferred</th><th class="num" data-sort>Hydration data</th><th class="num" data-sort>Data requests</th><th class="num" data-sort>Duplicates</th><th>Slowest data request</th><th>Flags</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="tbl-wrap"><table id="pages-table" data-sortable><thead><tr><th data-sort>Page</th><th data-sort>${main === 'cold' ? 'Cold load' : 'Load'}</th><th class="num" data-sort>Server responded</th><th class="num" data-sort>First paint</th><th class="num" data-sort>Main content</th><th class="num" data-sort>Usable</th><th class="num" data-sort>Complete</th><th class="num" data-sort>Idle</th><th class="num" data-sort>Blocking time</th>${main === 'cold' ? '<th class="num" data-sort>Warm: complete</th>' : ''}<th class="num" data-sort>Click: usable</th><th class="num" data-sort>Click: complete</th><th class="num" data-sort>Click: data requests</th><th class="num" data-sort>Transferred</th><th class="num" data-sort>Hydration data</th><th class="num" data-sort>Data requests</th><th class="num" data-sort>Component data requests</th><th class="num" data-sort>Duplicates</th><th>Slowest data request</th><th>Flags</th></tr></thead><tbody>${rows}</tbody></table></div>
   </div></section>`;
 }
 
@@ -251,6 +379,8 @@ function problemsSection(agg, profile) {
     else if (f.console) add('Console error', p.samples.console);
     if (f.stale) add('Stale content after a click', `from ${p.from}: the URL changed, the page did not`);
     if (f.fullLoad) add('Full document load on a click', `from ${p.from}`);
+    if (f.navStale) add('Link missing after an in-app navigation', `${p.from} links to this page when loaded directly, but not after the session navigated to it`);
+    if (f.orphan) add('No page links to it', 'reached only by its URL: no click measurement');
     if (p.metrics.duplicates?.median >= 1) add(`${fmtCount(p.metrics.duplicates.median)} duplicate request(s)`, p.samples.duplicate);
   }
   if (!items.length) return `<section id="problems"><div class="wrap"><h2>Problems</h2><p class="lede">None found: every visit loaded, went idle, and logged no errors.</p></div></section>`;
@@ -267,6 +397,7 @@ function singleRun(loaded) {
   const tile = (k, s, d) => `<div class="tile"><span class="k">${k}</span><span class="v">${s}</span><span class="d">${d}</span></div>`;
   const tiles = VISITS.filter((v) => o(v)).map((v) => tile(`${VISIT_NAME[v]} · complete`, fmtMs(o(v).complete.p50), `median page; 75th-percentile page ${fmtMs(o(v).complete.p75)}`)).join('');
   const f = findings(run, agg, profile);
+  const thresholds = run.config.thresholds || THRESHOLDS;
   return {
     title: `Performance: ${run.pattern?.name} (${run.label})`,
     body: `<header class="top"><div class="wrap">
@@ -275,6 +406,8 @@ function singleRun(loaded) {
       <div class="pills">${modePills(run)}</div>
       <p class="meta">${runMeta(run)}</p>
     </div></header>
+    ${scoreSection(agg, profile, thresholds)}
+    ${timeSection(agg, profile, thresholds)}
     <section id="overview"><div class="wrap">
       <h2>How long a visitor waits</h2>
       <div class="tiles">${tiles}</div>
@@ -333,6 +466,10 @@ function comparison(base, cand, cmp) {
         `<tr><td class="k">${labels[i]}</td><td class="path">${esc(s.path)}</td>${cell(s.complete, 'ms')}${cell(J.cand[i].complete, 'ms')}${cell(s.cumulative, 'ms', { range: false })}${cell(J.cand[i].cumulative, 'ms', { range: false })}<td class="num">${fmtCount(s.dataRequests?.median)} → ${fmtCount(J.cand[i].dataRequests?.median)}</td></tr>`).join('')}</tbody></table></div>
     </div></section>`;
   }
+  const aggOf = (l) => aggregate(l.visits);
+  const sb = scores(aggOf(base).pages, base.run.config.profiles[0]), sc = scores(aggOf(cand).pages, cand.run.config.profiles[0]);
+  const scoreRows = sb.map((r) => { const o = sc.find((x) => x.visit === r.visit); return o ? `<tr><td class="k">${r.name}</td>${r.goals.map((g, i) => { const a = g.score, b = o.goals[i].score; return `<td class="num ${a == null || b == null || a === b ? 'same' : b > a ? 'faster' : 'slower'}">${a ?? '–'} → ${b ?? '–'}</td>`; }).join('')}</tr>` : ''; }).join('');
+  const scoreTable = scoreRows ? `<h3>Scores, before → after</h3><div class="tbl-wrap"><table><thead><tr><th>Visit</th>${sb[0].goals.map((g) => `<th class="num">${g.name}</th>`).join('')}</tr></thead><tbody>${scoreRows}</tbody></table></div><p class="small">0 to 100: the share of pages that are fast, plus half the share that are ok.</p>` : '';
   return {
     title: `Performance: ${cmp.base.label} → ${cmp.cand.label}`,
     body: `<header class="top"><div class="wrap">
@@ -345,6 +482,7 @@ function comparison(base, cand, cmp) {
     <section id="overview"><div class="wrap">
       <h2>Did it move?</h2>
       <div class="tiles">${headline}</div>
+      ${scoreTable}
       <div class="tbl-wrap"><table><thead><tr><th>Visit</th><th>Number</th><th class="num">Median page before</th><th class="num">After</th><th class="num">Change</th><th class="num">75th-percentile page</th><th class="num">Pages faster</th><th class="num">Slower</th><th class="num">No change</th></tr></thead><tbody>${summaryRows}</tbody></table></div>
       <p class="small">"Change" is coloured only when at least one page moved by more than the noise.</p>
       <div class="tbl-wrap"><table><thead><tr><th>Mode</th><th>${esc(cmp.base.label)}</th><th>${esc(cmp.cand.label)}</th></tr></thead><tbody>${modeLine('ssr', 'Server-rendered')}${modeLine('sync', 'Sync')}${modeLine('preload', 'Preload')}${modeLine('devBuild', 'Dev build')}</tbody></table></div>

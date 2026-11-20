@@ -101,6 +101,20 @@ last activity of each kind (`collect.js`).
 request is out. A section that paints to a canvas without touching the DOM (a map) is invisible to Complete
 unless it sets it.
 
+## Scores and where the time goes
+
+The report opens with a scorecard. Each kind of visit (first load, returning load, navigate) is scored 0–100
+against three goals: **See it** (main content painted), **Use it** (the page stops freezing: no main-thread
+task over 50 ms for a second), **All there** (Complete). A page is fast, ok or slow against two limits; the
+score is the share of pages that are fast plus half the share that are ok. The limits are in `score.mjs`
+(`THRESHOLDS`); a run config can override them with `"thresholds"`.
+
+Under it, the wait until Complete is split by what the browser was waiting on, with every millisecond counted
+once (`collect.js`, `phases`): Server, Scripts (the page is frozen), Component data (dataset rows for a table,
+card, graph or map: Falcor's `uda` / `dama` routes), Page data (the page's own content, sync, tracking), Files,
+Other. One stacked column per page shows which pages are slow and why. Each visit also records its data
+requests by kind (`dataKinds`) and how many sections showed a loading state.
+
 ## Comparing
 
 `dms perf compare <baseline> <candidate>` joins the two runs page by page and visit type. A change counts only
