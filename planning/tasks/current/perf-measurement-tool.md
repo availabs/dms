@@ -312,7 +312,9 @@ percentile, by site and page. That is the check that a lab win reached users, an
    - [x] Saved `run.json` + `visits.jsonl`; `aggregate`; `compare` with the noise rule and the journey crossing
    - [x] HTML report for a run and for a comparison; `dms perf run / report / compare`
    - [x] Unit tests (`node --test src/dms/perf/perf.test.mjs`, 6 pass); eslint clean
-   - [ ] **A run against a production build.** Both test runs were against the hub's dev server
+   - [x] **A run against a production build** (2026-11-18, see "Production baseline" below)
+   - [x] A run stops when its target goes down (6 page loads failing in a row), after another session's
+         restart of the measured server spoiled a run
    - [ ] A full-pattern run (all 159 pages × 5): not run yet; on the dev server it would take many hours
 2. **Marks, `Server-Timing`, contract coverage** in DMS; the report gains Readable, Usable and server phases.
 3. **Profiles and compare.** Signed in, phone; `compare` over any saved runs with the noise rule; the sync
@@ -346,6 +348,111 @@ Two runs of the same 3 pages (`--sample 3 --runs 2 --journey-steps 4`), 42 visit
 Known limits found: the soft-navigation "main content" time is only there for a real click (not one made
 from script on a hidden menu link); a dev server's hot reload reloads measured pages if the repo is edited
 during a run.
+
+## Production baseline (2026-11-18, hub production build, server-rendered, sync on, preload on, signed out)
+
+`scratchpad/mny-test/perf/2026-11-18-1634-hub-prod-baseline`: 12 pages (`--sample 12`), 5 repetitions, 272
+visits, none failed or timed out, 64 min. Measured on its own server (port 5556, a build with
+`VITE_API_HOST=http://api.localhost:5556` in `scratchpad/perf-build-5556/`) so another session's restarts of
+5555 could not spoil it. "After" runs use `--pages-from` this folder.
+
+| Median page (75th percentile) | Cold load | Warm load | In-app click |
+|---|---|---|---|
+| Server responded | 0.14 s (0.61) | 0.11 s (0.57) | |
+| First paint | 0.37 s (1.00) | 0.33 s (0.74) | 0.33 s (0.49) |
+| Complete | 4.6 s (9.7) | 6.3 s (11.5) | 0.7 s (2.8) |
+| Idle | 16.5 s (18.3) | 16.8 s (18.5) | 0.9 s (3.5) |
+| Blocking time | 510 ms (2657) | 501 ms (2629) | 127 ms (640) |
+| Transferred | 9.9 MB | 6.7 MB | 0.9 MB |
+| Data requests (duplicates) | 38 (8) | 38 (8) | 15 (2) |
+
+- **Every full load is busy until ~16 s**, cold or warm, whatever the page: sync's bootstrap. A warm load
+  right after a cold one runs it again (Idle 16.8 s, data 4.2 MB again).
+- **A warm load is not faster than a cold one** (Complete 6.3 s against 4.6 s).
+- **Complete is unstable on several pages**: Home cold 4.6–17.6 s, warm 6.4–24.8 s; the journey's landing
+  7.3–22.4 s. The page sometimes changes again when the background work ends. Text-only pages are steady
+  (1.4–1.6 s).
+- **The three hazard risk profiles are the slow class**: server 1.7–2.3 s, Complete 13–15 s, Idle 21–23 s,
+  blocking time ~3 s, 147–195 data requests of which 55–90 are duplicates, up to 42 MB. A click to one still
+  takes 3.5–11 s.
+- **Clicks to text pages are 0.1–0.9 s** with 2 data requests.
+- **Journey** (landing + 8 clicks): first visit 26.9 s to Complete in total, 17.2 s of it the landing; the
+  return visit 11.5 s, landing 3.2 s with no background tail, and 4 of 8 clicks with no data request. Two
+  steps cost the same both times (`/plan_to_act/local_planning` 40 requests, `/explore_progress/action_tracking`
+  54 requests, 5.5 s). 32 MB kept in the browser.
+- 2 of 12 pages have no link from their parent, the home page or the page before them (no click measurement).
+
+Open question: the journey's return landing has no bootstrap tail (Idle 3.2 s), a warm load does (16.8 s).
+Both are full loads in a profile that already loaded the site; why they differ is not explained yet.
+
+## Faster runs and the full pattern (2026-11-19)
+
+The owner asked for faster runs, cares less about cold loads, and wants every page measured.
+
+Changes to the runner:
+- `cold` is opt-in (`--visits cold,…`); the default is `warm,click,journey`. The journey keeps one cold landing.
+- `warm` is now **a returning visitor**: one browser visits the site once (not recorded), then opens every
+  page's URL directly.
+- `click` is one session that walks the pattern, clicking from each page to the next; a page with no link
+  from where the session is gets reached from its parent, else the home page.
+- The collector counts a request as over when its body has arrived, and counts IndexedDB writes as activity.
+  `--quiet-ms` default is 1000. **Yesterday's warm numbers were wrong**: ~0.8 s passes between sync's download
+  ending and its save starting; the runner closed the page in that gap, so sync never saved and every warm
+  load downloaded the site again.
+- Each visit records its 3 slowest data requests; the report's page table gained server time, blocking time,
+  click data requests and the slowest request.
+
+Full run: `scratchpad/mny-test/perf/2026-11-19-1546-hub-prod-all`, 159 pages × 3, 1014 visits, no failures,
+115 min (one pass: 22 min of returning loads + 15 min of clicks).
+
+| Median page (75th percentile, worst) | Returning load | In-app click (104 pages) |
+|---|---|---|
+| Server responded | 0.15 s (1.6, 5.4) | |
+| Complete | 3.8 s (9.0, 37.0) | 1.0 s (2.8, 11.2) |
+| Blocking time | 482 ms (661, 18 661) | 93 ms (368, 7342) |
+| Data requests (duplicates) | 37 (4); worst 404 (258) | 9 (0) |
+
+- Returning load, Complete: under 2 s on 24 pages, 2–5 s on 69, 5–10 s on 35, 10–20 s on 29, over 20 s on 2.
+- **The slow pages are one area**: `assess_risk/natural_hazards` (52 pages) has a median of 10.5 s; every other
+  area is 2–5 s, except `explore_progress/action_tracking` (8.9 s) and `/county_risk_profiles` (31 s).
+- Across pages, Complete goes with server time (correlation 0.91), data requests (0.88) and duplicate
+  requests (0.86); less with bytes (0.51).
+- Worst: `/assess_risk/natural_hazards/flooding/risk_profile` (server 5.4 s, Complete 37 s, Idle 55 s, 18.7 s
+  blocking, 404 data requests of which 258 duplicates, one request 28 s); `/county_risk_profiles` (31 s, 319
+  requests, 43 MB); `…/built_environment/buildings` (Complete 15 s, Idle 47 s, one request 32 s).
+- A section still showed its loading state on 21 pages although preload is on (the hazard
+  `mitigation_strategy` pages, `actions_dashboard`, `/county_risk_profiles`).
+- Journey: first visit 36.0 s in total, 26.3 s of it the landing; return visit 12.2 s, landing 4.0 s.
+
+Open:
+- **55 of 159 pages got no click measurement**: no link to them from the page the session was on, their
+  parent, or the home page. All 16 hazard `mitigation_strategy` pages are among them. How visitors reach
+  those pages (tabs, a menu not in the DOM) is not looked at yet.
+- The click to Home was flagged "stale" (URL changed, page text did not) in all 3 passes: not checked whether
+  that is the site or the tool.
+
+### Sync on against sync off (same site, same 159 pages, same journey, signed out)
+
+Sync-off run: `scratchpad/mny-test/perf/2026-11-19-1744-hub-prod-all-nosync` (build
+`scratchpad/perf-build-5557-nosync`, `VITE_DMS_SYNC=0`), 1014 visits, no failures. Comparison report:
+`…-1546-hub-prod-all/compare-hub-prod-all-nosync.html`. (The run's wall time spans a night the machine was
+asleep; per-visit times are unaffected as far as the spreads show.)
+
+| | Sync off | Sync on |
+|---|---|---|
+| Returning load, Complete, median page | 2.25 s | 3.79 s (135 of 159 pages slower, 2 faster) |
+| Returning load, all 159 pages added up | 629 s | 933 s |
+| Returning load, data requests, median page | 29 | 37 |
+| Click, Complete, median page (104 pages) | 0.97 s | 0.98 s (33 faster, 2 slower, 69 no change) |
+| Click on a light page (53 pages under 1 s) | 0.43 s | 0.37 s |
+| Journey, first visit (landing + 8 clicks) | 13.2 s, landing 3.0 s | 36.0 s, landing 26.3 s |
+| Journey, return visit | 11.6 s, landing 3.1 s | 12.2 s, landing 4.0 s |
+
+For a signed-out visitor sync costs on every measure but the click, where it gains about 50 ms on the median
+page. The two cumulative journey lines never cross. A text page that completes at 0.6–0.8 s without sync
+completes at 1.6–1.9 s with it: each load also asks `/sync/bootstrap?skeleton` and `/sync/delta`, writes to
+IndexedDB, and re-renders. Not measured: signed-in editing, offline, or live updates, which are what sync is
+for.
 
 ## Decided (owner, 2026-11-18)
 

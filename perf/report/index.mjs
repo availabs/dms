@@ -12,7 +12,7 @@ const fmtBytes = (v) => (v == null ? '–' : v >= 1048576 ? `${(v / 1048576).toF
 const fmtCount = (v) => (v == null ? '–' : Number.isInteger(v) ? String(v) : v.toFixed(1));
 const fmtScore = (v) => (v == null ? '–' : v.toFixed(3));
 const fmt = (unit) => ({ ms: fmtMs, bytes: fmtBytes, count: fmtCount, score: fmtScore }[unit]);
-const VISIT_NAME = { cold: 'Cold load', warm: 'Warm load', click: 'In-app click' };
+const VISIT_NAME = { cold: 'Cold load', warm: 'Returning load', click: 'In-app click' };
 
 /** A number with its spread: the median, and min–max under it. */
 const cell = (s, unit, { range = true } = {}) => {
@@ -121,7 +121,7 @@ const DEFINITIONS = `
   <dt>Complete</dt><dd>The page the visitor sees has stopped arriving: no section carries <code>data-dms-loading</code>, no nodes are being added, no image, script or stylesheet is still loading. Measured once the browser is idle, as the time of the last visible change. A map's canvas repainting is not seen.</dd>
   <dt>Idle</dt><dd>The browser has nothing left to do: Complete, plus background requests (sync's bootstrap, prefetches) and long tasks.</dd>
   <dt>Blocking time</dt><dd>The part of every main-thread task past 50 ms, after First paint.</dd>
-  <dt>Cold / warm / click</dt><dd>Cold: a new browser profile. Warm: the same URL again in that profile. Click: the real link to the page, clicked on another page of the pattern. Times for a click run from the click.</dd>
+  <dt>Cold / returning / click</dt><dd>Cold: a new browser profile, straight to the URL. Returning: a browser that has already been to the site (its files cached, sync's copy of the site saved) goes straight to the URL. Click: one session walks the pattern, clicking the real link from each page to the next. Times for a click run from the click.</dd>
   <dt>Median, range</dt><dd>Each visit is repeated. Cells show the median, with min – max under it. "Median page" and "75th-percentile page" are taken across the pages' medians.</dd>
 </dl>`;
 
@@ -141,22 +141,24 @@ function findings(run, agg, profile) {
   const m = run.mode || {}, out = [];
   const o = (v) => agg.overall[`${profile}|${v}`]?.metrics;
   const cold = o('cold'), warm = o('warm'), click = o('click');
+  const load = cold || warm, loadName = cold ? 'cold load' : 'load by a returning visitor', loadVisit = cold ? 'cold' : 'warm';
   if (m.devBuild) out.push(`<b>This target is a dev server.</b> Its modules are unbundled and uncompiled, so load times and sizes are not what a visitor gets. Use it to try the tool, not to judge a change.`);
-  if (cold) {
+  if (load) {
+    const cold = load;
     out.push(m.ssr
-      ? `<b>Server rendering:</b> on a cold load the median page first paints at ${fmtMs(cold.fcp.p50)} and is complete at ${fmtMs(cold.complete.p50)}.`
-      : `<b>SPA shell:</b> on a cold load the median page first paints at ${fmtMs(cold.fcp.p50)} and is complete at ${fmtMs(cold.complete.p50)}; nothing is in the document until the scripts run.`);
+      ? `<b>Server rendering:</b> on a ${loadName} the median page first paints at ${fmtMs(cold.fcp.p50)} and is complete at ${fmtMs(cold.complete.p50)}.`
+      : `<b>SPA shell:</b> on a ${loadName} the median page first paints at ${fmtMs(cold.fcp.p50)} and is complete at ${fmtMs(cold.complete.p50)}; nothing is in the document until the scripts run.`);
     if (cold.idle.p50 - cold.complete.p50 > 2000) out.push(`<b>Background work:</b> the browser stays busy for ${fmtMs(cold.idle.p50 - cold.complete.p50)} after the median page is complete (idle at ${fmtMs(cold.idle.p50)}).${m.sync ? ' With sync on, this is where its bootstrap shows.' : ''}`);
   }
   {
-    const colds = agg.pages.filter((p) => p.visit === 'cold' && p.profile === profile && p.n);
+    const colds = agg.pages.filter((p) => p.visit === loadVisit && p.profile === profile && p.n);
     const waited = colds.filter((p) => p.flags.loadingSeen).length;
     out.push(m.preload
       ? `<b>Preload is on for this pattern:</b> the loader fetches each data section's rows before the first render. A section still showed its loading state on ${waited} of ${colds.length} pages (over the preload budget, set to load on demand, or a type that doesn't preload).`
       : `<b>Preload is off for this pattern</b> (the default for a pattern that never set it): data sections fetch after the page renders. A section showed its loading state on ${waited} of ${colds.length} pages.`);
   }
   if (cold && warm) {
-    out.push(`<b>A second visit</b> transfers ${fmtBytes(warm.bytes.p50)} against ${fmtBytes(cold.bytes.p50)} cold, and is complete at ${fmtMs(warm.complete.p50)} against ${fmtMs(cold.complete.p50)}.` +
+    out.push(`<b>A returning visitor's load</b> transfers ${fmtBytes(warm.bytes.p50)} against ${fmtBytes(cold.bytes.p50)} cold, and is complete at ${fmtMs(warm.complete.p50)} against ${fmtMs(cold.complete.p50)}.` +
       (warm.dataBytes.p50 > 0.8 * cold.dataBytes.p50 && cold.dataBytes.p50 > 51200 ? ` It fetches about as much data again (${fmtBytes(warm.dataBytes.p50)} of ${fmtBytes(cold.dataBytes.p50)}).` : ''));
   }
   if (click) out.push(`<b>An in-app click</b> is complete ${fmtMs(click.complete.p50)} after the click on the median page, with ${fmtCount(click.dataRequests.p50)} data requests.`);
@@ -171,7 +173,7 @@ function findings(run, agg, profile) {
   if (full) out.push(`<b>${full} page(s) reloaded the whole document on a click</b> instead of navigating in the app.`);
   if (noLink) out.push(`${noLink} page(s) have no link from their parent, the home page or the page before them, so they have no click measurement.`);
   if (sum('hydration')) out.push(`<b>Hydration errors</b> on ${sum('hydration')} page-visit group(s): React threw the server's HTML away there.`);
-  const dup = cold?.duplicates.p50;
+  const dup = load?.duplicates.p50;
   if (dup >= 1) out.push(`<b>Duplicate requests:</b> the median page sends ${fmtCount(dup)} data request(s) it has already sent in the same load.`);
   return out;
 }
@@ -208,7 +210,8 @@ const medianOf = (a) => { const v = a.filter((x) => x != null).sort((x, y) => x 
 function pagesSection(agg, profile) {
   const byPath = new Map();
   for (const p of agg.pages.filter((x) => x.profile === profile)) (byPath.get(p.path) || byPath.set(p.path, {}).get(p.path))[p.visit] = p;
-  const maxComplete = Math.max(1, ...[...byPath.values()].map((v) => v.cold?.metrics.complete?.median || 0));
+  const main = [...byPath.values()].some((v) => v.cold) ? 'cold' : 'warm', mainName = main === 'cold' ? 'cold load' : "returning visitor's load";
+  const maxComplete = Math.max(1, ...[...byPath.values()].map((v) => v[main]?.metrics.complete?.median || 0));
   const flagsOf = (v) => {
     const f = [];
     for (const [visit, p] of Object.entries(v)) {
@@ -218,21 +221,22 @@ function pagesSection(agg, profile) {
       if (p.flags.hydration) f.push(`<span class="pill bad">${visit}: hydration</span>`);
       if (p.flags.stale) f.push(`<span class="pill bad">click: stale</span>`);
       if (p.flags.fullLoad) f.push(`<span class="pill warn">click: full load</span>`);
-      if (visit === 'cold' && p.flags.loadingSeen) f.push(`<span class="pill">sections loaded in browser</span>`);
+      if (visit === main && p.flags.loadingSeen) f.push(`<span class="pill">sections loaded in browser</span>`);
       if (visit === 'click' && p.flags.noLink && !p.n) f.push(`<span class="pill">no link</span>`);
     }
     return f.join(' ');
   };
-  const rows = [...byPath.entries()].sort((a, b) => (b[1].cold?.metrics.complete?.median || 0) - (a[1].cold?.metrics.complete?.median || 0)).map(([p, v]) => {
-    const c = v.cold?.metrics, w = v.warm?.metrics, k = v.click?.metrics;
+  const rows = [...byPath.entries()].sort((a, b) => (b[1][main]?.metrics.complete?.median || 0) - (a[1][main]?.metrics.complete?.median || 0)).map(([p, v]) => {
+    const c = v[main]?.metrics, w = v.warm?.metrics, k = v.click?.metrics;
+    const slow = v[main]?.samples.slowest;
     const bar = c?.complete ? `<div class="bar" title="complete ${fmtMs(c.complete.median)}; main content ${fmtMs(c.lcp?.median)}"><i style="width:${(100 * c.complete.median / maxComplete).toFixed(1)}%"></i>${c.lcp ? `<b style="left:${(100 * c.lcp.median / maxComplete).toFixed(1)}%"></b>` : ''}</div>` : '';
-    return `<tr><td class="path">${esc(p)}</td><td data-v="${c?.complete?.median ?? ''}">${bar}</td>${cell(c?.fcp, 'ms', { range: false })}${cell(c?.lcp, 'ms', { range: false })}${cell(c?.complete, 'ms')}${cell(c?.idle, 'ms', { range: false })}${cell(w?.complete, 'ms')}${cell(k?.complete, 'ms')}${cell(c?.bytes, 'bytes', { range: false })}${cell(c?.hydrationBytes, 'bytes', { range: false })}${cell(c?.dataRequests, 'count', { range: false })}${cell(c?.duplicates, 'count', { range: false })}<td>${flagsOf(v)}</td></tr>`;
+    return `<tr><td class="path">${esc(p)}</td><td data-v="${c?.complete?.median ?? ''}">${bar}</td>${cell(c?.ttfb, 'ms', { range: false })}${cell(c?.fcp, 'ms', { range: false })}${cell(c?.lcp, 'ms', { range: false })}${cell(c?.complete, 'ms')}${cell(c?.idle, 'ms', { range: false })}${cell(c?.tbt, 'ms', { range: false })}${main === 'cold' ? cell(w?.complete, 'ms') : ''}${cell(k?.complete, 'ms')}${cell(k?.dataRequests, 'count', { range: false })}${cell(c?.bytes, 'bytes', { range: false })}${cell(c?.hydrationBytes, 'bytes', { range: false })}${cell(c?.dataRequests, 'count', { range: false })}${cell(c?.duplicates, 'count', { range: false })}<td class="small">${slow ? `${fmtMs(slow.ms)} · ${fmtBytes(slow.bytes)} · ${esc(slow.what.slice(0, 120))}` : ''}</td><td>${flagsOf(v)}</td></tr>`;
   }).join('');
   return `<section id="pages"><div class="wrap">
     <h2>Every page</h2>
-    <p class="lede">One row per page, slowest cold load first. The bar is the cold load's Complete; the tick on it is Main content. Click a column to sort.</p>
+    <p class="lede">One row per page, slowest ${mainName} first. The bar is that load's Complete; the tick on it is Main content. Click a column to sort.</p>
     <input class="filter" data-for="pages-table" type="search" placeholder="Filter pages" aria-label="Filter pages">
-    <div class="tbl-wrap"><table id="pages-table" data-sortable><thead><tr><th data-sort>Page</th><th data-sort>Cold load</th><th class="num" data-sort>First paint</th><th class="num" data-sort>Main content</th><th class="num" data-sort>Complete</th><th class="num" data-sort>Idle</th><th class="num" data-sort>Warm: complete</th><th class="num" data-sort>Click: complete</th><th class="num" data-sort>Transferred</th><th class="num" data-sort>Hydration data</th><th class="num" data-sort>Data requests</th><th class="num" data-sort>Duplicates</th><th>Flags</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="tbl-wrap"><table id="pages-table" data-sortable><thead><tr><th data-sort>Page</th><th data-sort>${main === 'cold' ? 'Cold load' : 'Load'}</th><th class="num" data-sort>Server responded</th><th class="num" data-sort>First paint</th><th class="num" data-sort>Main content</th><th class="num" data-sort>Complete</th><th class="num" data-sort>Idle</th><th class="num" data-sort>Blocking time</th>${main === 'cold' ? '<th class="num" data-sort>Warm: complete</th>' : ''}<th class="num" data-sort>Click: complete</th><th class="num" data-sort>Click: data requests</th><th class="num" data-sort>Transferred</th><th class="num" data-sort>Hydration data</th><th class="num" data-sort>Data requests</th><th class="num" data-sort>Duplicates</th><th>Slowest data request</th><th>Flags</th></tr></thead><tbody>${rows}</tbody></table></div>
   </div></section>`;
 }
 

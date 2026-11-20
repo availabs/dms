@@ -45,7 +45,8 @@ export function aggregate(visits) {
         // a section showed its loading state: its data was fetched in the browser, not preloaded
         loadingSeen: count((v) => v.loadingSeen),
       },
-      samples: { error: g.rows.find((v) => v.error)?.error, console: g.rows.find((v) => v.errors?.samples?.length)?.errors.samples[0], duplicate: ok.find((v) => v.duplicateRequests?.length)?.duplicateRequests[0] },
+      samples: { error: g.rows.find((v) => v.error)?.error, console: g.rows.find((v) => v.errors?.samples?.length)?.errors.samples[0], duplicate: ok.find((v) => v.duplicateRequests?.length)?.duplicateRequests[0],
+        slowest: ok.flatMap((v) => v.slowestRequests || []).sort((x, y) => y.ms - x.ms)[0] },
     };
   });
 

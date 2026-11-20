@@ -9,7 +9,7 @@
 //               - nodes were added or removed
 //               - an image, stylesheet, script or font finished loading
 //   any       the above, plus work the visitor doesn't see: a fetch or XHR in flight (sync's bootstrap,
-//             a prefetch), a long task
+//             a prefetch), a write to IndexedDB (sync saving its copy), a long task
 // The runner waits until ALL activity has been quiet for a while. It then reports two times:
 //   complete  the last VISIBLE activity: the page is all there
 //   idle      the last activity of any kind: the browser has nothing left to do
@@ -65,7 +65,9 @@ export function collector() {
       const done = () => { P.inflight--; touch('fetch', false); };
       let p;
       try { p = origFetch.apply(this, args); } catch (e) { done(); throw e; }
-      p.then(done, done);
+      // the request is over when its body has arrived, not when its headers have: a large response
+      // (sync's bootstrap) is still downloading long after fetch() resolves
+      p.then((res) => { try { res.clone().arrayBuffer().then(done, done); } catch { done(); } }, done);
       return p;
     };
   }
@@ -76,6 +78,23 @@ export function collector() {
       P.inflight++; touch('fetch', false);
       this.addEventListener('loadend', () => { P.inflight--; touch('fetch', false); }, { once: true });
       return send.apply(this, args);
+    };
+  }
+
+  // writes to the browser's own database (sync saving its copy of the site): work the visitor
+  // doesn't see, and the page isn't done while one is open
+  const IDB = window.IDBDatabase;
+  if (IDB) {
+    const transaction = IDB.prototype.transaction;
+    IDB.prototype.transaction = function (...args) {
+      const tx = transaction.apply(this, args);
+      if (tx.mode !== 'readonly') {
+        P.inflight++; touch('storage', false);
+        let open = true;
+        const done = () => { if (open) { open = false; P.inflight--; touch('storage', false); } };
+        tx.addEventListener('complete', done); tx.addEventListener('abort', done); tx.addEventListener('error', done);
+      }
+      return tx;
     };
   }
 
@@ -109,7 +128,7 @@ export function collector() {
       const loading = loadingCount();
       if (loading > 0) { P.loadingSeen = true; touch('loading', true); }
       if (document.readyState !== 'complete') touch('document', true);
-      if (P.inflight > 0) touch('fetch', false);
+      if (P.inflight > 0) touch('busy', false);
       const busy = P.inflight > 0 || loading > 0 || document.readyState !== 'complete';
       const t = now();
       const idle = Math.max(P.lastActivity, since);

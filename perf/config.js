@@ -7,13 +7,13 @@ export const DEFAULTS = {
   target: null,            // origin the pages are loaded from, e.g. http://mny.localhost:5555
   pattern: null,           // the pattern to walk (name or id); the site comes from the CLI's connection
   profiles: ['public'],
-  visits: ['cold', 'warm', 'click', 'journey'],
+  visits: ['warm', 'click', 'journey'],   // 'cold' (a new profile per page) is opt-in: it is the slow one
   runs: 5,
   sample: null,            // N pages spread across the pattern; null = every published page
   pages: null,             // explicit slugs
   pagesFrom: null,         // reuse a saved run's page list and journey
   journeySteps: 8,
-  quietMs: 500,            // how long the page must be quiet to count as complete
+  quietMs: 1000,           // how long the page must be quiet to count as complete
   timeoutMs: 60000,
   viewport: { width: 1366, height: 900 },
   out: null,               // default: scratchpad/<app>-<type>/perf/<date>-<label>

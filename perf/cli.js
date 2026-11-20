@@ -33,7 +33,7 @@ export default function register({ program, helpers }) {
     .option('--pages-from <run-dir>', "Visit the same pages and journey as a saved run")
     .option('--visits <types>', 'cold,warm,click,journey (default: all four)')
     .option('--journey-steps <n>', 'In-app clicks in the journey (default 8)')
-    .option('--quiet-ms <ms>', 'How long a page must be quiet to count as complete (default 500)')
+    .option('--quiet-ms <ms>', 'How long a page must be quiet to count as complete (default 1000)')
     .option('--timeout <seconds>', 'Give up on one page after this long (default 60)')
     .option('--out <dir>', 'Where to save the run (default: scratchpad/<site>/perf/<date>-<label>)')
     .option('--no-report', "Don't write the HTML report")

@@ -1,9 +1,10 @@
 // Loads pages the way a visitor does and records how long each took.
 //
 // Visit types:
-//   cold     a new browser profile, straight to the URL
-//   warm     the same profile, the same URL again (HTTP cache, localStorage, IndexedDB kept)
-//   click    from another page of the pattern, by clicking the real link
+//   cold     a new browser profile for every page, straight to the URL
+//   warm     a browser that has already been to the site (assets cached, sync's copy saved),
+//            straight to the URL
+//   click    one session walks the pattern, clicking the real link from each page to the next
 //   journey  one session: a cold landing on the pattern's home page, then N in-app clicks; then the
 //            same session again in the same profile (the return visit)
 // Every visit is repeated `runs` times. Each repetition is one line of visits.jsonl, raw.
@@ -39,7 +40,7 @@ async function launch() {
 function networkLog(page) {
   let entries = [], pending = [], errors = { console: [], page: [], failed: [] };
   const onFinished = (req) => {
-    const entry = { type: req.resourceType(), key: `${req.method()} ${req.url()} ${req.postData() || ''}`, url: req.url(), bytes: 0, status: null };
+    const entry = { type: req.resourceType(), key: `${req.method()} ${req.url()} ${req.postData() || ''}`, url: req.url(), bytes: 0, status: null, ms: Math.max(0, Math.round(req.timing().responseEnd)) };
     entries.push(entry);
     pending.push((async () => {
       try {
@@ -73,6 +74,7 @@ function networkLog(page) {
         bytes,
         requests: { total: entries.length, data, duplicates: dups.reduce((a, [, n]) => a + n - 1, 0), failed: errors.failed.length + bad },
         duplicateRequests: dups.slice(0, 5).map(([k, n]) => `${n}× ${readable(k).slice(0, 220)}`),
+        slowestRequests: entries.filter((e) => DATA_TYPES.has(e.type)).sort((x, y) => y.ms - x.ms).slice(0, 3).map((e) => ({ ms: e.ms, bytes: e.bytes, what: readable(e.key).slice(0, 220) })),
         errors: { console: errors.console.length, page: errors.page.length, hydration, samples: errors.page.concat(errors.console).slice(0, 3) },
       };
     },
@@ -272,64 +274,90 @@ export async function runPerf(cfg, site, log = () => {}) {
     log(`warming up ${urlOf(home)}`);
     await fetch(urlOf(home), { signal: AbortSignal.timeout(cfg.timeoutMs) }).then((r) => r.text()).catch(() => {});
 
-    // which page links to which: the click visits' starting points, found once
-    const linkSource = new Map();
     const reuse = cfg.pagesFrom ? JSON.parse(fs.readFileSync(path.join(path.resolve(cfg.pagesFrom), 'run.json'), 'utf8')) : null;
     if (reuse?.journey) run.journey = reuse.journey;
 
     for (const profile of cfg.profiles) {
       void PROFILES[profile];
-      const total = cfg.runs * pages.length;
-      let n = 0; const t0 = Date.now();
+      const setMode = (out) => { if (!run.mode && out.mode) { run.mode = { ...out.mode, preload: pattern.preload_data }; saveRun(); } };
+      const t0 = Date.now();
+      const mins = () => Math.round((Date.now() - t0) / 60000);
       for (let rep = 1; rep <= cfg.runs; rep++) {
-        for (const p of pages) {
-          n++;
-          const base = { profile, rep, page: p.slug, path: p.path };
-          const eta = n > 1 ? Math.round((Date.now() - t0) / (n - 1) * (total - n + 1) / 60000) : null;
-          log(`[${profile}] run ${rep}/${cfg.runs} · ${n}/${total} ${p.path}${eta != null ? ` · ~${eta} min left` : ''}`);
-
-          if (cfg.visits.includes('cold') || cfg.visits.includes('warm')) {
+        // cold: a new browser profile for every page
+        if (cfg.visits.includes('cold')) {
+          for (const [i, p] of pages.entries()) {
+            log(`[${profile}] run ${rep}/${cfg.runs} · cold ${i + 1}/${pages.length} ${p.path} · ${mins()} min in`);
             const ctx = await newContext();
             try {
               const cold = await loadVisit(ctx, cfg, urlOf(p));
-              if (!run.mode && cold.out.mode) { run.mode = { ...cold.out.mode, preload: pattern.preload_data }; saveRun(); }
-              if (cfg.visits.includes('cold')) record({ ...base, visit: 'cold', ...cold.out, mode: undefined });
+              setMode(cold.out);
+              record({ profile, rep, page: p.slug, path: p.path, visit: 'cold', ...cold.out, mode: undefined });
               await within(cold.page.close(), 5000, null);
-              if (cfg.visits.includes('warm')) {
-                const warm = await loadVisit(ctx, cfg, urlOf(p));
-                record({ ...base, visit: 'warm', ...warm.out, mode: undefined });
-                await within(warm.page.close(), 5000, null);
-              }
             } finally { await within(ctx.close(), 10000, null); }
           }
-
-          if (cfg.visits.includes('click')) {
-            // start from the parent page, else the home page, else the page before it in the list
-            const parent = p.parent && allPages.find((x) => x.id === p.parent && x.published);
-            const prev = pages[(pages.indexOf(p) + pages.length - 1) % pages.length];
-            const candidates = linkSource.has(p.path) ? [linkSource.get(p.path)].filter(Boolean)
-              : [parent, home, prev].filter((x, i, a) => x && x.path !== p.path && a.indexOf(x) === i);
-            let done = false;
-            for (const from of candidates) {
-              const ctx = await newContext();
-              try {
-                const src = await loadVisit(ctx, cfg, urlOf(from));
-                if (src.out.error) { await within(src.page.close(), 5000, null); continue; }
-                const out = await clickVisit(src.page, src.net, cfg, pathsOf(p));
-                await within(src.page.close(), 5000, null);
-                if (out.noLink) continue;
-                linkSource.set(p.path, from);
-                record({ ...base, visit: 'click', from: from.path, ...out });
-                done = true; break;
-              } catch (e) {
-                record({ ...base, visit: 'click', from: from.path, error: String(e.message || e).split('\n')[0].slice(0, 300) });
-                done = true; break;
-              } finally { await within(ctx.close(), 10000, null); }
-            }
-            if (!done) { linkSource.set(p.path, null); if (rep === 1) record({ ...base, visit: 'click', noLink: true }); }
-          }
+          saveRun();
         }
-        saveRun();
+
+        // warm: one browser that has already been to the site (assets cached, sync's copy saved)
+        // opens every page's URL directly. The visit that primes it isn't recorded.
+        if (cfg.visits.includes('warm')) {
+          const ctx = await newContext();
+          try {
+            log(`[${profile}] run ${rep}/${cfg.runs} · warm: first visit to ${home.path}, not recorded`);
+            const prime = await loadVisit(ctx, cfg, urlOf(home));
+            if (prime.out.error) throw new Error(`${urlOf(home)} did not load: ${prime.out.error}`);
+            setMode(prime.out);
+            await within(prime.page.close(), 5000, null);
+            for (const [i, p] of pages.entries()) {
+              log(`[${profile}] run ${rep}/${cfg.runs} · warm ${i + 1}/${pages.length} ${p.path} · ${mins()} min in`);
+              const warm = await loadVisit(ctx, cfg, urlOf(p));
+              record({ profile, rep, page: p.slug, path: p.path, visit: 'warm', ...warm.out, mode: undefined });
+              await within(warm.page.close(), 5000, null);
+            }
+          } finally { await within(ctx.close(), 10000, null); }
+          saveRun();
+        }
+
+        // click: one session walks the pattern, clicking from each page to the next. A page with no
+        // link from where the session is gets reached from its parent, else from the home page.
+        if (cfg.visits.includes('click')) {
+          const ctx = await newContext();
+          let cur = null;
+          const open = async (p) => {
+            if (cur) await within(cur.page.close(), 5000, null);
+            cur = await loadVisit(ctx, cfg, urlOf(p));
+            return !cur.out.error;
+          };
+          const herePath = () => norm(new URL(cur.page.url()).pathname);
+          try {
+            log(`[${profile}] run ${rep}/${cfg.runs} · click: landing on ${home.path}, not recorded`);
+            if (!(await open(home))) throw new Error(`${urlOf(home)} did not load: ${cur.out.error}`);
+            setMode(cur.out);
+            // a page can't be clicked to from itself: the one the session starts on goes last
+            const start = herePath();
+            const order = [...pages.filter((p) => !pathsOf(p).includes(start)), ...pages.filter((p) => pathsOf(p).includes(start))];
+            for (const [i, p] of order.entries()) {
+              log(`[${profile}] run ${rep}/${cfg.runs} · click ${i + 1}/${order.length} ${p.path} · ${mins()} min in`);
+              let from = herePath();
+              let out = await clickVisit(cur.page, cur.net, cfg, pathsOf(p));
+              if (out.noLink) {
+                const parent = p.parent && allPages.find((x) => x.id === p.parent && x.published);
+                for (const src of [parent, home].filter((x, k, a) => x && x.path !== p.path && a.indexOf(x) === k && !pathsOf(x).includes(from))) {
+                  if (!(await open(src))) continue;
+                  from = herePath();
+                  out = await clickVisit(cur.page, cur.net, cfg, pathsOf(p));
+                  if (!out.noLink) break;
+                }
+              }
+              record({ profile, rep, page: p.slug, path: p.path, visit: 'click', from, ...out });
+              // a click that failed leaves the session somewhere unknown: start it again
+              if (out.error || out.timedOut || out.urlNeverChanged) {
+                if (!(await open(home))) throw new Error(`${urlOf(home)} did not load: ${cur.out.error}`);
+              }
+            }
+          } finally { await within(ctx.close(), 10000, null); }
+          saveRun();
+        }
       }
 
       if (cfg.visits.includes('journey')) {

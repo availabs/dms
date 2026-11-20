@@ -12,7 +12,7 @@ root `.dmsrc` already has it). Two addresses are involved:
 - the **target** (`--target`): the address a visitor loads pages from.
 
 ```bash
-# every published page of the pattern, 5 runs, all four visit types
+# every published page of the pattern, 5 runs: returning loads, clicks, the journey
 dms --host http://localhost:5555 --app mny --type test \
   perf run --pattern MitigateNY_2025 --target http://mny.localhost:5555 --label baseline
 
@@ -37,9 +37,9 @@ dms perf report <run dir>
 | `--sample <n>` | all pages | n pages spread evenly across the pattern, always with its home page |
 | `--pages a,b` | | these pages only (slugs) |
 | `--pages-from <dir>` | | the pages and journey of a saved run |
-| `--visits` | `cold,warm,click,journey` | |
+| `--visits` | `warm,click,journey` | add `cold` for a new browser profile per page (slow) |
 | `--journey-steps` | 8 | in-app clicks in the journey |
-| `--quiet-ms` | 500 | how long a page must be quiet to count as idle |
+| `--quiet-ms` | 1000 | how long a page must be quiet to count as idle |
 | `--timeout` | 60 | seconds before giving up on one page |
 | `--out` | `scratchpad/<app>-<type>/perf/<date>-<label>` | |
 
@@ -71,9 +71,9 @@ modes means comparing two saved runs.
 
 | | |
 |---|---|
-| **cold** | a new browser profile, straight to the URL |
-| **warm** | the same profile, the same URL again: HTTP cache, `localStorage`, IndexedDB kept |
-| **click** | the real link to the page, clicked on another page of the pattern (its parent, else the home page, else the page before it). Times run from the click. A link hidden in a collapsed menu is clicked from script |
+| **cold** | a new browser profile for every page, straight to the URL. Opt-in: it is the slow one |
+| **warm** | a returning visitor: one browser visits the site once (not recorded), then goes straight to every page's URL. Files are cached and sync's copy of the site is saved |
+| **click** | one session walks the pattern, clicking the real link from each page to the next. A page with no link from where the session is gets reached from its parent, else the home page. Times run from the click. A link hidden in a collapsed menu is clicked from script |
 | **journey** | one session: a cold landing on the pattern's home page, then N clicks along a fixed route; then the same route again in the same profile (the return visit). Recorded per step and added up |
 
 The journey is what shows a trade like sync's: a costlier first load for cheaper later ones. Comparing a sync run
@@ -88,7 +88,7 @@ lines cross.
 | First paint | FCP |
 | Main content | LCP; for a click, from Chrome's soft-navigation entries (Chrome 151+, or the flag the runner sets) |
 | **Complete** | the last time the visible page changed: a section carried `data-dms-loading`, nodes were added or removed, an image / script / stylesheet / font finished loading |
-| **Idle** | the last time anything happened: Complete, plus background requests (sync's bootstrap) and long tasks |
+| **Idle** | the last time anything happened: Complete, plus background requests (sync's bootstrap), writes to IndexedDB (sync saving its copy) and long tasks |
 | Blocking time | the part of each main-thread task past 50 ms, after First paint |
 | Layout shift | CLS up to idle |
 | Transferred, data, hydration data | bytes over the wire; bytes of fetch/XHR responses; size of the router's hydration data in the document |
