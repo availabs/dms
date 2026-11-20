@@ -1,6 +1,6 @@
 # View pages as React Server Components, with streaming
 
-**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** design agreed, not started · **Created by:** amuro@albany.edu · **Edited by:** —
+**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** design agreed; perf baseline being taken (2026-11-20) · **Created by:** amuro@albany.edu · **Edited by:** amuro@albany.edu
 
 Design written 2026-11-18; revised the same day after review with the owner (route opt-in in `siteConfig`
 instead of naming the page pattern; a session cookie in scope; re-unifying on one router as the end state). Replaces the dropped [ssr-streaming.md](../completed/ssr-streaming.md) and brings
@@ -282,6 +282,70 @@ endpoint that does its own access check (React Router's docs say the same).
   the `falcor` alias and the linkedom `document` stub in the `rsc` environment; code-split section chunks
   (`lazyComponent`) as client references.
 
+## Measuring the task
+
+Every phase is measured with `dms perf` ([perf-measurement-tool.md](./perf-measurement-tool.md)) on a local
+production build of the hub, so each gain (or loss) is tied to the phase that made it. Harness, scripts and
+runs live in `dms-template/scratchpad/perf-rsc/` (gitignored, so they exist on one machine only, and runs
+are only comparable on the machine and port they were taken on).
+
+**Setup** (`scratchpad/perf-rsc/`): `build_ssr.mjs --env .env-hub` with `VITE_API_HOST=http://api.localhost:5556`
+into `build-5556/`; `server.sh start` runs it with `NODE_ENV=production` on port 5556 through
+`harness_server.cjs` (DAMA/DMS task polling, schedule sweeps and sync compaction off, so it can't take the
+5555 server's task queue). Signed out, sync on, `preload_data` on for every measured pattern (set
+2026-11-20; it is the default from now on, owner). The hub database is a dev database.
+
+### Baseline (2026-11-20, rr-rsc = master `b01a10b4`, before any RSC change)
+
+`run_baseline.sh baseline`: every published page of 9 patterns, one pattern at a time, warm + click +
+journey, `--parallel 3`. Runs are listed in `scratchpad/perf-rsc/runs.tsv`.
+
+| Site · pattern | Host | Pages × runs |
+|---|---|---|
+| hub · availabs | `localhost` | 6 × 5 |
+| tny · landing, status, Freight Atlas (v2), npmrds2 | `tny.localhost` | 1, 3, 4, 5 × 5 |
+| weatheranalytics · Pages | `weatheranalytics.localhost` | 25 × 5 |
+| mny · MitigateNY_County_Template_V3 | `countytemplate.mny.localhost` | 45 × 5 |
+| tny · platform_docs | `tny.localhost` | 90 × 3 |
+| mny · MitigateNY_2025 | `mny.localhost` | 159 × 3 |
+
+Results: (filled in when the runs finish)
+
+### Sampled runs during the task
+
+`run_sampled.sh <tier> <label>`. Pages per tier in `samples/<tier>.tsv`, picked from the baseline by
+`pick_sample.mjs`, which classes each page by its returning load: **text** (no dataset requests), **data**
+(1–20), **heavy** (over 20, or over 2 s waiting on dataset rows), **map**, and takes each class's typical page
+and slowest page, plus the home page. The first run of a tier is its reference; every later run uses
+`--pages-from` the reference (same pages, same journey) and is compared with it.
+
+| Tier | What | When | Time |
+|---|---|---|---|
+| **quick** | ~2–3 pages per site, 3 runs | after any change meant to move speed, and before a phase is called done | ~15 min |
+| **phase** | ~6–8 pages per large pattern, every page of the small ones, 5 runs | at the end of each phase; twice in the spike (flag on / off) | ~60 min |
+| **full** | `run_baseline.sh` | at the go/no-go and at the end of the task | ~3 h |
+
+Rules:
+- **Flag A/B on one build.** From phase 2 on, each phase run is taken twice on the same build: `DMS_RSC`
+  off (must compare as "no change" with the reference: the old path did not regress) and on (the gain).
+- Production build only, rebuilt with the same command; nothing else heavy on the machine (the 2026-11-20
+  baseline was taken with ~14 GB free); the reference's port.
+- A result goes in this doc with the phase it belongs to: what moved beyond the noise, on which class of page.
+- Re-take a tier's reference (a new label) when something outside the task changes the pages (content
+  edits on measured pages, a preload change, a server upgrade), and say so here.
+
+### What each phase should move (the estimate, checked against the runs)
+
+| Metric (report name) | Today's cause | Phase expected to move it |
+|---|---|---|
+| Scripts, Blocking time, `bytes.js` on **text** pages | every rich-text section mounts a live Lexical editor in view (perf-measurement-tool.md, availabs `/work`: 12.5 of 15.7 s in two Lexical functions) | 2 (rich text on the server: no Lexical code or mount) |
+| Hydration data, document size | the loader data sent again as JSON | 2 for text sections, 3 for Card / static Spreadsheet; partly given back by the Flight payload |
+| Server responded (TTFB) on **heavy** pages | preload waits for every section's query (5 s budget) before the first byte | 2 (streaming: shell after the page row) |
+| Complete on **data** / **heavy** pages | the same queries, duplicates, client fetches after hydration | 2–3 a little (one Falcor model per request dedups), 7 (caching) most |
+| In-app click | client loaders + section fetches | 2 (RSC router fetches a payload): direction not known, measured |
+| Map pages | MapLibre, copied `hover-columns` | 5 (server-built props) only |
+| Sync's bootstrap tail (Idle) | sync, not rendering | none: RSC does not touch it |
+
 ## Phases
 
 Each phase ships on its own and leaves the site working with `DMS_RSC` off.
@@ -378,7 +442,8 @@ and per-section data scripts), which needs no experimental API. Phases 0 and 1 a
 ## Testing checklist
 
 - [ ] Phase 0 regression (above)
-- [ ] Spike measurements, before and after, three pages
+- [ ] Spike measurements: the phase tier, `DMS_RSC` off and on, against its reference ("Measuring the task")
+- [ ] Perf baseline before any change: full run of 9 patterns (started 2026-11-20, "Baseline")
 - [ ] Hydration errors: 0 on every page of the site, signed out and signed in, on both paths
 - [ ] Cookie: set at login, cleared at logout, exchanged for an existing token; a request with the cookie and no
       token can't write
