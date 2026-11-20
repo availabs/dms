@@ -166,9 +166,11 @@ export default function Editor(props): JSX.Element {
                 )}
                 <EmojiPickerPlugin />
                 {/*<AutoEmbedPlugin/>*/}
-                <KeywordsPlugin/>
+                {/* Keywords and AutoLink rewrite text nodes as the author types. A read-only editor shows
+                    the content as saved (planning/tasks/current/lexical-view-keep-empty-text-paragraphs.md). */}
+                {editable && <KeywordsPlugin/>}
                 <SpeechToTextPlugin/>
-                <AutoLinkPlugin/>
+                {editable && <AutoLinkPlugin/>}
                {/* {showComments ? <CommentPlugin
                     providerFactory={isCollab ? createWebsocketProvider : undefined}
                 /> : ''}*/}

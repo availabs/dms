@@ -126,3 +126,6 @@ footer{padding-block:24px 48px;font:400 12px/1.6 var(--mono);color:var(--pencil)
 .score .dist i{display:block;min-width:2px}
 .score.none .n{color:var(--pencil)}
 @media (max-width:720px){.scorecard{grid-template-columns:minmax(0,1fr)}.sc-head{display:none}.score .g{display:block}.sc-row{padding-top:10px}}
+.score .n .was{color:var(--pencil);font-weight:500}
+.score .n .delta{font-size:14px;letter-spacing:0;vertical-align:middle}
+.shares .share-row + .share-row{margin-top:0}

@@ -33,6 +33,27 @@ function isLexicalJSON(str) {
 }
 
 
+// View mode keeps empty text nodes. Saved content has paragraphs that hold one empty text node (left
+// when text is typed and deleted). Rendered as saved they are `<p><span></span></p>`, which has no
+// height, and pages are laid out with them invisible. Lexical's own transforms delete an empty
+// "normal" text node whenever something marks it dirty (any plugin's registerNodeTransform does), and
+// the paragraph then renders as `<p><br></p>`: a blank line. A "token" text node is left alone, and
+// renders the same. The value is only changed for display; nothing is saved from view mode.
+// planning/tasks/current/lexical-view-keep-empty-text-paragraphs.md
+function keepEmptyText(str) {
+    if (typeof str !== 'string' || !str.includes('"text":""')) return str;
+    try {
+        const state = JSON.parse(str);
+        const walk = (node) => {
+            if (node?.type === 'text' && node.text === '' && (node.mode === 'normal' || node.mode == null)) node.mode = 'token';
+            if (Array.isArray(node?.children)) node.children.forEach(walk);
+        };
+        walk(state.root);
+        return JSON.stringify(state);
+    } catch {
+        return str;
+    }
+}
 
 // `plugins`: extra Lexical plugins (React elements) a caller renders inside this editor's
 // LexicalComposer, so they can use `useLexicalComposerContext`. The library knows nothing about
@@ -94,7 +115,7 @@ export default function Lexicals ({value, hideControls, hideFloatingToolbar = fa
         // content arrives via Yjs sync. The existing value is passed to
         // CollaborationPlugin's initialEditorState prop for first-time
         // bootstrap (seeds Yjs when the server doc is empty).
-        editorState: isCollab ? null : (isLexicalJSON(value) ? value : null),
+        editorState: isCollab ? null : (isLexicalJSON(value) ? (editable ? value : keepEmptyText(value)) : null),
         namespace: 'dms-lexical',
         nodes: [...PlaygroundNodes],
         editable: editable,
