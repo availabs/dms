@@ -6,17 +6,18 @@
  * layer reads (routes/auth/formats.js; `dms_<app>.formats` under per-app split mode, made on first use). The ONLY writer of that table: no browser and no CLI can
  * (owner, 2026-11-06).
  *
- *     node register-formats.js --db <dms config> --app <app> [--file formats.json] [--extra <format.js>]... [--apply]
+ *     node register-formats.js --db <dms config> --app <app> [--file formats.json] [--extra <format.js>]... [--merge] [--apply]
  *
  * The rows come from the client package's emitter, `packages/dms/scripts/emit-formats.mjs`, which
  * derives them from the format modules exactly as the browser's registry does. Without `--file` this
  * script runs the emitter itself from the sibling checkout (`--extra` is passed through, for a host
- * app's own types: `--extra ../../src/patterns/qa/qa.format.js`). With `--file`, the emitter's saved
+ * app's own types: `--extra ../../src/plugins/qa/qa.format.js`). With `--file`, the emitter's saved
  * output is used instead.
  *
  * Dry run by default: prints each key that would be written or removed and which of its columns
  * differ. `--apply` writes; the payload is the whole set, so a stored key the rows leave out is
- * removed. Idempotent: a second run reports nothing to write. A running server reads the new rows
+ * removed (`--merge` instead adds and updates only: a plugin's rows beside the core set, dms-plugin-system.md).
+ * Idempotent: a second run reports nothing to write. A running server reads the new rows
  * within 30 seconds (routes/auth/formats.js TTL_MS). Verify from anywhere with `dms formats diff`.
  */
 const { execFileSync } = require('child_process');
@@ -31,6 +32,7 @@ function parseArgs() {
     else if (a[i] === '--file') o.file = a[++i];
     else if (a[i] === '--extra') o.extra.push(a[++i]);
     else if (a[i] === '--apply') o.apply = true;
+    else if (a[i] === '--merge') o.merge = true;
     else { console.error(`Unknown argument: ${a[i]}`); process.exit(1); }
   }
   if (!o.db || !o.app) { console.error('--db and --app are required'); process.exit(1); }
@@ -72,14 +74,15 @@ async function main() {
     const diff = COLS.filter(c => canonical(h[c]) !== canonical(w[c]));
     if (diff.length) changes.push(`  ~ ${type}  (${diff.join(', ')})`); else same++;
   }
-  for (const type of have.keys()) if (!want.has(type)) changes.push(`  - ${type}`);
+  // --merge: add and update only (a plugin's rows beside the core set); nothing is removed
+  if (!o.merge) for (const type of have.keys()) if (!want.has(type)) changes.push(`  - ${type}`);
   console.log(`  already current   ${same}`);
   console.log(`  to write          ${changes.filter(c => !c.startsWith('  - ')).length}`);
   console.log(`  to remove         ${changes.filter(c => c.startsWith('  - ')).length}`);
   for (const c of changes) console.log(c);
 
   if (o.apply) {
-    const r = await upsertFormats(o.app, rows);
+    const r = await upsertFormats(o.app, rows, { merge: !!o.merge });
     console.log(`\n  wrote ${r.written.length}, removed ${r.removed.length}, unchanged ${r.same}`);
   } else if (changes.length) {
     console.log('\n  dry run — re-run with --apply to write');

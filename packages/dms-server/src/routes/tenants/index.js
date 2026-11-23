@@ -17,6 +17,17 @@
  *
  * The same four under `/hub/pgenvs` are the hub's own site (it has pages and patterns of its own).
  *
+ * A site's plugin activations (dms-plugin-system.md P2 step 5; ../../plugins/activations.js), also under `/hub/plugins`:
+ *
+ *     GET  /tenants/:tenant/plugins                  installed plugins and the site's activation rows
+ *     POST /tenants/:tenant/plugins/set { plugin, enabled?, version?, acceptPermissions? }
+ *                                                    create or update the site's activation of the plugin (the
+ *                                                    version must be installed; none: the current one). A version
+ *                                                    asking for permissions not yet accepted: 409 with
+ *                                                    `newPermissions`, unless acceptPermissions is true
+ *
+ * Those two: hub staff (`manage-tenants`) or `activate-plugins` on the site's own row.
+ *
  * `:tenant` is the tenant's subdomain. Who may: hub staff (`manage-tenants` on the hub's site row),
  * judged here whatever DMS_AUTH_MODE says. Per dms-server's rule for destructive routes, the delete takes
  * no preview flag: the preview is its own read-only route. One delete runs at a time. Attaching a pgEnv
@@ -46,7 +57,7 @@ async function staff(req, res) {
   return user;
 }
 
-const fail = (res, e) => res.status(e.status || 500).json({ error: e.message });
+const fail = (res, e) => res.status(e.status || 500).json({ error: e.message, ...(e.newPermissions ? { newPermissions: e.newPermissions } : {}) });
 
 let running = null;
 
@@ -125,6 +136,42 @@ function registerTenantRoutes(app) {
         res.json({ ...(await pgEnvs.describe(site)), canAttach: true, result: plan });
       } catch (e) {
         console.warn(`[tenants] detach pgEnv from ${req.params.tenant || 'the hub'} failed: ${e.message}`);
+        fail(res, e);
+      }
+    });
+  }
+
+  // A site's plugin activations (dms-plugin-system.md P2 step 5; the work itself is ../../plugins/activations.js):
+  // hub staff (manage-tenants on the hub) or whoever holds activate-plugins on that site's row, judged here
+  // whatever DMS_AUTH_MODE says. The version must be installed on this server (the write check).
+  const activations = require('../../plugins/activations');
+  const mayActivate = async (user, site) =>
+    (await siteCan(hubApp(), user, ['manage-tenants'])) || (await siteCan(site, user, ['activate-plugins']));
+  for (const base of ['/tenants/:tenant/plugins', '/hub/plugins']) {
+    app.get(base, async (req, res) => {
+      try {
+        const user = requireUser(req, res);
+        if (!user) return;
+        const site = await siteAppOf(req, res);
+        if (!site) return;
+        if (!(await mayActivate(user, site))) return res.status(403).json({ error: 'Not authorized: needs activate-plugins on this site' });
+        res.json(await activations.describe(site));
+      } catch (e) { fail(res, e); }
+    });
+
+    app.post(`${base}/set`, async (req, res) => {
+      try {
+        const user = requireUser(req, res);
+        if (!user) return;
+        const site = await siteAppOf(req, res);
+        if (!site) return;
+        if (!(await mayActivate(user, site))) return res.status(403).json({ error: 'Not authorized: needs activate-plugins on this site' });
+        const { plugin, enabled, version, acceptPermissions } = req.body || {};
+        const result = await activations.setActivation({ app: site, plugin, enabled, version, acceptPermissions: acceptPermissions === true, user });
+        console.log(`[tenants] plugin ${plugin} on ${site}: ${JSON.stringify({ enabled, version, acceptPermissions })} by ${user.email}`);
+        res.json({ ...(await activations.describe(site)), result });
+      } catch (e) {
+        console.warn(`[tenants] plugin activation on ${req.params.tenant || 'the hub'} failed: ${e.message}`);
         fail(res, e);
       }
     });

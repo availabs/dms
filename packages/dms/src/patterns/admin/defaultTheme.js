@@ -7,6 +7,8 @@ import { createSiteTheme } from './pages/createSite.theme'
 import { editSiteTheme } from './pages/editSite.theme'
 import { domainsCardTheme } from './components/domainsCard.theme'
 import { pgEnvsCardTheme } from './components/pgEnvsCard.theme'
+import { pluginsCardTheme } from './components/pluginsCard.theme'
+import { pluginsPageTheme } from './pages/plugins.theme'
 import { appSettingsCardTheme } from './components/appSettingsCard.theme'
 import { patternEditorTheme } from './pages/patternEditor/patternEditor.theme'
 import { settingsEditorTheme } from './pages/patternEditor/default/settings.theme'
@@ -48,6 +50,8 @@ export default {
     editSite: editSiteTheme,
     domainsCard: domainsCardTheme,
     pgEnvsCard: pgEnvsCardTheme,
+    pluginsCard: pluginsCardTheme,
+    pluginsPage: pluginsPageTheme,
     appSettingsCard: appSettingsCardTheme,
     patternEditor: patternEditorTheme,
     settingsEditor: settingsEditorTheme,

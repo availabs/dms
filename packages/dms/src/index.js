@@ -13,6 +13,13 @@ export { registerComponents } from "./patterns/page/components/sections/componen
 export { registerSectionMenuExtensions } from "./patterns/page/components/sections/sectionMenuExtensions"
 export { registerSectionHeaderExtensions } from "./patterns/page/components/sections/sectionHeaderExtensions"
 export { registerPatternTypes, getPatternType, listPatternTypes } from "./patterns/registry"
+// The plugin contract (dms-plugin-system.md): a plugin registers through a host, and the library records what each
+// plugin contributed so activation can be checked where a registry is read
+export {
+  PLUGIN_API_VERSION, registerPlugin, registerPlugins, listPlugins, getPlugin, pluginOf, isPluginActive,
+  pluginThemeNames, withPluginThemes, pluginDataTypes,
+  loadPlugins, installedActivations, clientPluginUrl,
+} from "./plugins"
 
 // Building blocks for pattern types a host app registers (registerPatternTypes)
 // — e.g. dms-template's map editor. The map runtime has its own entry, ./map.js,

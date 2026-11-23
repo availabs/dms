@@ -126,6 +126,40 @@ async function main() {
     assert.deepStrictEqual(user.groups, [], 'the removed group is gone on the next request');
   });
 
+  // the token carries a stamp of the password hash, never the hash (rsc-view-pages.md S5 finding)
+  const payloadOf = (token) => JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString('utf8'));
+
+  await t('a login token does not contain the password hash', async () => {
+    const token = await createUserToken('stamp@test.com', '$2a$10$secrethashvalue', 'proj');
+    const payload = payloadOf(token);
+    assert.strictEqual(payload.password, undefined);
+    assert.ok(payload.pw && !token.includes('secrethashvalue'));
+  });
+
+  await t('a token issued before a password change is refused after it', async () => {
+    tokenCache.clear();
+    const token = await createUserToken('changed@test.com', 'OLDHASH', 'proj');
+    const { user, warns } = await runMiddleware(makeDb({ users: [{ id: 5, email: 'changed@test.com', password: 'NEWHASH' }] }), token);
+    assert.strictEqual(user, null);
+    assert.strictEqual(warns.length, 0);
+  });
+
+  await t('a token from before the stamp (carrying the hash) still works until it expires', async () => {
+    tokenCache.clear();
+    const token = await signToken({ email: 'legacy@test.com', password: 'HASH', project: 'proj' });
+    const users = [{ id: 6, email: 'legacy@test.com', password: 'HASH' }];
+    assert.strictEqual((await runMiddleware(makeDb({ users }), token)).user?.email, 'legacy@test.com');
+    tokenCache.clear();
+    const bad = await signToken({ email: 'legacy@test.com', password: 'OTHER', project: 'proj' });
+    assert.strictEqual((await runMiddleware(makeDb({ users }), bad)).user, null);
+  });
+
+  await t('a user with no password matches no token', async () => {
+    tokenCache.clear();
+    const token = await signToken({ email: 'nopw@test.com', project: 'proj' });
+    assert.strictEqual((await runMiddleware(makeDb({ users: [{ id: 7, email: 'nopw@test.com', password: null }] }), token)).user, null);
+  });
+
   console.log(`\njwt-failure tests: ${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 }

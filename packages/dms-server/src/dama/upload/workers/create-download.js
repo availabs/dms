@@ -31,6 +31,7 @@
  */
 
 const { spawn } = require('child_process');
+const { workerEnv } = require('../../tasks/worker-env');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
@@ -256,7 +257,7 @@ function runOgr2ogr({ format, outputFile, connStr, dataSource, sql, selectCols, 
   }
 
   return new Promise((resolve, reject) => {
-    const proc = spawn('ogr2ogr', args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    const proc = spawn('ogr2ogr', args, { env: workerEnv(), stdio: ['ignore', 'pipe', 'pipe'] });
     let stderr = '';
     proc.stderr.on('data', d => { stderr += d.toString(); });
     proc.on('close', code => {
@@ -332,7 +333,7 @@ function runZip(zipPath, inputPaths, expectedEntries) {
   const args = [recurse ? '-rj' : '-j', zipPath, ...inputs];
 
   return new Promise((resolve, reject) => {
-    const proc = spawn('zip', args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    const proc = spawn('zip', args, { env: workerEnv(), stdio: ['ignore', 'pipe', 'pipe'] });
     let stderr = '';
     let stdout = '';
     proc.stdout.on('data', d => { stdout += d.toString(); });

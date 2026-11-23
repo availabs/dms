@@ -49,9 +49,40 @@ app.use(require('./utils/primaryRedirect').createPrimaryRedirect());
 // A verified domain alias of a hub tenant is served by the site that serves the root domain.
 const { resolveHost: resolveTenantHost, rootDomain: hubRootDomain } = require('./utils/subdomain');
 const { createSitesMiddleware } = require('./sites');
+
+// Per-site CSS compiled by the server (src/dms/planning/tasks/current/server-compiled-site-css.md). Its routes go
+// before the hosted sites, whose fallback answers any unknown path with index.html. The candidate manifest is the
+// served build's (DMS_DIST_DIR, as SSR uses it), or DMS_CSS_MANIFEST; without one the feature is off and pages
+// keep the in-browser compiler.
+const siteCss = require('./css/siteCss');
+const appRoot = require('path').resolve(__dirname, '../../../../..');
+const cssManifest = () => process.env.DMS_CSS_MANIFEST
+  || (process.env.NODE_ENV === 'production'
+    ? require('path').join(require('path').resolve(appRoot, process.env.DMS_DIST_DIR || 'dist'), 'client', '.dms', 'css-candidates.json')
+    : null);
+const siteType = () => process.env.DMS_TYPE || process.env.VITE_DMS_TYPE;
+siteCss.registerRoutes(app, { defaultManifest: cssManifest });
+// Installed plugins' files (plugins/routes.js; dms-plugin-system.md P2): public and immutable, before the hosted sites
+const pluginRoutes = require('./plugins/routes');
+const pluginStore = require('./plugins/store');
+pluginRoutes.registerFileRoutes(app);
+// an activation names an installed version (or gets the current one): checked on every general write of one
+require('./routes/dms/write-checks').registerWriteCheck('plugin_activation', pluginStore.activationWriteCheck());
+
 app.use(createSitesMiddleware({
-  sitesDir: `${require('path').resolve(__dirname, '../../../../..')}-sites`,
+  sitesDir: `${appRoot}-sites`,
   aliasOf: (host) => (resolveTenantHost(host, hubRootDomain())?.alias ? hubRootDomain() : null),
+  // a hosted build's index.html links its site's sheet: the app and type its deploy-info.json was built with,
+  // compiled from that build's own candidate manifest
+  transformIndex: async ({ dir, html }) => {
+    const info = JSON.parse(require('fs').readFileSync(require('path').join(dir, 'deploy-info.json'), 'utf8'));
+    const env = info.env || {};
+    const sheet = await siteCss.sheetFor({
+      app: env.VITE_DMS_APP, type: env.VITE_DMS_TYPE,
+      manifestFile: require('path').join(dir, '.dms', 'css-candidates.json'),
+    });
+    return siteCss.applyToHtml(html, siteCss.headInfo(sheet));
+  },
 }));
 
 const PORT = process.env.PORT || 3001;
@@ -113,8 +144,9 @@ if (!process.env.DMS_SSR) {
 const REQUEST_TIMEOUT = 30_000; // 30s default
 const GRAPH_TIMEOUT = 120_000;  // 2 min for Falcor graph requests
 app.use((req, res, next) => {
-  // Routing plugin's searches can take 60s+ - skip the app-level timeout for these routes.
-  if (req.path.includes('trsp-memory')) { next(); return; }
+  // A data type's declared long routes (its registration's `longRoutes`, e.g. routing's searches, 60 s+) keep
+  // no app-level timeout; the core names none of them (dms-plugin-system.md, P0).
+  if (require('./dama/datatypes').isLongRoute(req.method, req.path)) { next(); return; }
   const timeout = req.path.startsWith('/graph') ? GRAPH_TIMEOUT : REQUEST_TIMEOUT;
   req.setTimeout(timeout, () => {
     if (!res.headersSent) {
@@ -139,6 +171,11 @@ const authDbEnv = process.env.DMS_AUTH_DB_ENV || 'auth-sqlite';
 const { getDb, awaitReady } = require('./db');
 registerAuthRoutes(app, getDb(authDbEnv));
 
+// The page host's session cookie (auth/session.js): POST /_session from the page itself; read only by the SSR
+// mount below to render pages as the signed-in user. The API never reads it.
+const { createSessionRoute, createSessionResolver } = require('./auth/session');
+app.post('/_session', createSessionRoute(authDbEnv));
+
 // JWT auth middleware — validates Authorization header, attaches req.availAuthContext
 app.use(createJwtMiddleware(authDbEnv));
 
@@ -158,6 +195,13 @@ require('./routes/domains').registerDomainRoutes(app);
 
 // Deleting a tenant of the hub, with a backup first (routes/tenants; tenant-subdomain-uniqueness.md)
 require('./routes/tenants').registerTenantRoutes(app);
+
+// Installing a plugin release (plugins/routes.js): hub staff holding install-plugins, judged whatever DMS_AUTH_MODE says
+pluginRoutes.registerAdminRoutes(app, {
+  controller: require('./routes/dms/dms.route').controller,
+  siteCan: require('./routes/auth').siteCan,
+  requireUser: require('./routes/auth/requestUser').requireUser,
+});
 
 // A site's icon, app name and colours; its manifest, icons and service worker by Host (routes/appSettings;
 // site-app-settings-pwa.md)
@@ -293,6 +337,12 @@ async function setupAndListen() {
     }
   }
 
+  // Installed plugins with server code (plugins/store.js): their current version, registered at start (code
+  // installed since takes the next restart, D2), routes judged under enforce. A compiled-in data type wins.
+  const { isDatatypeRegistered } = require('./dama/datatypes');
+  const installedServer = pluginStore.registerInstalledServerPlugins(registerDatatype, { isRegistered: isDatatypeRegistered });
+  if (installedServer.length) console.log(`[plugins] installed plugins with server code: ${installedServer.join(', ')}`);
+
   // Optional app-owned page-delete side effect — load via DMS_PAGE_DELETE_HOOK
   // if set. Same shape as DMS_EXTRA_DATATYPES above: an env var pointing at a
   // CommonJS module, resolved against cwd. The module's default export is a
@@ -414,6 +464,14 @@ async function setupAndListen() {
       serverBundle: path.join(distDir, 'server', 'entry-ssr.js'),
       // the site's manifest, icons and service worker in the page head (routes/appSettings)
       getHeadTags: require('./routes/appSettings').headTags,
+      // the site's server-compiled sheet (css/siteCss.js), for the build's <link data-dms-site-css>
+      getSiteCss: async (req) => siteCss.headInfo(await siteCss.sheetFor({
+        app: await require('./routes/appSettings/store').appForHost(req.headers.host),
+        type: siteType(),
+        manifestFile: cssManifest(),
+      })),
+      // who is asking for a page: the session cookie (rsc-view-pages.md phase 1)
+      resolveSession: createSessionResolver(authDbEnv),
       handlerConfig: {
         apiHost: `http://localhost:${PORT}`,
         siteConfig: {
@@ -425,6 +483,8 @@ async function setupAndListen() {
         pgEnvs,
         isMultiTenant: (process.env.DMS_MULTI_TENANT || process.env.VITE_DMS_MULTI_TENANT) === '1',
         rootDomain: process.env.DMS_ROOT_DOMAIN || process.env.VITE_DMS_ROOT_DOMAIN || '',
+        // installed plugins a site turns on are imported from their version folder (plugins/store.js)
+        resolvePluginUrl: (name, version) => pluginStore.ssrEntryUrl(name, version),
       },
     });
     // The hub: a tenant or domain change (alias verified / removed, primary moved, tenant added) changes
@@ -475,11 +535,17 @@ async function setupAndListen() {
   //
   // Still unwired, same cause: the per-dbEnv controller dama/upload/index.js:34 builds for
   // the file-upload publish handlers.
+  //
+  // Both also feed the per-site CSS: a saved row's new classes go into its app's sheet (css/siteCss.js).
+  const notifyAll = (app, msg) => {
+    notifyChange(app, msg);
+    try { siteCss.noteChange(app, msg); } catch (e) { console.warn('[site-css] change not applied:', e.message); }
+  };
   const dmsRoutes = require('./routes/dms/dms.route');
-  dmsRoutes.controller.setNotifyChange(notifyChange);
+  dmsRoutes.controller.setNotifyChange(notifyAll);
 
   // Also wire the push endpoint's broadcast callback
-  createSyncRoutes._notifyChange = notifyChange;
+  createSyncRoutes._notifyChange = notifyAll;
 }
 
 setupAndListen();

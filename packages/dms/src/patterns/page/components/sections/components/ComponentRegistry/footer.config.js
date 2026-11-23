@@ -13,6 +13,8 @@ export default {
             {type: 'input', inputType: 'text', label: 'Terms and Conditions URL', key: 'termsURL'}
         ]
     },
+    // static markup from its settings (see richtext/config.js serverStatic)
+    serverStatic: true,
     "EditComp": Footer,
     "ViewComp": Footer
 }

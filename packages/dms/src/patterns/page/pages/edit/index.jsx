@@ -15,11 +15,14 @@ import SectionGroup from '../../components/sections/sectionGroup'
 import SearchButton from '../../components/search'
 import LinkPageNotice from '../../components/LinkPageNotice'
 import PageControls from './editPane'
+import { useRuntimeTailwind } from './useRuntimeTailwind'
 
 function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attributes, apiLoad, apiUpdate, reqPermissions, busy}) {
 	const navigate = useNavigate();
 	const [searchParams] = useSearchParams();
 	const { pathname = '/edit', search } = useLocation();
+	// classes an author types are styled before they're saved (view pages use the site's compiled sheet)
+	useRuntimeTailwind();
 
 	const { theme: fullTheme, UI, getComponentTheme } = React.useContext(ThemeContext);
 	const {  Menu, baseUrl, user, patternFilters=[], isUserAuthed, authBaseUrl, API_HOST, app } = React.useContext(CMSContext) || {};

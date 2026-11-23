@@ -145,6 +145,14 @@ async function authorize({ row, env, sourceId, viewId, patternId, verb = 'read',
 
   const sealed = sealRefused(snap, r, op, row, patch, keys);
   if (sealed) return mark(sealed);
+  // A row kind only the server writes (its rule says `serverOnly`: a plugin's install record, written by the
+  // installer, dms-plugin-system.md) is refused to every caller of the general write path, `<app> Admin`
+  // included, under every mode (report.js applyMode).
+  if (op !== 'read') {
+    let own = null;
+    try { own = ruleFor(snap, r).rule; } catch { own = null; }
+    if (own && own.serverOnly) return { ...deny(`${r.kind}: written by the server only`), enforced: true };
+  }
   // `<app> Admin` is allowed everything, unless the row or one above it says `reach.override: false`
   if (isAppAdmin(user, siteApp) && reach.override) return mark({ ...allow(`${siteApp} Admin`), write });
 

@@ -585,7 +585,9 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
     usePivotDistinctValues({ state, setState, apiLoad, sectionId, trackingId });
 
     // ── useDataSource + dwAPI (owned by dataWrapper) ──
-    const dataSourceInfo = useDataSource({ state, setState });
+    // View fetches only its bound source(s): the source catalogue is for the edit-mode pickers
+    // (datawrapper-view-bound-source-only.md)
+    const dataSourceInfo = useDataSource({ state, setState, loadCatalogue: false });
     const dwAPI = useDataWrapperAPI({ state, setState });
 
     const resolvedControls = typeof component?.controls === 'function'

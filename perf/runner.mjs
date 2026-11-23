@@ -40,7 +40,7 @@ async function launch() {
 function networkLog(page) {
   let entries = [], pending = [], errors = { console: [], page: [], failed: [] };
   const onFinished = (req) => {
-    const entry = { type: req.resourceType(), key: `${req.method()} ${req.url()} ${req.postData() || ''}`, url: req.url(), bytes: 0, status: null, ms: Math.max(0, Math.round(req.timing().responseEnd)) };
+    const entry = { type: req.resourceType(), key: `${req.method()} ${req.url()} ${(req.postData() || '').replace(/("(?:token|password)"\s*:\s*")[^"]*/g, '$1…')}`, url: req.url(), bytes: 0, status: null, ms: Math.max(0, Math.round(req.timing().responseEnd)) };
     entries.push(entry);
     pending.push((async () => {
       try {
@@ -119,6 +119,44 @@ const round = (v) => (typeof v === 'number' ? Math.round(v * 10) / 10 : v);
 const roundAll = (o) => Object.fromEntries(Object.entries(o || {}).map(([k, v]) => [k, Math.round(v)]));
 
 /** A document load: cold or warm, depending on what the context already holds. */
+// A signed-in profile's starting state: sign in once through the target's own form, as a person would, and keep
+// what the browser then holds (the token in localStorage, and the session cookie where the server sets one).
+async function signIn(browser, cfg, log) {
+  const email = process.env.DMS_PERF_EMAIL || process.env.DMS_EMAIL;
+  const password = process.env.DMS_PERF_PASSWORD || process.env.DMS_PASSWORD;
+  if (!email || !password) throw new Error('The signed_in profile needs DMS_PERF_EMAIL and DMS_PERF_PASSWORD (or DMS_EMAIL and DMS_PASSWORD)');
+  const ctx = await browser.newContext({ viewport: cfg.viewport });
+  try {
+    const page = await ctx.newPage();
+    log(`signing in at ${cfg.target}${cfg.loginPath}`);
+    await page.goto(cfg.target + cfg.loginPath, { waitUntil: 'load', timeout: cfg.timeoutMs });
+    // The sign-in page arrives server-rendered: its inputs exist before React hydrates, and typing into them
+    // then never reaches the form's state (the server answers "Email, password, and project are required").
+    // So wait for the page to settle (some pages poll and never go idle: at most 8 s), and submit again if no
+    // token arrives.
+    await page.waitForLoadState('networkidle', { timeout: 8000 }).catch(() => {});
+    let signedIn = false;
+    for (let attempt = 1; attempt <= 4 && !signedIn; attempt++) {
+      // the form holding a password field; some themes' sign-in pages have no <form> or no submit button
+      await page.locator('input[type=password]').first().waitFor({ timeout: 30000 });
+      const forms = page.locator('form').filter({ has: page.locator('input[type=password]') });
+      const box = (await forms.count()) ? forms.first() : page.locator('body');
+      await box.locator('input[type=email], input[type=text]').first().fill(email);
+      await box.locator('input[type=password]').first().fill(password);
+      const submit = box.locator('button[type=submit]');
+      await ((await submit.count()) ? submit.first() : box.getByRole('button', { name: /sign in|log in|login/i }).first()).click();
+      signedIn = await page.waitForFunction(() => !!localStorage.getItem('userToken'), null, { timeout: 10000 }).then(() => true, () => false);
+      if (!signedIn) { log(`sign-in attempt ${attempt}: no token yet`); await page.waitForTimeout(2000); }
+    }
+    if (!signedIn) throw new Error('no token after 4 attempts');
+    // the session cookie is written by a request right after sign-in; let it land
+    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
+    return await ctx.storageState();
+  } catch (e) {
+    throw new Error(`Signing in at ${cfg.target}${cfg.loginPath} failed: ${String(e.message || e).split('\n')[0]}`);
+  } finally { await ctx.close(); }
+}
+
 async function loadVisit(ctx, cfg, url) {
   const page = await ctx.newPage();
   const net = networkLog(page);
@@ -288,7 +326,10 @@ export async function runPerf(cfg, site, log = () => {}) {
       throw new Error(`${cfg.target} stopped answering (${failedInARow} page loads in a row failed: ${v.error}). The run is incomplete; its folder is ${outDir}`);
     }
   };
-  const newContext = () => browser.newContext({ viewport: cfg.viewport }).then(async (ctx) => { await ctx.addInitScript(collector); return ctx; });
+  // the current profile's starting browser state: null (a new visitor), or a signed-in one (signIn)
+  let storageState = null;
+  const newContext = () => browser.newContext({ viewport: cfg.viewport, ...(storageState ? { storageState } : {}) })
+    .then(async (ctx) => { await ctx.addInitScript(collector); return ctx; });
 
   try {
     // the server's first request after a restart isn't the page's doing: one discarded request
@@ -301,7 +342,7 @@ export async function runPerf(cfg, site, log = () => {}) {
     const linkable = [...new Set([...allPages.filter((x) => x.published).map((x) => norm(x.path)), basePath])];
 
     for (const profile of cfg.profiles) {
-      void PROFILES[profile];
+      storageState = PROFILES[profile].signedIn ? await signIn(browser, cfg, log) : null;
       const setMode = (out) => { if (!run.mode && out.mode) { run.mode = { ...out.mode, preload: pattern.preload_data }; saveRun(); } };
       const t0 = Date.now();
       const mins = () => Math.round((Date.now() - t0) / 60000);

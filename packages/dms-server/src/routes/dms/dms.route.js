@@ -7,6 +7,7 @@ const { getKind, getParent, isSplitType } = require('#db/type-utils.js');
 
 // Every decision on this route comes from `routes/auth`: `authorize` for reads, `assertDataWrite` for writes.
 const { assertDataWrite, authorize, applyMode, NO_CHANGE } = require('../auth');
+const { checkWrite, checkMassEdit } = require('./write-checks');
 const { AUTH_DATA_KEYS } = require('../auth/owners');
 const { parseJson } = require('../auth/grants');
 
@@ -503,8 +504,10 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
           const data = controller.withoutParentId(rawData);
           const rows = await judgedWrite(app, id, type, async (stored, expect) => {
             // only what the guard judged is written (the selected implementation's planEdit); nothing changed → no write
-            const toWrite = await assertDataWrite(this, 'edit', app, stored, data, { skipNoChange: true });
-            if (toWrite === NO_CHANGE) return controller.getDataById([id], DATA_ATTRIBUTES, app);
+            const judged = await assertDataWrite(this, 'edit', app, stored, data, { skipNoChange: true });
+            if (judged === NO_CHANGE) return controller.getDataById([id], DATA_ATTRIBUTES, app);
+            // the row kind's own check of the data, if it registered one (write-checks.js)
+            const toWrite = await checkWrite('edit', { app, type: stored.type, data: judged, stored: stored.data });
             return controller.setDataById(id, toWrite, this.user, app, type || null, this.reqMeta, { changeHistory: true, expect });
           });
           return await dataByIdResponse(rows, [id], DATA_ATTRIBUTES, app);
@@ -513,8 +516,9 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
         const [id, rawData] = args;
         const data = controller.withoutParentId(rawData);
         const rows = await judgedWrite(null, id, null, async (stored, expect) => {
-          const toWrite = await assertDataWrite(this, 'edit', stored.app, stored, data, { skipNoChange: true });
-          if (toWrite === NO_CHANGE) return controller.getDataById([id], DATA_ATTRIBUTES);
+          const judged = await assertDataWrite(this, 'edit', stored.app, stored, data, { skipNoChange: true });
+          if (judged === NO_CHANGE) return controller.getDataById([id], DATA_ATTRIBUTES);
+          const toWrite = await checkWrite('edit', { app: stored.app, type: stored.type, data: judged, stored: stored.data });
           return controller.setDataById(id, toWrite, this.user, null, null, this.reqMeta, { expect });
         });
         return await dataByIdResponse(rows, [id], DATA_ATTRIBUTES);
@@ -528,6 +532,7 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
         console.log('massedit', app, type, column, JSON.stringify(maps, null, 3))
         // every row of `type`: judged as one edit of that type
         await assertDataWrite(this, 'edit', app, { id: null, type, data: null }, { [column]: null });
+        checkMassEdit(type, column);
         return controller.setMassData(app, type, column, maps, this.user?.id ?? null).then((rows) => {
           return [{
             path: ['dms', 'data', 'massedit'],
@@ -564,8 +569,11 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
     {
       route: "dms.data.create",
       call: async function(callPath, args) {
-        const [app, type, data] = args;
-        await assertDataWrite(this, 'create', app, { id: null, type, data: data || {} }, null);
+        const [app, type, rawData] = args;
+        await assertDataWrite(this, 'create', app, { id: null, type, data: rawData || {} }, null);
+        // the row kind's own check of the data, if it registered one (write-checks.js)
+        const data = await checkWrite('create', { app, type, data: rawData });
+        if (data !== rawData) args = [app, type, data, ...args.slice(3)];
         const t0 = Date.now();
         console.log('[dms.data.create] START app=%s type=%s user=%s t=%d', app, type, this.user?.id || 'anon', t0);
         try {

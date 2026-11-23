@@ -10,6 +10,7 @@ import { useAuth } from "../patterns/auth/context";
 
 import { falcorGraph, FalcorProvider } from "@availabs/avl-falcor";
 import { tagFalcorRequests } from "../utils/authedFetch";
+import { requestScopedModel, sendTokenWith } from "../utils/requestScope";
 //const noAuth = Component => Component
 
 export default function dmsPageFactory({
@@ -24,10 +25,17 @@ export default function dmsPageFactory({
   const ErrorBoundaryComp = errorElement || ErrorBoundary;
   const dmsPath = `${baseUrl}${baseUrl === "/" ? "" : "/"}`;
   // console.log('dmspageFactory', API_HOST)
-  const falcor = falcorGraph(API_HOST);
   // Every request names its site (`dms_app`): the access log files under it, and a pgEnv's sources are
   // read under that site's `:dmsenv` row for the pgEnv (its grants and vocabulary).
-  tagFalcorRequests(falcor, dmsConfig.requestPattern || null, dmsConfig.app || dmsConfig.format?.app || dmsConfig.requestPattern?.app);
+  const requestApp = dmsConfig.app || dmsConfig.format?.app || dmsConfig.requestPattern?.app;
+  const sharedFalcor = tagFalcorRequests(falcorGraph(API_HOST), dmsConfig.requestPattern || null, requestApp);
+  // On the server this route is built once per host and shared by every request: a signed-in render
+  // (the session cookie, render/ssr2) reads through a model of its own that carries the user's token,
+  // so their rows never reach the shared cache (utils/requestScope.js). The browser has one user.
+  const falcor = import.meta.env.SSR
+    ? requestScopedModel(sharedFalcor, (token) =>
+        sendTokenWith(tagFalcorRequests(falcorGraph(API_HOST), dmsConfig.requestPattern || null, requestApp), token))
+    : sharedFalcor;
   // Tracks the login token across loader calls so the no-access retry below
   // can tell "user just logged in, cache is stale" apart from "this visitor
   // genuinely can't see this content" — see that check for why the distinction
@@ -69,7 +77,8 @@ export default function dmsPageFactory({
     // restricted to retry — leaving any *other* page's stale pre-login
     // no-access cache stuck with no further chance to self-heal this session.
     const currentAuthToken = typeof window !== 'undefined' ? window.localStorage?.getItem('userToken') : null;
-    if (currentAuthToken !== lastAuthToken) {
+    // the server's render knows its user up front (the request's model, above): nothing to resync
+    if (!import.meta.env.SSR && currentAuthToken !== lastAuthToken) {
       // `falcor.setCache({})` used to wipe the entire root cache here — every
       // pattern, every site visited this session, not just the blocked rows —
       // forcing a full re-fetch storm on the very next render even though only

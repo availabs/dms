@@ -2,7 +2,7 @@
  * Page variables a section registers itself — the section-registry
  * `derivePageVariables` hook (the generic replacement for the page pattern's old
  * map-only share-state lookup). The Map section's own hook is tested with the
- * map editor pattern in dms-template (src/patterns/mapeditor/mapeditor.test.js).
+ * map editor pattern in dms-template (src/plugins/mapeditor/mapeditor.test.js).
  *
  * See planning/tasks/current/pluggable-patterns-mapeditor-extraction.md.
  *

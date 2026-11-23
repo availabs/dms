@@ -5,10 +5,16 @@
 export function detectFromHtml(html = '') {
   const root = html.match(/<div id="root">([\s\S]*?)<\/div>\s*(<script|<\/body>)/);
   const rootHasContent = /<div id="root">\s*</.test(html);
+  // React Server Components (rsc-view-pages.md): the page's tree arrives a second time as the RSC payload,
+  // inlined in scripts that push onto self.__FLIGHT_DATA. It is that render's hydration data, so it counts
+  // as such; today's pages have none and measure as before.
+  const flightBytes = [...html.matchAll(/__FLIGHT_DATA\|\|=\[\]\)\.push\(([\s\S]*?)\)<\/script>/g)].reduce((n, m) => n + m[1].length, 0);
+  const rsc = html.includes('__FLIGHT_DATA');
   return {
-    // server-rendered: the document arrives with the page inside #root and the SSR data script
-    ssr: html.includes('__dmsSSRData') && rootHasContent,
-    hydrationBytes: (html.match(/__staticRouterHydrationData = JSON\.parse\((".*?")\);/s) || [])[1]?.length || 0,
+    // server-rendered: the document arrives with the page inside #root and the SSR data script, or as RSC
+    ssr: (html.includes('__dmsSSRData') || rsc) && rootHasContent,
+    rsc,
+    hydrationBytes: ((html.match(/__staticRouterHydrationData = JSON\.parse\((".*?")\);/s) || [])[1]?.length || 0) + flightBytes,
     // a dev server (Vite, unbundled modules): not what a visitor is served
     devBuild: html.includes('/@vite/client') || html.includes('/@react-refresh'),
     rootBytes: root ? root[1].length : null,

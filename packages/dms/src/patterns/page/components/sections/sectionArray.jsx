@@ -6,6 +6,8 @@ import { ThemeContext, getComponentTheme } from "../../../../ui/useTheme";
 import { CMSContext, PageContext } from '../../context'
 
 import { SectionEdit, SectionView } from './section'
+import RscSection from './RscSection'
+import { RscCaptureContext } from '../../../../render/rsc/captureContext'
 import { isJson } from './section_utils'
 import { sectionArrayTheme } from './sectionArray.theme'
 import {useImmer} from "use-immer";
@@ -649,6 +651,8 @@ const View = ({value, attr, group, siteType, collapsed = false}) => {
     const {hash} = useLocation();
     const { format  } =  React.useContext(PageContext) || {}
     const [active, setActive] = useState();
+    // RSC path's server pass: each section gets its own capture (RscSection.jsx)
+    const rscCapture = React.useContext(RscCaptureContext);
     const { theme:fullTheme = {sectionArray: sectionArrayTheme} } = React.useContext(ThemeContext);
     // `group.theme` selects this band's `pages.sectionArray` style as well as its
     // layoutGroup style — the same convention sectionGroup.jsx already uses for
@@ -719,16 +723,23 @@ const View = ({value, attr, group, siteType, collapsed = false}) => {
                                             : (Object.keys(cardBorderStyle).length ? cardBorderStyle : undefined)
                                     }
                                 >
-                                <SectionView
-                                    key={v?.id || i}
-                                    i={i}
-                                    group={group}
-                                    value={v}
-                                    attributes={attr?.attributes}
-                                    siteType={siteType}
-                                    format={format}
-                                    isActive={v?.element?.['element-type'] === 'Spreadsheet' ? active === v?.id : undefined}
-                                />
+                                {(() => {
+                                    const sectionView = (
+                                        <SectionView
+                                            key={v?.id || i}
+                                            i={i}
+                                            group={group}
+                                            value={v}
+                                            attributes={attr?.attributes}
+                                            siteType={siteType}
+                                            format={format}
+                                            isActive={v?.element?.['element-type'] === 'Spreadsheet' ? active === v?.id : undefined}
+                                        />
+                                    );
+                                    return rscCapture?.sections
+                                        ? <RscSection capture={rscCapture} index={value.indexOf(v)} section={v}>{sectionView}</RscSection>
+                                        : sectionView;
+                                })()}
                                 </div>
                             </div>
                         )

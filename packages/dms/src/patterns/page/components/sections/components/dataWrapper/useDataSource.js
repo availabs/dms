@@ -20,6 +20,58 @@ const parseCategories = (value) => {
     try { const v = JSON.parse(value); return Array.isArray(v) ? v : []; } catch { return []; }
 };
 
+// One source as a section stores it in `externalSource`, from its catalogue attributes (`valueGetter(attr)`).
+// Shared by the catalogue (getSources) and the view-mode fetch by id (getBoundSources), so the column
+// reconciliation merges the same object either way.
+const toSource = ({ envs, e, source_id, valueGetter }) => {
+    const app = valueGetter("app");
+    const name = valueGetter("name");
+    // instance from the row type when available (needs a server with the
+    // row_type attribute); display-name slug as the legacy fallback
+    const instance = envs[e].isDms ? getInstance(valueGetter("row_type") || "") : null;
+    const sourceSlug = instance || (name ? nameToSlug(name) : null);
+    const env = sourceSlug && app ? `${app}+${sourceSlug}` : e;
+
+    return {
+        // externalSource.type for internal tables = the instance slug (addItem
+        // composes the split data type from it; applyCreateDefaults rebuilds env)
+        ...(instance ? { type: instance } : {}),
+        ...envs[e].srcAttributes.reduce((acc, attr) => {
+            let value = valueGetter(attr);
+
+            if (attr === "metadata") {
+                // Row-identity (real PK column, which can be any name) is resolved
+                // server-side per-request (uda.controller.js's resolveIdAttribute),
+                // not tracked here — the persisted metadata.columns[].isPrimaryKey
+                // flag is only set when a PK is set *through the metadata UI*, so
+                // an auto-detected pre-existing PK (e.g. a GIS source's ogc_fid)
+                // would leave a client-cached column name null forever even on a
+                // genuinely editable source (see external-source-editable-crud.md).
+                return { ...acc, columns: value?.columns || [], isEditable: !!value?.isEditable };
+            }
+            if (attr === "config") {
+                return {
+                    ...acc,
+                    columns: JSON.parse(value || "{}")?.attributes || [],
+                };
+            }
+            return { ...acc, [attr]: value };
+        }, {}),
+        source_id,
+        env,
+        srcEnv: e,
+        isDms: envs[e].isDms,
+    };
+};
+
+// For DMS sources also fetch `row_type` (the row's type string; the plain `type`
+// attribute serves data->>'type', the source KIND) — its instance segment is the
+// canonical env/type slug. The display name is NOT reliable: nameToSlug(name)
+// drifts from the instance whenever they differ ("Site Management — Tickets" →
+// site_management__tickets vs instance sitemgmt_tickets), and a drifted env
+// resolves NO source server-side (silent nulls on every later fetch).
+const sourceAttributes = (envs, e) => [...envs[e].srcAttributes, ...(envs[e].isDms ? ["row_type"] : [])];
+
 // Returns the source objects plus `categoriesById` (source_id → categories), which drives the
 // lifecycle filter. Categories ride the same request (like `row_type`) but stay OUT of the source
 // objects, because those are merged into the section's persisted externalSource.
@@ -34,68 +86,80 @@ const getSources = async ({ envs, falcor }) => {
             const len = get(lenRes, ["json", "uda", e, "sources", "length"]);
             if (!len) return [];
 
-            // For DMS sources also fetch `row_type` (the row's type string; the plain `type`
-            // attribute serves data->>'type', the source KIND) — its instance segment is the
-            // canonical env/type slug. The display name is NOT reliable: nameToSlug(name)
-            // drifts from the instance whenever they differ ("Site Management — Tickets" →
-            // site_management__tickets vs instance sitemgmt_tickets), and a drifted env
-            // resolves NO source server-side (silent nulls on every later fetch).
-            const fetchAttributes = [...new Set([
-                ...envs[e].srcAttributes,
-                ...(envs[e].isDms ? ["row_type"] : []),
-                "categories",
-            ])];
+            const fetchAttributes = [...new Set([...sourceAttributes(envs, e), "categories"])];
             const r = await falcor.get(["uda", e, "sources", "byIndex", { from: 0, to: len - 1 }, fetchAttributes]);
 
-            const valueGetter = (i, attr) =>
-                get(r, ["json", "uda", e, "sources", "byIndex", i, attr]);
-
             return range(0, len - 1).map((i) => {
-                const app = valueGetter(i, "app");
-                const name = valueGetter(i, "name");
-                // instance from the row type when available (needs a server with the
-                // row_type attribute); display-name slug as the legacy fallback
-                const instance = envs[e].isDms ? getInstance(valueGetter(i, "row_type") || "") : null;
-                const sourceSlug = instance || (name ? nameToSlug(name) : null);
-                const env = sourceSlug && app ? `${app}+${sourceSlug}` : e;
+                const valueGetter = (attr) => get(r, ["json", "uda", e, "sources", "byIndex", i, attr]);
                 const source_id = get(r, ["json", "uda", e, "sources", "byIndex", i, "$__path", 4]);
-                if (source_id != null) categoriesById[source_id] = parseCategories(valueGetter(i, "categories"));
-
-                return {
-                    // externalSource.type for internal tables = the instance slug (addItem
-                    // composes the split data type from it; applyCreateDefaults rebuilds env)
-                    ...(instance ? { type: instance } : {}),
-                    ...envs[e].srcAttributes.reduce((acc, attr) => {
-                        let value = valueGetter(i, attr);
-
-                        if (attr === "metadata") {
-                            // Row-identity (real PK column, which can be any name) is resolved
-                            // server-side per-request (uda.controller.js's resolveIdAttribute),
-                            // not tracked here — the persisted metadata.columns[].isPrimaryKey
-                            // flag is only set when a PK is set *through the metadata UI*, so
-                            // an auto-detected pre-existing PK (e.g. a GIS source's ogc_fid)
-                            // would leave a client-cached column name null forever even on a
-                            // genuinely editable source (see external-source-editable-crud.md).
-                            return { ...acc, columns: value?.columns || [], isEditable: !!value?.isEditable };
-                        }
-                        if (attr === "config") {
-                            return {
-                                ...acc,
-                                columns: JSON.parse(value || "{}")?.attributes || [],
-                            };
-                        }
-                        return { ...acc, [attr]: value };
-                    }, {}),
-                    source_id,
-                    env,
-                    srcEnv: e,
-                    isDms: envs[e].isDms,
-                };
+                if (source_id != null) categoriesById[source_id] = parseCategories(valueGetter("categories"));
+                return toSource({ envs, e, source_id, valueGetter });
             });
         })
     );
 
     return { sources: sources.flat(), categoriesById };
+};
+
+const isSourceId = (id) => id != null && id !== "" && !Number.isNaN(+id);
+
+// The sources a section binds (its own and its joins) as [{id, envs}] for view mode, `envs` being where to look
+// it up by id, in order. Normally its saved `srcEnv`. When that isn't one of this page's envs (a DMS source saved
+// under a datasets pattern this page dedupes by dmsEnvId, or a since-renamed env), every page env of the same
+// kind: the catalogue matched the source by id across all envs, and a DMS source's id lookup is by row id within
+// the app, so it is found through any of the app's DMS envs. null when there is no env of that kind: the caller
+// then loads the catalogue as edit mode does.
+const boundSourcesOf = ({ externalSource, joinSources, envs }) => {
+    const candidates = (src) => {
+        if (envs[src?.srcEnv]) return [src.srcEnv];
+        const isDms = src?.isDms ?? String(src?.srcEnv || src?.env || "").includes("+");
+        return Object.keys(envs).filter((e) => !!envs[e].isDms === !!isDms);
+    };
+    const bound = [];
+    if (isSourceId(externalSource?.source_id)) {
+        const where = candidates(externalSource);
+        if (!where.length) return null;
+        bound.push({ id: externalSource.source_id, envs: where });
+    }
+    for (const j of Object.values(joinSources || {})) {
+        // a join with nowhere to look is only left unnamed in the menu; nothing else reads it from `sources`
+        const where = isSourceId(j?.source) ? candidates(j?.sourceInfo) : [];
+        if (where.length) bound.push({ id: j.source, envs: where });
+    }
+    return bound;
+};
+
+// View mode: only the bound sources, by id, one request per env. The server's sources.byIndex is a $ref to
+// sources.byId, so the attributes and the per-source read check are the ones the catalogue gets. Each source
+// is taken from the first of its envs that returns it; one that comes back empty everywhere (deleted, or not
+// readable) is left out, as the catalogue would leave it out. `source_id` keeps the section's own value (and
+// type), so the menu's `key === activeSource` still matches.
+const getBoundSources = async ({ envs, bound, falcor }) => {
+    const idsByEnv = {};
+    for (const b of bound) for (const e of b.envs) (idsByEnv[e] ??= new Set()).add(+b.id);
+    const found = {}; // env → numeric id → valueGetter
+    await Promise.all(Object.entries(idsByEnv).map(async ([e, ids]) => {
+        const attrs = [...new Set(sourceAttributes(envs, e))];
+        try {
+            const r = await falcor.get(["uda", e, "sources", "byId", [...ids], attrs]);
+            for (const id of ids) {
+                const valueGetter = (attr) => get(r, ["json", "uda", e, "sources", "byId", id, attr]);
+                if (attrs.some((a) => valueGetter(a) != null)) (found[e] ??= {})[id] = valueGetter;
+            }
+        } catch {
+            // this env answers nothing; another candidate may
+        }
+    }));
+    const out = [];
+    const seen = new Set();
+    for (const b of bound) {
+        if (seen.has(+b.id)) continue;
+        const e = b.envs.find((env) => found[env]?.[+b.id]);
+        if (!e) continue;
+        seen.add(+b.id);
+        out.push(toSource({ envs, e, source_id: b.id, valueGetter: found[e][+b.id] }));
+    }
+    return out;
 };
 
 // The hidden-lifecycle set per env (patterns/datasets/utils/lifecycle.js): the library defaults
@@ -180,7 +244,10 @@ const getViews = async ({ envs, sourceId, srcEnv, falcor }) => {
 
 const DEFAULT_SOURCE_TYPES = ["external", "internal"];
 
-export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TYPES }) {
+// `loadCatalogue: false` (dataWrapper's View): fetch only the bound sources, for the column reconciliation and
+// the view-mode menu's names; no catalogue, settings, authorities or version lists, which only the edit-mode
+// pickers read (datawrapper-view-bound-source-only.md).
+export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TYPES, loadCatalogue = true }) {
     const { app, type, falcor, datasources } = useContext(CMSContext) || {};
     const { format } = useContext(PageContext) || {};
 
@@ -242,19 +309,17 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
     // =================================================================================================================
 
     const envsKeyCount = Object.keys(envs).length;
+    // view mode: what to fetch (null = fall back to the catalogue); a change refetches
+    const bound = useMemo(
+        () => loadCatalogue ? null : boundSourcesOf({ externalSource: state?.externalSource, joinSources, envs }),
+        [loadCatalogue, state?.externalSource?.source_id, state?.externalSource?.srcEnv, state?.externalSource?.isDms, joinSources, envs]
+    );
+    const boundKey = loadCatalogue ? "" : JSON.stringify(bound);
     useEffect(() => {
         if (!envsKeyCount) return;
         const timeoutId = setTimeout(() => {
-            Promise.all([getSources({ envs, falcor }), getHiddenSets({ envs, falcor })]).then(([{ sources: data, categoriesById }, hiddenSets]) => {
-                setSources(data);
-                getSourceAuthorities({ sources: data, falcor }).then(setAuthorityBySource);
-                const lifecycles = {};
-                for (const s of data) {
-                    const lc = hiddenLifecycleOf({ categories: categoriesById[s.source_id] }, hiddenSets[s.srcEnv]);
-                    if (lc) lifecycles[s.source_id] = lc;
-                }
-                setHiddenLifecycleBySource(lifecycles);
-
+            // Refresh the bound source's fields (columns, isEditable, env, …) in the section's state
+            const reconcile = (data) => {
                 const existing = data.find((d) => +d.source_id === +sourceId);
 
                 if (existing && (!isEqual(existing.columns, state?.externalSource?.columns) || isJoinPresent) ) {
@@ -294,17 +359,39 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
                         }
                     });
                 }
+            };
+
+            if (bound) {
+                if (!bound.length) return setSources([]);
+                getBoundSources({ envs, bound, falcor }).then((data) => {
+                    setSources(data);
+                    reconcile(data);
+                });
+                return;
+            }
+
+            Promise.all([getSources({ envs, falcor }), getHiddenSets({ envs, falcor })]).then(([{ sources: data, categoriesById }, hiddenSets]) => {
+                setSources(data);
+                getSourceAuthorities({ sources: data, falcor }).then(setAuthorityBySource);
+                const lifecycles = {};
+                for (const s of data) {
+                    const lc = hiddenLifecycleOf({ categories: categoriesById[s.source_id] }, hiddenSets[s.srcEnv]);
+                    if (lc) lifecycles[s.source_id] = lc;
+                }
+                setHiddenLifecycleBySource(lifecycles);
+                reconcile(data);
             })
         }, 300);
 
         return () => clearTimeout(timeoutId);
-    }, [envsKeyCount]);
+    }, [envsKeyCount, boundKey]);
 
     // =================================================================================================================
     // ================================================ load views =====================================================
     // =================================================================================================================
 
     useEffect(() => {
+        if (!loadCatalogue) return; // versions are for the edit-mode Version picker only
         const timeoutId = setTimeout(() => {
             // some old component have deprecated srcEnv (app+siteType), so always send updated value.
             const srcEnv = sources.find((d) => +d.source_id === +sourceId)?.srcEnv;
@@ -335,6 +422,7 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
     }, [sourceId, sources]);
 
     useEffect(() => {
+        if (!loadCatalogue) return;
         const timeoutId = setTimeout(() => {
             Object.keys(joinSources).forEach(alias => {
                 if (alias === 'ds') return;

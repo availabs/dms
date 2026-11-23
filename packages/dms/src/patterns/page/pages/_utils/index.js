@@ -1,6 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
 import { isEqual, reduce, map, cloneDeep} from "lodash-es"
-import { matchRoutes } from 'react-router'
 import {
     dataItemsNav as dataItemsNavCore,
     getChildNav as getChildNavCore
@@ -86,25 +85,8 @@ export function detectNavLevel(dataItems, baseUrl) {
 export const dataItemsNav = (dataItems, baseUrl = '', edit = false) =>
     dataItemsNavCore(dataItems, baseUrl, edit, inPageMenuItems);
 
-export function nav2Level(items, level = 1, path, baseUrl = '', navTitle = '') {
-  let output = null
-  if (level > 1) {
-    let relativePath = path.endsWith('/edit') ? path.replace('/edit', '') : path.replace('/edit/', '/')
-    if (baseUrl && relativePath.startsWith(baseUrl)) {
-      relativePath = relativePath.slice(baseUrl.length)
-    }
-    let levelPath = baseUrl + '/' + relativePath.split('/').filter(d => d).filter((d, i) => i < level - 1).join('/')
-    let matchItems = items.map(d => ({
-      ...d, path: d?.path?.endsWith('/edit') ? d?.path?.replace('/edit', '') : d?.path?.replace('/edit/', '/')
-    }))
-    let matches = matchRoutes(matchItems, { pathname: levelPath })
-    output = matches?.[0]?.route?.subMenus || []
-    if (navTitle && matches?.[0]?.route?.name) {
-      output = [{ name: matches?.[0]?.route?.name, path: matches?.[0]?.route?.path, className: navTitle }, ...output]
-    }
-  }
-  return output || items
-}
+// nav2Level lives in utils/nav.js (no section registry), so the RSC spike's client chrome can import it alone.
+export { nav2Level } from '../../../../utils/nav'
 
 export const json2DmsForm = (data,requestType='update') => {
   let out = new FormData()

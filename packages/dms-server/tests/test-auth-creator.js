@@ -11,7 +11,7 @@
  *     Changing `ruleVariants` on a stored row takes site `*`.
  *   - Rows under an env that names no variant are judged exactly as before.
  *
- * Generic: no pattern is named. Chat's use of it is checked in src/patterns/chat/tests/messageAuthor.server.mjs.
+ * Generic: no pattern is named. Chat's use of it is checked in src/plugins/chat/tests/messageAuthor.server.mjs.
  *
  * Run: DMS_TEST_DB=cli-test DMS_DB_ENV=cli-test node tests/test-auth-creator.js
  */

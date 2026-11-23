@@ -60,8 +60,8 @@ Create a `.dmsrc` file in your project directory (searched up from cwd):
 | `app` | `--app` | `DMS_APP` | App namespace (e.g., `avail-dms`) |
 | `type` | `--type` | `DMS_TYPE` | Site type identifier (e.g., `pattern-admin`) |
 | `authToken` | `--auth-token` | `DMS_AUTH_TOKEN` | Auth token (optional, for protected operations) |
-| `pagePublishHook` | — | `DMS_PAGE_PUBLISH_HOOK` | Optional. A host app's module that `page publish` runs after publishing (a `.dmsrc` path is relative to that file, an env path to the cwd). Its default export gets `{ falcor, config, pattern, page, helpers }`, and the object it returns is added to the output. E.g. dms-template's `src/patterns/qa/cli/onPagePublish.js`. |
-| `commands` | — | — | Optional, `.dmsrc` only. A host app's own command modules, each path relative to the `.dmsrc` (see [App commands](#app-commands)). E.g. dms-template's `src/patterns/qa/cli/commands.js`, which adds `dms qa`. |
+| `pagePublishHook` | — | `DMS_PAGE_PUBLISH_HOOK` | Optional. A host app's module that `page publish` runs after publishing (a `.dmsrc` path is relative to that file, an env path to the cwd). Its default export gets `{ falcor, config, pattern, page, helpers }`, and the object it returns is added to the output. E.g. dms-template's `src/plugins/qa/cli/onPagePublish.js`. |
+| `commands` | — | — | Optional, `.dmsrc` only. A host app's own command modules, each path relative to the `.dmsrc` (see [App commands](#app-commands)). E.g. dms-template's `src/plugins/qa/cli/commands.js`, which adds `dms qa`. |
 | `via` | — | — | Optional. How writes are marked in a dataset's change history: `cli` (the default) or `agent`. Sent as the `X-DMS-Via` header. App commands set it, e.g. `dms qa … --via agent`. |
 
 The `host` field is required for all commands. The `app` and `type` fields are required for content-aware commands (site, pattern, page, section, dataset) but not for raw commands.
@@ -274,7 +274,7 @@ client can, this CLI included. These commands read it, to check what a site hold
 ```bash
 # The rows a build declares (from the library checkout; --extra for a host app's own types)
 node packages/dms/scripts/emit-formats.mjs > formats.json
-node packages/dms/scripts/emit-formats.mjs --extra src/patterns/qa/qa.format.js > formats.json
+node packages/dms/scripts/emit-formats.mjs --extra src/plugins/qa/qa.format.js > formats.json
 
 # Register them, on the server (dry run; --apply writes; keys the file leaves out are removed)
 node packages/dms-server/src/scripts/register-formats.js --db <config> --app <app> --file formats.json [--apply]
@@ -285,6 +285,39 @@ dms formats diff formats.json
 # The stored rows
 dms formats list [--format summary]
 ```
+
+### Plugin
+
+Offline: a plugin package folder (`planning/tasks/current/dms-plugin-system.md`). The rules are dms-server's
+(`src/plugins/index.js` `validateManifest`), the same ones its installer will apply.
+
+```bash
+dms plugin build <dir> [--host <app>] # build dms.source into dms.entries.client (and dms.entries.classes)
+dms plugin validate <dir>            # package.json `dms` key valid, every entry exists; exit 1 otherwise
+dms plugin pack <dir> [--out <file>] # write the release index.json: the manifest + every file's size and sha512
+```
+
+`build` is a Vite library build of `dms.source` (e.g. `plugin.jsx`) into one ES module at `dms.entries.client`
+(e.g. `dist/plugin.js`; point `dms.entries.ssr` at the same file). React, react-dom, `react/jsx-runtime` and
+react-router are **not bundled**: their imports become shims that read the host's own copies from
+`globalThis.__DMS_PLUGIN_PEERS__` (set by the library's `plugins/peers.js` before it loads a plugin), so a page keeps
+one React. Any other React or router module (`react-dom/client`, `react-router/dom`) is refused. The library itself
+is not imported either: everything a plugin needs from it comes through `register(host)` (`host.contexts`,
+`host.getPatternType`, `host.defaultCheckAuth`, the `register…` methods). Vite and React come from `--host` (the app
+the plugin runs in, e.g. dms-template), by default found from `<dir>` upward. With `dms.entries.classes` set, the
+Tailwind class names in the plugin's source files are written there, for the server's per-site CSS.
+
+`pack` lists `package.json` and npm's `files` entries (folders whole) when the package has a `files` list, else
+every file but `node_modules`, hidden files and a previous `index.json`.
+
+`dms.settings` (optional) declares what a site may set in its activation's `config`, as a small subset of JSON
+Schema: `properties` (each with a `type`: `string`, `number`, `integer`, `boolean`, `array` with scalar `items`, or
+`object`, plus `enum`, `default`, `title`, `description`, `minLength`/`maxLength`, `minimum`/`maximum`,
+`minItems`/`maxItems`), `required` and `additionalProperties` (false unless set: unknown keys are refused). No
+`pattern`. `pack` carries it into `index.json`; dms-server refuses an activation whose config doesn't fit the
+version's settings, and with no `settings` a plugin takes only an empty config. `dms.permissions` (`schemas`,
+`egress`, `taskTypes`, `requires`) is what a site accepts when it activates the plugin; a later version that asks
+for more needs the site to accept again before it can switch.
 
 ### Stack
 
@@ -372,7 +405,7 @@ A host app can add its own command groups, so a pattern type that lives in the a
 commands and the CLI holds none of its code. List the modules in the app's `.dmsrc`:
 
 ```json
-{ "commands": ["src/patterns/qa/cli/commands.js"] }
+{ "commands": ["src/plugins/qa/cli/commands.js"] }
 ```
 
 Each module's default export is called before the command line is parsed, as
@@ -383,7 +416,7 @@ is reported on stderr and skipped, and the CLI's own commands still run.
 
 The connection settings stay the CLI's own (flags, `DMS_*` variables, `.dmsrc`). dms-template's
 `.dmsrc` adds `dms qa` (installs, tickets, ticket, set, comment): see `dms qa --help` and
-dms-template's `src/patterns/qa/skills/agent-ticket-run.md`.
+dms-template's `src/plugins/qa/skills/agent-ticket-run.md`.
 
 ## Output Formats
 

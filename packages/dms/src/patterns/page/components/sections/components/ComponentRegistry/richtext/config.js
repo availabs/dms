@@ -28,6 +28,11 @@ export default {
     name: 'Rich Text',
     EditComp: RichtextEdit,
     ViewComp: RichtextView,
+    // The view is the saved HTML (getHtmlSync) and needs no JavaScript: collapsibles export as
+    // <details>, links and link buttons as <a>. A button that sets a page parameter does need it.
+    // Read by the RSC spike (render/rsc, rsc-view-pages.md phase 2): a page whose every section says
+    // true is served with no section code.
+    serverStatic: (elementData) => !String(elementData || '').includes('"setParam"'),
     defaultState: {
         display: {
             isCard: '',

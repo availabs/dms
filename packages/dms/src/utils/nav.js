@@ -5,6 +5,7 @@
 // section-aware in-page rail via `getInPageMenuItems`, other patterns take the
 // default (no in-page children).
 
+import { matchRoutes } from 'react-router';
 import { resolveSubdomainPath } from './subdomainPath';
 
 // An already-absolute destination (a resolved `sub://` cross-subdomain link, or an
@@ -122,4 +123,26 @@ export function dataItemsNav(dataItems, baseUrl = '', edit = false, getInPageMen
             return item
         })
     //return dataItems
+}
+
+// The nav items for a depth of the menu: level 1 is the whole tree; deeper levels are the sub-menu of the
+// item the current path is under (Layout's resolveNav).
+export function nav2Level(items, level = 1, path, baseUrl = '', navTitle = '') {
+  let output = null
+  if (level > 1) {
+    let relativePath = path.endsWith('/edit') ? path.replace('/edit', '') : path.replace('/edit/', '/')
+    if (baseUrl && relativePath.startsWith(baseUrl)) {
+      relativePath = relativePath.slice(baseUrl.length)
+    }
+    let levelPath = baseUrl + '/' + relativePath.split('/').filter(d => d).filter((d, i) => i < level - 1).join('/')
+    let matchItems = items.map(d => ({
+      ...d, path: d?.path?.endsWith('/edit') ? d?.path?.replace('/edit', '') : d?.path?.replace('/edit/', '/')
+    }))
+    let matches = matchRoutes(matchItems, { pathname: levelPath })
+    output = matches?.[0]?.route?.subMenus || []
+    if (navTitle && matches?.[0]?.route?.name) {
+      output = [{ name: matches?.[0]?.route?.name, path: matches?.[0]?.route?.path, className: navTitle }, ...output]
+    }
+  }
+  return output || items
 }

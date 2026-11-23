@@ -9,6 +9,7 @@ import { provisionTemplatePatterns, createCorePatterns } from '../../../utils/te
 import { createSiteTheme } from './createSite.theme'
 import SiteTemplatePicker from './SiteTemplatePicker'
 import { stampSiteRow } from '../../registry'
+import { syncSessionCookie } from '../../auth/api'
 
 
 export default function NewSite ({ apiUpdate, dataItems }) {
@@ -73,6 +74,7 @@ export default function NewSite ({ apiUpdate, dataItems }) {
 				});
 				if (!loginRes?.user?.token) throw new Error(`Sign-in failed: ${loginRes?.error || 'no token'}`);
 				window.localStorage.setItem('userToken', loginRes.user.token);
+				syncSessionCookie(loginRes.user.token);
 
 				// 1. Create the site
 				setStep(1);

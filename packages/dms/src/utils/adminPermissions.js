@@ -28,6 +28,8 @@ export const MANAGE_TENANTS = 'manage-tenants';
 export const MANAGE_DOMAINS = 'manage-domains';
 // the Storage pages: usage, and cleaning up rows nothing can reach (judged again by dms-server's /storage routes)
 export const MANAGE_STORAGE = 'manage-storage';
+// the Plugins page: installing plugin releases on this server (judged again by dms-server's /_dms/plugins routes)
+export const INSTALL_PLUGINS = 'install-plugins';
 
 // Site level, but stay on the auth pattern: they gate auth routes.
 export const AUTH_USERS = 'auth-users';

@@ -27,6 +27,7 @@ cli/
 │   │   ├── section.js      # Section list/show/dump/create/update/delete
 │   │   ├── dataset.js      # Dataset list/show/views/dump/query
 │   │   ├── formats.js      # Format declarations on the server, read-only: list/diff (docs/README.md "Formats")
+│   │   ├── plugin.js       # Plugin packages, offline: build (React shared with the host) / validate / pack (the release index.json)
 │   │   └── stack.js        # Preview stacks: diff a stack against production (read-only), apply the diff there (docs/README.md "Stack")
 │   ├── formatters/
 │   │   ├── json.js         # JSON output (pretty/compact)
@@ -131,6 +132,7 @@ Pages resolve by `url_slug`, datasets resolve by `name`. Numeric strings are tre
 | `section` | `list`, `show`, `dump`, `create`, `update`, `delete` |
 | `dataset` | `list`, `show`, `views`, `dump`, `query` |
 | `raw` | `get`, `list`, `create`, `update`, `delete` |
+| `plugin` | `build`, `validate`, `pack` — offline, a plugin package folder: build its entry with React shared with the host app, check its manifest, write its release `index.json` (`test/plugin.js`) |
 | `formats` | `list`, `diff` — the site's format declarations on dms-server (auth rules, vocabulary, childRefs), read-only; `dms-server/src/scripts/register-formats.js` is the writer |
 
 ## Dependencies

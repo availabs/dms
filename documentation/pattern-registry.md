@@ -21,7 +21,7 @@ Every pattern type, built-in or app-supplied, is one **definition** in a module-
 
 The built-ins (`page`, `datasets`, `auth`, `admin`) register in `patterns/index.js`. A host app
 registers its own **at module scope in a module that both its client entry and its SSR entry import**,
-before `DmsSite` / `createSSRHandler` build routes. dms-template does this in `src/patterns/index.js`,
+before `DmsSite` / `createSSRHandler` build routes. dms-template does this in `src/plugins/index.js`,
 imported by `src/App.jsx` and `src/entry-ssr.jsx`.
 
 ## Every pattern declares at least one format — REQUIRED
@@ -76,7 +76,7 @@ documented resolution so the behaviour is predictable, not a licence to rely on 
 | pattern | state |
 |---|---|
 | `qa` | `siteConfig` returns **no** `format`. Its data is declared instead as dataset sources (`QA_DATASETS`, created by `admin.afterCreate`) — a format-equivalent by another route, described by the source's attributes and governed by the datasets pattern's source `permissionDomain`. |
-| `chat` | `siteConfig` returns **no** `format`. Its tier-1 rows, `{instance}\|channel` and `{instance}\|member` (`src/patterns/chat/channels.js`), are ordinary DMS rows in the app's main table, written through plain `dms.data` calls, and described by nothing — no format, and `chat/index.js` declares no `childRefs`. Note the pattern DOES declare `MESSAGE_ATTRIBUTES` for its tier-2 `:data` rows, so the two tiers are not described consistently within one pattern. (The tier-2 split — messages in per-channel `:data` tables, read a window at a time — is a deliberate and sound design; only tier 1 is at issue.) |
+| `chat` | `siteConfig` returns **no** `format`. Its tier-1 rows, `{instance}\|channel` and `{instance}\|member` (`src/plugins/chat/channels.js`), are ordinary DMS rows in the app's main table, written through plain `dms.data` calls, and described by nothing — no format, and `chat/index.js` declares no `childRefs`. Note the pattern DOES declare `MESSAGE_ATTRIBUTES` for its tier-2 `:data` rows, so the two tiers are not described consistently within one pattern. (The tier-2 split — messages in per-channel `:data` tables, read a window at a time — is a deliberate and sound design; only tier 1 is at issue.) |
 | `auth` | returns `format: {app, attributes: []}` at both of its config sites — a stub with **no attributes**, describing no row. Honest about storing nothing, but if the auth pattern keeps configuration on its own row, those fields belong here. Neither config declares a `permissionDomain`. |
 
 ## The definition
@@ -229,7 +229,7 @@ An app pattern imports library code **only through the two entries**, never by d
 
 ## The worked example: dms-template's map editor
 
-`dms-template/src/patterns/mapeditor/` (`index.js` is the definition):
+`dms-template/src/plugins/mapeditor/` (`index.js` is the definition):
 
 - The editor routes (`siteConfig.jsx`) author `{instance}|symbology` rows.
 - `pageComponents` ship the page pattern's **Map** section (`section/`) and its hidden legacy alias
@@ -238,11 +238,11 @@ An app pattern imports library code **only through the two entries**, never by d
 - `registerFromTheme` registers `theme.mapeditor.mapPlugins`.
 - The module also exports **`registerMapPlugins({ name: plugin })`** for project-wide plugins. This
   replaced the old `damaMapPlugins` `DmsSite` prop.
-- Tests: `src/patterns/mapeditor/mapeditor.test.js`.
+- Tests: `src/plugins/mapeditor/mapeditor.test.js`.
 
 ## The second worked example: dms-template's qa pattern ("Tickets")
 
-`dms-template/src/patterns/qa/` (`index.js` is the definition) uses every hook the map editor doesn't:
+`dms-template/src/plugins/qa/` (`index.js` is the definition) uses every hook the map editor doesn't:
 
 - `admin.addable: true`: registering the type is what offers it in Add Pattern and the Type select.
   There's no env flag; an app that shouldn't offer Tickets doesn't register the pattern. (Until
@@ -262,4 +262,4 @@ An app pattern imports library code **only through the two entries**, never by d
   ungranted user can see. It's written with every change to the install's datasets or fields.
 - The Report an issue nav widget: `registerWidget('ReportIssue', …)` in `siteConfig.jsx`, themed at
   `qa.reportIssue`.
-- Tests: `src/patterns/qa/tests/`.
+- Tests: `src/plugins/qa/tests/`.

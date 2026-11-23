@@ -7,6 +7,7 @@
 
 const {
   verifyToken,
+  tokenMatchesPassword,
   comparePassword,
   hashPassword,
   createUserToken,
@@ -26,7 +27,7 @@ async function verifyAndGetUserData(db, token) {
   const decoded = await verifyToken(token);
   const { rows } = await q.getUserByEmail(db, decoded.email);
   const userData = rows[0];
-  if (!userData || decoded.password !== userData.password) {
+  if (!userData || !tokenMatchesPassword(decoded, userData.password)) {
     throw new Error('Token could not be verified.');
   }
   return { ...decoded, ...userData };

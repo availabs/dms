@@ -776,6 +776,23 @@ const buildControls = (theme) => ({
         inHeader: [...buildInHeader(buildFontStyleOptions(theme), buildImageSizeOptions(theme)), ...deriveColumnTypeInHeaderEntries()]
 });
 
+// A Card needs JavaScript in view when it edits, adds or deletes rows, runs component actions, has a filter
+// control cell, or has more rows than one page shows (the pager). Otherwise the server's HTML is the whole
+// section: its rows are loaded on the server (preloadData) and its links are plain anchors. totalLength is
+// the row count when the section was last saved; a source that has grown since shows a pager that does
+// nothing until the section is saved again.
+function cardServerStatic(elementData) {
+    let state
+    try { state = typeof elementData === 'string' ? JSON.parse(elementData) : elementData } catch { return false }
+    const display = state?.display || {}
+    if (display.allowEditInView || display.allowAdddNew || display.allowDelete) return false
+    const fns = display._functions || {}
+    if ([...(fns.providers || []), ...(fns.subscribers || [])].some((f) => f?.enabled)) return false
+    if ((state?.columns || []).some((c) => c?.type === 'filter_control' || c?.liveEdit)) return false
+    if (display.usePagination !== false && !(Number(display.totalLength) <= Number(display.pageSize || 5))) return false
+    return true
+}
+
 export default {
     "name": 'Card',
     "type": 'card',
@@ -793,6 +810,9 @@ export default {
     showAllColumnsControl: false,
     usesItemMutationProps: true,
     themeKey: 'dataCard',
+    // Read by the RSC spike (render/rsc, rsc-view-pages.md phase 2): a Card is static markup in view unless
+    // something on it responds to the reader (cardServerStatic).
+    serverStatic: cardServerStatic,
     defaultState: {
         filters: { op: 'AND', groups: [] },
         display: { usePagination: true, pageSize: 5, hideExternalToggle: true },

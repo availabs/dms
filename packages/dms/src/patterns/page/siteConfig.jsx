@@ -66,6 +66,8 @@ const pagesConfig = ({
   // false for a pattern type that reuses this config without the page editor
   // (e.g. dms-template's qa type); hides the view↔edit toggle in the user menu.
   hasEditor = true,
+  // the site's plugin activations (plugins/registries.js activationsOf): which plugins' section types to offer
+  pluginActivations = {},
   ...rest
 }) => {
   const theme = getPatternTheme(themes, pattern, ssrCollect)
@@ -198,6 +200,7 @@ const pagesConfig = ({
               authPermissions,
               authBaseUrl,
               hasEditor,
+              pluginActivations,
               // this pattern's own row (e.g. for a pattern type's onPagePublish)
               pattern,
               isUserAuthed: (reqPermissions, customAuthPermissions) => {
@@ -264,6 +267,10 @@ const pagesConfig = ({
               ]
             },
             action: 'view',
+            // RSC opt-in (rsc-view-pages.md design §1; spike shape): with DMS_RSC on, a view page whose
+            // sections all render with no JavaScript is served by render/rsc. The core reads the key, never
+            // the pattern type. The final form is a module reference; the spike names its server view.
+            serverComponent: 'page-view',
             authPermissions,
             reqPermissions: ['view-page']
           },

@@ -16,6 +16,7 @@ import { getData } from "./getData";
 import { hasUnresolvedRequiredLeaf } from "./buildUdaConfig";
 import { useNowTick } from "./hooks/useNowTick";
 import { walkTreeForTickGranularity } from "./utils/timeFilter";
+import { RscCaptureContext } from "../../../../../../render/rsc/captureContext";
 
 const RESOLVED_TZ = (() => {
     try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; }
@@ -85,6 +86,10 @@ function computeFetchKey(state) {
  * @param {string}   [params.trackingId] - Stable-across-recreate id, preferred over sectionId when present
  * @returns {{ loading: boolean, fetching: boolean, currentPage: number, onPageChange: Function }}
  */
+// How recent preloaded rows must be for a 'force' section to use them instead of fetching again: the time
+// from the server's read to the browser's first effect, with room for a slow page and some clock skew.
+const PRELOAD_FRESH_MS = 120000;
+
 export function useDataLoader({ state, setState, apiLoad, component, isEditMode = false, sectionId, trackingId }) {
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
@@ -247,6 +252,25 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
       (state?.display?.fetchMode ?? (state?.display?.readyToLoad === true ? 'smart' : 'cache'));
   const readyToLoad = isEditMode || (isValidState && (fetchMode !== 'cache' || state?.display?.allowEditInView));
   const bypassDedup = fetchMode === 'force';
+  // 'force' means fresh rows on every load. Rows the page loader read for THIS load (preloadSectionData stamps
+  // display.preloadedAt) already are, so the first fetch would only repeat the server's query: with
+  // preload_data on, every 'force' section ran twice per view. A saved copy of preloaded rows carries an old
+  // stamp, and a section the preload left to its own fetch (over budget) has none, so both still fetch.
+  const [skipFirstForced] = useState(() => {
+    const at = Number(state?.display?.preloadedAt);
+    return Boolean(at) && Math.abs(Date.now() - at) < PRELOAD_FRESH_MS;
+  });
+  const firstForcedSkippedRef = useRef(false);
+
+  // RSC spike (render/rsc, rsc-view-pages.md phase 2): in the server's capture pass, a section that will
+  // fetch once it mounts can't be served as static HTML (its rows aren't in the markup), so the page stays
+  // on today's path. The same test as the load effect below, made during render.
+  const rscCapture = useContext(RscCaptureContext);
+  if (rscCapture?.eligible && !isEditMode && isValidState && readyToLoad &&
+      (gatedOnRequiredFilter || hasLocalFilters || (bypassDedup && !skipFirstForced) || fetchKey !== lastFetchKeyRef.current)) {
+    rscCapture.eligible = false;
+    rscCapture.reason = `section ${component?.name || 'with data'} loads its rows in the browser`;
+  }
 
   // ─── Main load effect ──────────────────────────────────────────────────────
 
@@ -261,8 +285,12 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
         return;
       }
 
-      // Dedup: skip if config hasn't changed (bypassed in 'force' fetch mode)
-      if (!bypassDedup && fetchKey === lastFetchKeyRef.current) return;
+      // Dedup: skip if config hasn't changed (bypassed in 'force' fetch mode, except once for rows preloaded
+      // for this very load)
+      if (fetchKey === lastFetchKeyRef.current) {
+        if (!bypassDedup) return;
+        if (skipFirstForced && !firstForcedSkippedRef.current) { firstForcedSkippedRef.current = true; return; }
+      }
 
       async function load() {
         const requestId = ++requestIdRef.current;

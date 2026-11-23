@@ -147,6 +147,7 @@ const iconList = [
   { icon: "GlobalEditing" },
   { icon: "Database" },
   { icon: "HardDrive" },
+  { icon: "Puzzle" },
   { icon: "Columns" },
   { icon: "AccessControl" },
   { icon: "MenuDots" },

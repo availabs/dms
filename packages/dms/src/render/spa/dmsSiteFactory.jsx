@@ -1,5 +1,7 @@
 import React, {useState, useEffect, useRef} from 'react'
-import { createBrowserRouter, RouterProvider, useRouteError } from "react-router";
+import { createBrowserRouter, useRouteError } from "react-router";
+// The DOM RouterProvider (react-dom's flushSync). React Router 8 exports it only from here; 7 has it in both.
+import { RouterProvider } from "react-router/dom";
 import { falcorGraph } from "@availabs/avl-falcor"
 import { cloneDeep } from "lodash-es"
 import { dmsDataLoader, withAuth, authProvider, dmsPageFactory, _setSyncAPI } from '../../'
@@ -11,6 +13,7 @@ import { pattern2routes, getTenantSubdomain, resolveThemes } from './utils'
 import { setRootDomain, getRootDomain, setDomainAliases, isAliasCandidate, resolveHost } from '../../utils/hostResolver'
 import { applyPrimaryDomainRedirect } from '../../utils/primaryDomain'
 import { persistSiteSnapshot } from './utils/snapshot.js'
+import { loadSitePlugins, clientPluginUrl } from '../../plugins/load.js'
 import RootErrorBoundary from './utils/RootErrorBoundary.jsx';
 import { applySavedColorScheme } from '../../ui/components/ThemeToggle';
 import { SiteUserMenuContext } from '../../utils/userMenuContext';
@@ -145,7 +148,17 @@ export function DmsSite (config) {
     // visit after the first). Comparing the full site data — not just route
     // paths — keeps a genuinely stale snapshot (an edited pattern, a new theme
     // selection) replacing the routes as before; only an exact match is skipped.
-    const appliedSiteDataRef = useRef(null);
+    // Seeded with the data the first routes were built from (just above, when the themes are already
+    // resolved: always so on an SSR hydration, main.jsx). Unseeded, a server-rendered page's full fetch
+    // never matched (`hydrationData` is not sent: the static router embeds its own), so every SSR load
+    // rebuilt the router once the fetch landed and remounted the whole page, running its effects and data
+    // loads twice (rsc-view-pages.md, phase 1 measurements).
+    const appliedSiteDataRef = useRef(undefined);
+    if (appliedSiteDataRef.current === undefined) {
+        const initialData = isLazyThemes ? null : (localStorePatterns?.length ? localStorePatterns : defaultData?.length ? defaultData : null);
+        try { appliedSiteDataRef.current = initialData ? JSON.stringify(initialData) : null; }
+        catch { appliedSiteDataRef.current = null; }
+    }
 
     // Fast-path theme resolution for the lazy-themes case: compute routes from
     // already-available cached/default data as soon as the needed theme(s)
@@ -156,7 +169,10 @@ export function DmsSite (config) {
         if (!cached?.length) return;
         let isStale = false;
         (async () => {
-            const resolvedThemes = await resolveThemes(themes, cached, { falcor, app: firstRenderConfig?.app });
+            const [resolvedThemes] = await Promise.all([
+                resolveThemes(themes, cached, { falcor, app: firstRenderConfig?.app }),
+                loadSitePlugins(cached[0], (name, version) => clientPluginUrl(API_HOST, name, version)),
+            ]);
             if (isStale || routesFinalizedRef.current) return;
             // `themes` (still the raw lazy loader here) doubles as adminThemesLoader
             // so the admin pattern-theme-picker (themeEditor.jsx) can fetch the full
@@ -284,7 +300,9 @@ export function DmsSite (config) {
               ...routesWithErrorBoundary,
               PageNotFoundRoute
           ],
-          hydrationData ? { hydrationData } : undefined
+          // v8_middleware: React Router 8's default (rsc-view-pages.md phase 0); no loader reads `context`.
+          // Ignored by 8, kept while TransportNY's vendored copy still runs on 7.
+          { future: { v8_middleware: true }, ...(hydrationData ? { hydrationData } : {}) }
       ),
       [dynamicRoutes, routesWithErrorBoundary, PageNotFoundRoute, hydrationData]
     );
@@ -426,6 +444,9 @@ export default async function dmsSiteFactory(config) {
     const siteAttributes = Object.values(dmsConfigUpdated.format?.attributes || {});
     const themeRefsAttr = siteAttributes.find(a => a?.key === 'theme_refs');
     if (themeRefsAttr) themeRefsAttr.refAttributes = ["data ->> 'name'"];
+    // plugin activations: only which plugin and whether it is on (plugins/registries.js activationsOf)
+    const activationsAttr = siteAttributes.find(a => a?.key === 'plugin_activations');
+    if (activationsAttr) activationsAttr.refAttributes = ["data ->> 'plugin'", "data ->> 'enabled'", "data ->> 'version'"];
 
     falcor = falcor || falcorGraph(API_HOST)
     // what the server supports (utils/serverCapabilities.js): read once, never awaited
@@ -446,8 +467,12 @@ export default async function dmsSiteFactory(config) {
     // theme name. See planning/shared/bundle-size-log.md.
     const resolvedThemes = await resolveThemes(config.themes, data, { falcor, app: dmsConfigUpdated.app });
     const resolvedConfig = { ...config, themes: resolvedThemes, adminThemesLoader: config.themes };
+    // plugins installed at run time that a site turns on are registered before its routes are built
+    // (plugins/load.js): from the API host in the browser, from their version folder on the server (SSR)
+    const resolvePluginUrl = config.resolvePluginUrl || ((name, version) => clientPluginUrl(API_HOST, name, version));
 
     if (!isMultiTenant) {
+        await loadSitePlugins(data?.[0], resolvePluginUrl);
         onResolvedSyncApp?.(dmsConfig.app);
         onResolvedSiteData?.(dmsConfig.app, siteType, data);
         return pattern2routes(data, resolvedConfig)
@@ -476,6 +501,7 @@ export default async function dmsSiteFactory(config) {
     if (!subdomain) {
         // Platform admin (root domain) — serve master site routes.
         // Phase 3 will render TenantList inside editSite when !subdomain && isMultiTenant.
+        await loadSitePlugins(data?.[0], resolvePluginUrl);
         onResolvedSyncApp?.(dmsConfig.app);
         onResolvedSiteData?.(dmsConfig.app, siteType, data);
         return pattern2routes(data, resolvedConfig)
@@ -516,6 +542,9 @@ export default async function dmsSiteFactory(config) {
     const tenantThemeRefsAttr = Object.values(tenantDmsConfigUpdated.format?.attributes || {})
         .find(a => a?.key === 'theme_refs');
     if (tenantThemeRefsAttr) tenantThemeRefsAttr.refAttributes = ["data ->> 'name'"];
+    const tenantActivationsAttr = Object.values(tenantDmsConfigUpdated.format?.attributes || {})
+        .find(a => a?.key === 'plugin_activations');
+    if (tenantActivationsAttr) tenantActivationsAttr.refAttributes = ["data ->> 'plugin'", "data ->> 'enabled'", "data ->> 'version'"];
 
     // Step 4 — load the tenant's own site (lives in dms_<tenantApp> schema)
     const tenantData = await dmsDataLoader(falcor, tenantDmsConfigUpdated, '/');
@@ -526,7 +555,10 @@ export default async function dmsSiteFactory(config) {
     )
 
     // Step 5 — build routes scoped to the tenant
-    const tenantResolvedThemes = await resolveThemes(config.themes, tenantData, { falcor, app: tenantDmsConfigUpdated.app });
+    const [tenantResolvedThemes] = await Promise.all([
+        resolveThemes(config.themes, tenantData, { falcor, app: tenantDmsConfigUpdated.app }),
+        loadSitePlugins(tenantData?.[0], resolvePluginUrl),
+    ]);
     onResolvedSyncApp?.(tenantApp);
     onResolvedSiteData?.(tenantApp, siteType, tenantData);
     // On a domain alias the login project is the tenant's app; the host label means nothing there.

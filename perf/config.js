@@ -14,15 +14,19 @@ export const DEFAULTS = {
   pages: null,             // explicit slugs
   pagesFrom: null,         // reuse a saved run's page list and journey
   journeySteps: 8,
+  loginPath: '/auth/login', // signed-in profiles sign in through this page of the target (the site's own form)
   quietMs: 1000,           // how long the page must be quiet to count as complete
   timeoutMs: 60000,
   viewport: { width: 1366, height: 900 },
   out: null,               // default: scratchpad/<app>-<type>/perf/<date>-<label>
 };
 
-// what a visitor is, per profile. Signed-in and throttled profiles come in a later phase.
+// what a visitor is, per profile. Throttled profiles come in a later phase.
+// signed_in: signs in once through the target's login form (DMS_PERF_EMAIL / DMS_PERF_PASSWORD, else DMS_EMAIL /
+// DMS_PASSWORD), then every visit starts from that browser state (the stored token and any session cookie).
 export const PROFILES = {
   public: { signedIn: false, cpu: 1, network: null },
+  signed_in: { signedIn: true, cpu: 1, network: null },
 };
 
 const list = (v) => (v == null ? null : Array.isArray(v) ? v : String(v).split(',').map((s) => s.trim()).filter(Boolean));
@@ -38,7 +42,7 @@ export function resolveRunConfig(options = {}) {
     journeySteps: options.journeySteps != null ? +options.journeySteps : undefined,
     quietMs: options.quietMs != null ? +options.quietMs : undefined,
     timeoutMs: options.timeout != null ? +options.timeout * 1000 : undefined,
-    pagesFrom: options.pagesFrom, out: options.out,
+    pagesFrom: options.pagesFrom, out: options.out, loginPath: options.loginPath,
   };
   const cfg = { ...DEFAULTS, ...file };
   for (const [k, v] of Object.entries(flags)) if (v !== undefined && v !== null) cfg[k] = v;

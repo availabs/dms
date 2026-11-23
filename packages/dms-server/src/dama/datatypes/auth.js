@@ -65,4 +65,4 @@ async function holdsSourcePermission(req, sourceId, perms) {
     })).allow;
 }
 
-module.exports = { writeGate, compileOpenRoute, pluginHelpers: { authorizePublish, authorizeSourceWrite, holdsSourcePermission } };
+module.exports = { writeGate, compileOpenRoute, compileOpenRoute, pluginHelpers: { authorizePublish, authorizeSourceWrite, holdsSourcePermission } };

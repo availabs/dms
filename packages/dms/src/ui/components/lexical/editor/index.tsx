@@ -12,7 +12,7 @@ import { LexicalCollaboration } from '@lexical/react/LexicalCollaborationContext
 import {OnChangePlugin} from '@lexical/react/LexicalOnChangePlugin';
 import { createPortal, flushSync } from 'react-dom';
 import { useLexicalComposerContext } from '@lexical/react/LexicalComposerContext'
-import { $getRoot, $createParagraphNode, $createTextNode } from 'lexical';
+import { $getRoot, $createParagraphNode, $createTextNode, HISTORY_MERGE_TAG } from 'lexical';
 // import { merge, cloneDeep } from 'lodash-es'
 
 import Editor from './editor';
@@ -266,6 +266,11 @@ function UpdateEditor({ value, hideControls, onChange, bgColor, theme, editable,
             lastValue.current = value;
         }
 
+        // Every update below loads the value the editor was given; none is an edit. Tagged
+        // history-merge, OnChangePlugin skips them, so onChange reports only what the user typed.
+        // Untagged, setting the value a second time (the editor is created with it in
+        // initialConfig) was reported as a change, and an editable card column (allowEditInView,
+        // liveEdit) saved it straight back on every page view, signed in or not.
         if (!value) {
             // fallback: empty paragraph
             editor.update(() => {
@@ -274,7 +279,7 @@ function UpdateEditor({ value, hideControls, onChange, bgColor, theme, editable,
                 const paragraph = $createParagraphNode();
                 paragraph.append($createTextNode(""));
                 root.append(paragraph);
-            });
+            }, { tag: HISTORY_MERGE_TAG });
             onContentSet?.();
             return;
         }
@@ -283,7 +288,7 @@ function UpdateEditor({ value, hideControls, onChange, bgColor, theme, editable,
             const newEditorState = editor.parseEditorState(value);
             // lexical calls flushSync that results in a warning. queueMicrotask is a fix for that.
             queueMicrotask(() => {
-                editor.setEditorState(newEditorState);
+                editor.setEditorState(newEditorState, { tag: HISTORY_MERGE_TAG });
                 onContentSet?.();
             });
         } else {
@@ -294,7 +299,7 @@ function UpdateEditor({ value, hideControls, onChange, bgColor, theme, editable,
                 const paragraph = $createParagraphNode();
                 paragraph.append($createTextNode(value));
                 root.append(paragraph);
-            });
+            }, { tag: HISTORY_MERGE_TAG });
             onContentSet?.();
         }
     }, [editor, value]);

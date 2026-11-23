@@ -284,6 +284,7 @@ async function csvPublish(req, res) {
  */
 function runWorkerInBackground(workerPath, taskId, pgEnv) {
   const { fork } = require('child_process');
+  const { workerEnv } = require('../tasks/worker-env');
   const { join } = require('path');
   const { claimTaskById } = require('../tasks');
 
@@ -299,12 +300,12 @@ function runWorkerInBackground(workerPath, taskId, pgEnv) {
     console.log(`[worker] Forking ${workerPath} for task ${taskId} (pgEnv: ${pgEnv})`);
 
     const child = fork(runnerPath, [], {
-      env: {
-        ...process.env,
+      // an allow-list, not the server's whole environment (no signing secrets): tasks/worker-env.js
+      env: workerEnv({
         DAMA_TASK_ID: String(taskId),
         DAMA_PG_ENV: pgEnv,
         DAMA_WORKER_PATH: workerPath,
-      },
+      }),
       stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
     });
 

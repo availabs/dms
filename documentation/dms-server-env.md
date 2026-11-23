@@ -47,7 +47,7 @@ they refuse everything but what the blank-row rule alone refuses. Background:
 
 | Variable | Default | What it does |
 |---|---|---|
-| `DMS_AUTH_MODE` | `log` | `log` allows, and records every would-deny in the console and the access log; `enforce` refuses. One mode for EVERY guard — `dms.data.*` writes, dataset source routes, dataset reads, the auth row, uploads and datatype routes. Move to `enforce` only once the access-log page is clean for the site. |
+| `DMS_AUTH_MODE` | `log` | `log` allows, and records every would-deny in the console and the access log; `enforce` refuses. One mode for EVERY guard — `dms.data.*` writes, dataset source routes, dataset reads, the auth row, uploads and datatype routes. Move to `enforce` only once the access-log page is clean for the site. Exception: a data type registered with `registerDatatype(name, def, { authMode: 'enforce' })` (plugins installed at run time) has its routes judged under `enforce` whatever this says (`withEnforcedAuth`). |
 | `DMS_SYNC_AUTH` | unset | `1` requires a signed-in user on the sync endpoints (`/sync/*`). |
 | `DMS_CHILD_SWEEP_MODE` | `delete` | Deleting child rows a page / pattern no longer lists, or whose owner is deleted: `delete` (default since 2026-11-16), `log` (report only), `off`. A row is deleted only when its `data.parent_id` names the page that dropped it (or was deleted) and no other row in the app still lists it in a declared list (`sections`, `draft_sections`, …), in any pattern. Orphans left before the switch are not cleaned up. |
 
@@ -93,6 +93,10 @@ no flag: the rules interpreter (`judge.js`) is the only judge.
 |---|---|---|
 | `DMS_SSR` | — | `1` enables SSR. |
 | `DMS_DIST_DIR` | `dist` | Production SSR only (`NODE_ENV=production`): the folder holding the build, `client/` and `server/entry-ssr.js`, absolute or relative to the project root. dms-template's `deploy/build_ssr.mjs` builds into the same setting, so a local production run can use `dist-ssr` and leave `dist/` (what the Netlify scripts upload) alone. Dev mode serves from `src/` and ignores it. |
+| `DMS_CSS_MANIFEST` | the served build's `client/.dms/css-candidates.json` (`NODE_ENV=production`, under `DMS_DIST_DIR`) | The candidate manifest the per-site stylesheets are compiled from (`src/css/siteCss.js`; written by dms-template's `vite-plugins/dmsCssCandidates.js`). Set it on a server that serves no build of its own but answers `/_dms/css/site/<app>/<type>.css` for Netlify-served sites. Without a manifest the feature is off and pages keep the in-browser compiler. Hosted site builds use their own `client/.dms/` manifest. Task: `planning/tasks/current/server-compiled-site-css.md`. |
+| `DMS_CSS_DIR` | `var/css` (in the dms-server package) | Where per-site stylesheets (`<app>/<type>/<hash>.css`) and each app's scanned content classes (`<app>/content.json`, with the change-log revision they cover) are kept, so a restart serves them without rescanning. |
+| `DMS_PLUGINS_DIR` | `var/plugins` (in the dms-server package) | Where the plugin installer stores releases, one folder per name and version (`src/plugins/installer.js`; planning/tasks/current/dms-plugin-system.md). |
+| `DMS_PLUGIN_ALLOW_UNSIGNED` | unset | `1` lets the plugin installer store a release with no signature check. **Development only**: logged on every use. Without it, and without a configured verifier, every install is refused. |
 | `DMS_APP` / `DMS_TYPE` | `VITE_DMS_APP` / `VITE_DMS_TYPE` | Site to render. |
 | `DMS_BASE_URL` | `VITE_DMS_BASE_URL`, then `/list` | Admin base path. |
 | `DMS_AUTH_PATH` | `VITE_DMS_AUTH_PATH`, then `/auth` | Auth base path. |

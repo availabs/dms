@@ -83,7 +83,7 @@
     "react-csv": "^2.2.2",
     "react-dom": "^19.1.0",
     "react-frame-component": "5.2.7",
-    "react-router": "^7.5.3",
+    "react-router": "^7.5.3 || ^8.0.0",
     "use-immer": "^0.11.0",
     "uuid": "^11.0.3",
     "y-protocols": "^1.0.7",

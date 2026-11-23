@@ -5,16 +5,21 @@ that lives in your app rather than in the DMS library, and behaves exactly like 
 
 Reference: [`../documentation/pattern-registry.md`](../documentation/pattern-registry.md). Worked
 examples:
-- dms-template `src/patterns/mapeditor/`: the map editor, which also ships the page pattern's Map
+- dms-template `src/plugins/mapeditor/`: the map editor, which also ships the page pattern's Map
   section.
-- `src/patterns/qa/`: the Tickets pattern, which uses the admin, publish, CLI and server hooks below.
+- `src/plugins/qa/`: the Tickets pattern, which uses the admin, publish, CLI and server hooks below.
 
 ## 1. Put the pattern in the app
 
+An app pattern type ships as a **plugin** (`src/dms/planning/tasks/current/dms-plugin-system.md`): one folder
+under `src/plugins/`, beside the app's other plugins.
+
 ```
-src/patterns/
-├── index.js            ← registers every app pattern type (imported by App.jsx AND entry-ssr.jsx)
+src/plugins/
+├── index.js            ← registers every plugin (imported by App.jsx AND entry-ssr.jsx)
 └── <name>/
+    ├── plugin.js       ← { name, version, api, activation, register(host) }: registers the definition
+    ├── package.json    ← the manifest under a `dms` key (`dms plugin validate src/plugins/<name>`)
     ├── index.js        ← the definition (default export) + any registration API you expose
     ├── siteConfig.jsx  ← export default [configFn, …], the same contract as the library's built-ins
     ├── defaultTheme.js ← { <themeObject>: …, … }, every theme object the pattern's components read
@@ -24,12 +29,12 @@ src/patterns/
 - Import library code **only** from `~/dms/packages/dms/src` (or `~/dms/packages/dms/src/map` for the
   map runtime). Never use deep `src/...` paths.
 - If something you need isn't exported, add it to the library entry: that file *is* the interface.
-- Gate: no relative import in `src/patterns/<name>/` leaves the folder.
+- Gate: no relative import in `src/plugins/<name>/` leaves the folder.
 
 ## 2. Write the definition
 
 ```js
-// src/patterns/<name>/index.js
+// src/plugins/<name>/index.js
 import siteConfig from './siteConfig'
 import defaultTheme from './defaultTheme'
 
@@ -47,14 +52,22 @@ export default {
 ## 3. Register it, for both entries
 
 ```js
-// src/patterns/index.js
-import { registerPatternTypes } from '~/dms/packages/dms/src'
-import myPattern from './<name>'
-registerPatternTypes({ <name>: myPattern })
+// src/plugins/<name>/plugin.js
+import definition from './index'
+export default {
+  name: '<name>', version: '1.0.0', api: '^1.0', activation: 'default-on',   // or 'opt-in': off until a tenant activates it
+  register(host) { host.registerPatternTypes({ <name>: definition }) },
+}
+
+// src/plugins/index.js
+import { registerPlugins } from '~/dms/packages/dms/src'
+import myPattern from './<name>/plugin'
+registerPlugins([/* …the others, */ myPattern])
 ```
 
-`src/App.jsx` and `src/entry-ssr.jsx` both `import './patterns'` (dms-template already does). If only
-the client registers a type, SSR silently skips its rows.
+`src/App.jsx` and `src/entry-ssr.jsx` both `import './plugins'` (dms-template already does). If only
+the client registers a type, SSR silently skips its rows. The host records what each plugin contributed, so a
+tenant's `plugin_activations` can switch an opt-in plugin's pattern type on (or a default-on one off).
 
 ## 4. Theme it
 
@@ -148,7 +161,7 @@ a small one — so it survives every test written against seeded data.
 - `/sync/delta` excludes `:data` types, so a missed broadcast is missed for good. Re-read on
   reconnect and on tab-visible — a correctness requirement for that data, not an optimisation.
 
-Worked example for all four: `src/patterns/chat/{messages.js,channels.js,useLiveTail.js}`.
+Worked example for all four: `src/plugins/chat/{messages.js,channels.js,useLiveTail.js}`.
 
 ## 5. Shipping page section types (optional)
 
@@ -190,7 +203,7 @@ For a type that has more to do than route and render. All of these are optional,
 
 ## 6. Verify
 
-- `npx vitest run src/patterns/<name>` — model it on `src/patterns/mapeditor/mapeditor.test.js`:
+- `npx vitest run src/plugins/<name>` — model it on `src/plugins/mapeditor/mapeditor.test.js`:
   registration, routing a row, the components, the theme key.
 - The library suite stays green: `npx vitest run src/dms/packages/dms/tests`.
 - `npx vite build`, plus `npx vite build --ssr src/entry-ssr.jsx`.

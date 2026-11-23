@@ -1,0 +1,1 @@
+{"name":"@availabs/dms-plugin-hello","version":"1.0.0","private":true,"type":"module","files":["dist"],"dms":{"api":"^1.0","activation":"opt-in","source":"plugin.jsx","contributes":{"patterns":["hello"]},"entries":{"client":"dist/plugin.js","ssr":"dist/plugin.js","classes":"dist/classes.txt"}}}

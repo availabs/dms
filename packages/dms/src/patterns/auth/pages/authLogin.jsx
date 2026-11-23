@@ -2,7 +2,7 @@ import React, {useState} from "react";
 import {useNavigate, useLocation, Link} from "react-router";
 import {ThemeContext} from "../../../ui/useTheme";
 import {AuthContext} from "../context";
-import {callAuthServer} from "../api";
+import {callAuthServer, syncSessionCookie} from "../api";
 
 
 export default function AuthLogin ({ disableSignup, ...props }) {
@@ -13,7 +13,19 @@ export default function AuthLogin ({ disableSignup, ...props }) {
     const { theme, UI } = React.useContext(ThemeContext);
     const { baseUrl, setUser, PROJECT_NAME, AuthAPI, defaultRedirectUrl } = React.useContext(AuthContext);
     const { FieldSet, Button, Icon } = UI;
-    // console.log('auth context aapi', AuthAPI)
+    // A server-rendered form can be typed into before it hydrates: the fields then hold text that state
+    // doesn't, and the first re-render would wipe it. On hydration, state takes what the fields hold; until
+    // then, sign in is disabled, which also stops Enter from submitting the form natively.
+    const formRef = React.useRef(null);
+    const [hydrated, setHydrated] = useState(false);
+    React.useEffect(() => {
+        const fields = formRef.current?.elements;
+        setCredentials(c => ({
+            email: c.email || fields?.email?.value || '',
+            password: c.password || fields?.password?.value || '',
+        }));
+        setHydrated(true);
+    }, []);
 
     const submit = React.useCallback(e => {
         e.preventDefault();
@@ -28,7 +40,9 @@ export default function AuthLogin ({ disableSignup, ...props }) {
                         window.localStorage.setItem('userToken', res?.user?.token);
                     }
                     setUser({ ...res.user, groups: [...(res.user.groups || []), 'public'], authed: true, isAuthenticating: false })
-                    navigate(location?.state?.from || defaultRedirectUrl, { replace: true });
+                    // the page host's session cookie, before the next document load can ask for a page
+                    syncSessionCookie(res?.user?.token).then(() =>
+                        navigate(location?.state?.from || defaultRedirectUrl, { replace: true }));
                 }
             })
             .catch(error => {
@@ -39,7 +53,7 @@ export default function AuthLogin ({ disableSignup, ...props }) {
     const t = theme?.auth?.authPages?.sectionGroup?.default || {};
     const sectionGroupTheme = t;
     return (
-        <form onSubmit={ submit } className={t.formWrapper}>
+        <form ref={formRef} onSubmit={ submit } className={t.formWrapper}>
             <div className={t.pageWrapper}>
                 {/* Brand line — renders only when the theme provides `brandWrapper` (BC:
                     themes without it render nothing here, exactly as before). */}
@@ -78,6 +92,8 @@ export default function AuthLogin ({ disableSignup, ...props }) {
                         {
                             type:'Input',
                             label: 'email',
+                            name: 'email',
+                            autoComplete: 'username',
                             value: credentials.email,
                             onChange: (e) => {
                                 setCredentials({...credentials, email: e.target.value})
@@ -86,6 +102,8 @@ export default function AuthLogin ({ disableSignup, ...props }) {
                             type:'Input',
                             input_type: 'password',
                             label: 'password',
+                            name: 'password',
+                            autoComplete: 'current-password',
                             value: credentials.password,
                             // Forgot link sits inline on the password label row (better tab
                             // order than a link between the password field and Sign in).
@@ -105,6 +123,7 @@ export default function AuthLogin ({ disableSignup, ...props }) {
                 <Button
                     buttonType="submit"
                     activeStyle='primaryBlock'
+                    disabled={!hydrated}
                 >
                     <span className={sectionGroupTheme.actionText}>sign in</span>
                 </Button>

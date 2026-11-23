@@ -9,6 +9,7 @@ import ColumnManager from "./ColumnManager";
 import TemplateManager from "./TemplateManager";
 import { coerceControlValue, getColumnLabel } from "./controls_utils";
 import { getSectionMenuExtensions } from "./sectionMenuExtensions";
+import { isSectionTypeActive } from "../../../../plugins/registries";
 import ColorControls from "./components/ComponentRegistry/sharedControls/ColorControls";
 
 
@@ -66,7 +67,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     const state = rawState || { columns: [], display: {}, externalSource: { columns: [] }, filters: { op: 'AND', groups: [] } }
     const { onEdit, moveItem, updateAttribute, updateElementType, onChange, onCancel, onSave, onAddHelpText, setKey, setState, setShowDeleteModal, setListAllColumns } = actions
     const { user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions, canEditPageContent, Permissions, AuthAPI } = auth
-    const { Switch, Pill, Icon, TitleEditComp, LevelComp, refreshDataBtnRef, isRefreshingData, setIsRefreshingData, theme, RegisteredComponents = {}, sectionArrayStyle, groupCollapsible } = ui
+    const { Switch, Pill, Icon, TitleEditComp, LevelComp, refreshDataBtnRef, isRefreshingData, setIsRefreshingData, theme, RegisteredComponents = {}, sectionArrayStyle, groupCollapsible, pluginActivations: cmsPluginActivations = {} } = ui
     // The band's `pages.sectionArray` style — the SAME resolution sectionArray.jsx
     // renders with. Without the style name every lookup below returned styles[0],
     // so a theme whose named styles replace `sizes` (a 12-column grid keyed
@@ -1031,6 +1032,8 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             showValue: true, showSearch: true,
             items: Object.keys(RegisteredComponents)
                 .filter(k => !RegisteredComponents[k].hideInSelector &&
+                    // a plugin's section type only while the plugin is active for the site (plugins/registries.js)
+                    isSectionTypeActive(k, cmsPluginActivations) &&
                     // don't allow conversion of incompatible components in view mode
                     (isEdit || (['Spreadsheet', 'Card', 'Graph', 'AVL Graph'].includes(currentComponent?.name) && ['Spreadsheet', 'Card', 'Graph'].includes(k)))
                 )
