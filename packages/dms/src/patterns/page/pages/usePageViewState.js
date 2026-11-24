@@ -11,8 +11,8 @@ import {
 
 /**
  * A view page's page state: its page variables (filters), kept in step with the URL's search params,
- * and the setters sections reach through PageContext. Used by the page view (view.jsx) and by the RSC
- * path's section islands (render/rsc/SectionIslands.jsx), which rebuild PageContext in the browser
+ * and the setters sections reach through PageContext. Used by the page view (view.jsx) and by the islands
+ * path's section islands (render/islands/SectionIslands.jsx), which rebuild PageContext in the browser
  * around the sections that stay live on a server-rendered page.
  *
  * @param {object} o

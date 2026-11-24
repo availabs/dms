@@ -1,6 +1,6 @@
 import React from 'react'
 import { applySavedColorScheme } from '../../../ui/components/ThemeToggle'
-import { parseIfJSON } from '../../../patterns/page/pages/_utils'
+import { parseIfJSON } from '../../../patterns/page/pages/_utils/basics.js'
 
 // The theme-level `defaultColorScheme` ('light' | 'dark') for a pattern: the
 // pattern's own theme override, else the theme it selects (same selection

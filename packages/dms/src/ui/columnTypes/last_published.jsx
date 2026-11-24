@@ -1,5 +1,5 @@
 import React from 'react';
-import { timeAgo } from '../../patterns/page/pages/_utils';
+import { timeAgo } from '../../patterns/page/pages/_utils/basics.js';
 
 export function LastPublishedView({ value, row }) {
     // value = _lastPublished (ISO from history), row has _lastPublishedBy and published state

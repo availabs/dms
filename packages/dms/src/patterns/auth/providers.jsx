@@ -20,7 +20,7 @@ const signedInState = (user, token) => ({
 export const authProvider = (Component, config) => {
   const { AUTH_HOST, PROJECT_NAME, baseUrl = '/auth', defaultRedirectUrl = '/', isMultiTenant = false, siteType } = config
   // session: who the server rendered this page for, { state, user }, when the page says so in its props (an
-  // RSC page: render/rsc/ClientChrome.jsx); today's path says it in window.__dmsSSRData.session.
+  // islands page: render/islands/ClientChrome.jsx); today's path says it in window.__dmsSSRData.session.
   const AuthProvider = ({ session: renderedSession, ...props }) => {
 
     // The first state. A server render knows its user from the session cookie (render/ssr2, the request's
@@ -30,7 +30,7 @@ export const authProvider = (Component, config) => {
     const [user, setUser] = React.useState(() => {
       const scope = getRequestScope();
       if (scope) return scope.user ? signedInState(scope.user, scope.token) : defaultUserState();
-      // the RSC path's HTML pass (generateHTML) has no request scope, only the page's own session
+      // a render with no request scope (a stub window): only the page's own session
       if (renderedSession?.user && (typeof window === 'undefined' || window.__dmsStub)) return signedInState(renderedSession.user, null);
       try {
         const token = window.localStorage.getItem('userToken');
@@ -58,8 +58,8 @@ export const authProvider = (Component, config) => {
       load();
       // the session cookie follows the stored token: written when the server didn't know it (no cookie
       // yet, e.g. signed in before the cookie existed) or knew a different state
-      // an RSC page (render/rsc/hydrate.js) was rendered for a visitor who isn't signed in
-      const rendered = renderedSession || window.__dmsSSRData?.session || (window.__dmsRscPage ? { state: 'anonymous' } : null);
+      // an islands page (render/islands/entry.browser.jsx) was rendered for a visitor who isn't signed in
+      const rendered = renderedSession || window.__dmsSSRData?.session || (window.__dmsIslandsPage ? { state: 'anonymous' } : null);
       if (rendered) {
         let token = null;
         try { token = window.localStorage.getItem('userToken'); } catch (e) {}

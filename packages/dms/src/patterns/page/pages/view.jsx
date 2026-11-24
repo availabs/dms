@@ -13,27 +13,27 @@ import { errorPageTheme } from "./errorPage.theme";
 import { PageStateScreen } from "../components/PageStatePanel";
 import { ABSOLUTE_URL } from "../../../utils/nav";
 import { resolveSubdomainPath } from "../../../utils/subdomainPath";
-import { RscCaptureContext } from "../../../render/rsc/captureContext";
-import { sectionServerStatic, sectionIslandRefused } from "../components/sections/rscSections";
+import { IslandsCaptureContext } from "../../../render/islands/captureContext";
+import { sectionServerStatic, sectionWakeOnUse, sectionIslandRefused } from "../components/sections/staticSections";
 
-// RSC path (render/rsc, rsc-view-pages.md phase 2): why this page can't be served as server HTML with
+// islands path (render/islands, static-html-islands.md): why this page can't be served as server HTML with
 // client chrome, or null when it can. Read only during the server pass. A section that isn't static is
-// no reason: it stays live in the browser as a section island (RscSection.jsx), unless its type refuses.
-function rscIneligible({ serverComponent, item }) {
-    if (!serverComponent) return 'route not opted in';
+// no reason: it stays live in the browser as a section island (CapturedSection.jsx), unless its type refuses.
+function captureIneligible({ islandsView, item }) {
+    if (!islandsView) return 'route not opted in';
     for (const section of item?.sections || []) {
         if (!sectionServerStatic(section) && sectionIslandRefused(section)) return `section ${section?.element?.['element-type']}`;
     }
     return null;
 }
 
-function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdate, reqPermissions, format,busy, serverComponent}) {
+function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdate, reqPermissions, format,busy, islandsView}) {
     //console.log('create doc', { item, dataItems: allDataItems })
     const { search, pathname } = useLocation()
     const pdfRef = useRef(); // To capture the section of the page to be converted to PDF
     const {theme: fullTheme, UI, getComponentTheme} = useContext(ThemeContext);
     const { Menu, baseUrl, patternFilters = [], isUserAuthed = () => true, authPermissions, user, authBaseUrl, API_HOST, app, type, siteType, hasEditor, pattern, datasources, pgEnv, subdomain } = React.useContext(CMSContext) || {};
-    const rscCapture = useContext(RscCaptureContext);
+    const islandsCapture = useContext(IslandsCaptureContext);
     const dataItems = allDataItems.filter(d => !d.authPermissions || isUserAuthed(reqPermissions, d.authPermissions));
 
     // LINK PAGE (`nav_link`, page.format.js): the page carries no content — it exists
@@ -144,21 +144,21 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
     if (navLink) {
         return navLinkIsAbsolute ? null : <Navigate to={navLink} replace />;
     }
-  // RSC spike: the server pass records what the client chrome needs and renders only the content, each
+  // Islands path: the server pass records what the client chrome needs and renders only the content, each
   // section-group slot in a marker element that render/ssr2/handler.jsx cuts out (captureRender).
-  if (rscCapture) {
-    const reason = rscIneligible({ serverComponent, item });
+  if (islandsCapture) {
+    const reason = captureIneligible({ islandsView, item });
     if (reason) {
-      rscCapture.reason = reason;
+      islandsCapture.reason = reason;
     } else {
-      rscCapture.kind = 'page-view';
-      rscCapture.eligible = true;
-      rscCapture.island = {
+      islandsCapture.kind = 'page-view';
+      islandsCapture.eligible = true;
+      islandsCapture.island = {
         navItems: menuItems,
         secondNav: menuItemsSecondNav,
         baseUrl, app, type, siteType, authPermissions, authBaseUrl, hasEditor,
         title: item?.title,
-        // what PatternTitle (render/spa/utils) sets in the browser on today's path; the RSC path puts it in the HTML
+        // what PatternTitle (render/spa/utils) sets in the browser on today's path; the islands path puts it in the HTML
         documentTitle: (typeof pattern?.html_title === 'string' && pattern.html_title.trim()) || pattern?.name || '',
         itemTheme: item?.theme || null,
         patternTheme: pattern?.theme || null,
@@ -167,12 +167,13 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
         authMenu: fullTheme?.navOptions?.authMenu || null,
       };
       // Section islands (sections that stay live in the browser) push themselves here while the slots
-      // render (RscSection.jsx); what the browser needs to rebuild PageContext around them goes with them.
-      // render/rsc/resolvePage.js keeps it only when there are islands, and trims it.
-      rscCapture.sections = [];
-      // RscSection reads it from here: importing the registry from sectionArray's graph is a cycle
-      rscCapture.sectionServerStatic = sectionServerStatic;
-      rscCapture.islandPage = {
+      // render (CapturedSection.jsx); what the browser needs to rebuild PageContext around them goes with them.
+      // render/islands/islandData.js keeps it only when there are islands, and trims it.
+      islandsCapture.sections = [];
+      // CapturedSection reads it from here: importing the registry from sectionArray's graph is a cycle
+      islandsCapture.sectionServerStatic = sectionServerStatic;
+      islandsCapture.sectionWakeOnUse = sectionWakeOnUse;
+      islandsCapture.islandPage = {
         renderKey: pathname + search,
         item,
         dataItems: dataItems.map(({ id, parent, title, url_slug, index, hide_in_nav, nav_link, published }) =>
@@ -186,9 +187,9 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
           value={{ item, pageState, setPageState, updatePageStateFilters, setActionParam, clearActionParam, dataItems, apiLoad, apiUpdate, format, busy, baseUrl }}
         >
           <ThemeContext.Provider value={{theme, UI, getComponentTheme}}>
-            <dms-rsc-slot name="top">{getSectionGroups('top')}</dms-rsc-slot>
-            <dms-rsc-slot name="content">{getSectionGroups('content')}</dms-rsc-slot>
-            <dms-rsc-slot name="bottom">{getSectionGroups('bottom')}</dms-rsc-slot>
+            <dms-slot name="top">{getSectionGroups('top')}</dms-slot>
+            <dms-slot name="content">{getSectionGroups('content')}</dms-slot>
+            <dms-slot name="bottom">{getSectionGroups('bottom')}</dms-slot>
           </ThemeContext.Provider>
         </PageContext.Provider>
         </DataSourceContext.Provider>

@@ -23,15 +23,15 @@
 
 import { registerPatternTypes, getPatternType } from '../patterns/registry'
 import { defaultCheckAuth } from '../dms-manager/_auth'
-import { registerComponents } from '../patterns/page/components/sections/componentRegistry'
+import { registerComponents } from '../patterns/page/components/sections/componentRegistryStore'
 import { registerColumnType } from '../ui/columnTypes'
 import { registerFormatFunction } from '../patterns/page/components/sections/components/dataWrapper/utils/utils.jsx'
 import { registerWidget } from '../ui/widgets'
 import { ThemeContext } from '../ui/themeContext'
 import { CMSContext, PageContext, ComponentContext, DataSourceContext } from '../patterns/page/context'
-import { themeLoaders, dataTypes, patternTypeOwners, sectionTypeOwners } from './registries'
+import { themeLoaders, dataTypes, patternTypeOwners, sectionTypeOwners, pluginRecords, contributionOwners } from './registries'
 
-export { pluginThemeNames, loadPluginThemes, withPluginThemes, pluginDataTypes, activationsOf, isPatternTypeActive, isSectionTypeActive } from './registries'
+export { pluginThemeNames, loadPluginThemes, withPluginThemes, pluginDataTypes, activationsOf, isPatternTypeActive, isSectionTypeActive, pluginsOfSections } from './registries'
 // plugins installed at run time (P2): loaded before routes are built
 export { loadPlugins, loadSitePlugins, installedActivations, clientPluginUrl } from './load'
 
@@ -42,10 +42,11 @@ export const PLUGIN_API_VERSION = '1.0.0'
 const ACTIVATION = ['default-on', 'opt-in']
 const NAME = /^[a-z][a-z0-9_]*$/
 
-const plugins = new Map()          // name -> record (what listPlugins shows)
+const plugins = pluginRecords      // name -> record (what listPlugins shows); kept in ./registries for its readers
 const definitions = new Map()      // name -> the plugin object it was registered with
 const KINDS = ['patternTypes', 'sectionTypes', 'columnTypes', 'formatFunctions', 'widgets', 'themes', 'dataTypes']
-const owners = Object.fromEntries(KINDS.map(k => [k, new Map()]))   // kind -> (registered name -> plugin name)
+for (const k of KINDS) contributionOwners[k] ||= new Map()
+const owners = contributionOwners   // kind -> (registered name -> plugin name)
 
 const parseVersion = (v) => String(v).trim().replace(/^v/, '').split('.').map(x => (x === 'x' || x === '*' ? null : Number(x)))
 

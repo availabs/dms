@@ -1,7 +1,6 @@
-'use client'
-// The RSC spike's client island (rsc-view-pages.md, phase 2): a view page's chrome (the theme's Layout:
+// The islands path's client chrome (static-html-islands.md): a view page's chrome (the theme's Layout:
 // top and side nav, user menu, search) as the only client component on a page whose content is static
-// HTML from the server. It is given serializable props (render/rsc/resolvePage.js) and rebuilds what
+// HTML from the server. It is given serializable props (render/islands/islandData.js) and rebuilds what
 // today's route tree provides: the theme, the auth provider, CMSContext and PatternAuthContext.
 //
 // Its import graph is the point of the spike: no section registry, no Lexical, no dms-manager, no
@@ -30,7 +29,7 @@ import { isUserAuthed } from '../../utils/auth'
 import { nav2Level } from '../../utils/nav'
 import { tagFalcorRequests } from '../../utils/authedFetch'
 import PatternColorScheme, { getPatternColorScheme } from '../spa/utils/PatternColorScheme'
-import { getRscClientConfig } from './clientConfig'
+import { getIslandsClientConfig } from './clientConfig'
 import IslandHost from './IslandHost'
 
 // What the page pattern's registration and siteConfig do at module load: the `pages` defaults on the
@@ -47,7 +46,7 @@ registerWidget('SearchButton', { label: 'Search Button', component: SearchButton
 const themeLoads = new Map()
 function loadCodeTheme(name) {
   if (!themeLoads.has(name)) {
-    const { loadThemes } = getRscClientConfig()
+    const { loadThemes } = getIslandsClientConfig()
     themeLoads.set(name, name === 'default' || !loadThemes
       ? Promise.resolve({})
       : loadThemes([name]).then((themes) => themes?.[name] || {}))
@@ -55,10 +54,23 @@ function loadCodeTheme(name) {
   return themeLoads.get(name)
 }
 
+/**
+ * Loads a code theme and marks its promise as settled, so that a render which can't wait (renderToString
+ * on the server, the first render before hydration) reads it with `React.use` without suspending.
+ */
+export async function preloadChromeTheme(name) {
+  const load = loadCodeTheme(name)
+  if (load.status !== 'fulfilled') {
+    const value = await load
+    load.status = 'fulfilled'
+    load.value = value
+  }
+}
+
 const falcors = new Map()
 function falcorFor(app) {
   if (!falcors.has(app)) {
-    const falcor = falcorGraph(getRscClientConfig().API_HOST)
+    const falcor = falcorGraph(getIslandsClientConfig().API_HOST)
     tagFalcorRequests(falcor, null, app)
     falcors.set(app, falcor)
   }
@@ -81,7 +93,7 @@ function Chrome({ island, top, content, bottom }) {
   const { app, type, siteType, baseUrl, authPermissions, authBaseUrl, hasEditor } = island
   const cms = React.useMemo(() => ({
     app, type, siteType, baseUrl, authPermissions, authBaseUrl, hasEditor, user,
-    API_HOST: getRscClientConfig().API_HOST,
+    API_HOST: getIslandsClientConfig().API_HOST,
     falcor: falcorFor(app),
     isUserAuthed: (reqPermissions) => isUserAuthed({ user, authPermissions, reqPermissions }),
   }), [app, type, siteType, baseUrl, authPermissions, authBaseUrl, hasEditor, user])
@@ -114,13 +126,13 @@ function Chrome({ island, top, content, bottom }) {
 
 const authed = new Map()
 export default function ClientChrome(props) {
-  const { AUTH_HOST, isMultiTenant } = getRscClientConfig()
+  const { AUTH_HOST, isMultiTenant } = getIslandsClientConfig()
   const { app, siteType } = props.island
   const key = `${app}|${siteType}`
   if (!authed.has(key)) {
     authed.set(key, authProvider(Chrome, { AUTH_HOST, PROJECT_NAME: app, isMultiTenant, siteType }))
   }
   const Authed = authed.get(key)
-  // the user the server rendered this page for (resolvePage.js), so the first render matches its HTML
+  // the user the server rendered this page for (islandData.js), so the first render matches its HTML
   return <Authed {...props} session={props.island.session} />
 }

@@ -1,6 +1,6 @@
 # Code review: view pages as React Server Components
 
-Review of the work recorded in [rsc-view-pages.md](../tasks/current/rsc-view-pages.md), written 2026-11-23.
+Review of the work recorded in [rsc-view-pages.md](../tasks/completed/rsc-view-pages.md), written 2026-11-23.
 
 **What was reviewed.** The task's last saved diff (`dms-template/scratchpad/perf-rsc/patches/rscsi2.*.patch`,
 the build measured in step S9, signed-in visitors on the RSC path) and the same files as they stand in the

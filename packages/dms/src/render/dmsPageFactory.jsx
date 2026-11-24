@@ -178,6 +178,9 @@ export default function dmsPageFactory({
 
   return {
     path: `${dmsPath}*`,
+    // a route in this config opted in to server rendering without hydration (`islandsView`): the
+    // islands path reads it to decide, before rendering, whether a URL can be served (render/islands/servePage.js)
+    handle: { islandsView: hasIslandsView(dmsConfig) },
     Component: (props) => (
       <>
         <ScrollToTop />
@@ -204,6 +207,12 @@ export default function dmsPageFactory({
     },
     errorElement: <ErrorBoundaryComp />,
   };
+}
+
+function hasIslandsView(config) {
+  if (!config || typeof config !== 'object') return false;
+  if (config.islandsView) return true;
+  return Array.isArray(config.children) && config.children.some(hasIslandsView);
 }
 
 function ScrollToTop() {

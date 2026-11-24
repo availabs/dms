@@ -363,6 +363,10 @@ export default {
     // view pages get its settings without the copy of the source's whole column list (dataWrapper/trimForView.js)
     trimForView: trimDataWrapperForView,
     useGetDataOnPageChange: true,
+    // Read by the islands path (render/islands, static-html-islands.md): the server's table already shows the
+    // rows, and sorting, selecting, paging and downloading all start with the reader, so the HTML stands until
+    // the reader uses the table (staticSections.js sectionWakeOnUse).
+    wakeOnUse: true,
     useInfiniteScroll: true,
     showPagination: true,
     keepOriginalValues: true,

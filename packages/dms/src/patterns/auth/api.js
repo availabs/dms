@@ -24,9 +24,9 @@ export const getUser = ({AUTH_HOST, PROJECT_NAME}) => {
 // The session cookie (rsc-view-pages.md phase 1): the page's own host keeps an HttpOnly copy of the token so
 // its server render knows who is asking. Called on sign-in and sign-out, and on load when the server's state
 // differs from the stored token (providers.jsx). Only where pages come from dms-server (window.__dmsSSRData is
-// set, or window.__dmsRscPage on an RSC page); a static host has no /_session. The cookie is read only to render pages: API calls keep the header.
+// set, or window.__dmsIslandsPage on an islands page); a static host has no /_session. The cookie is read only to render pages: API calls keep the header.
 export const syncSessionCookie = (token) => {
-    if (typeof window === 'undefined' || !(window.__dmsSSRData || window.__dmsRscPage)) return Promise.resolve();
+    if (typeof window === 'undefined' || !(window.__dmsSSRData || window.__dmsIslandsPage)) return Promise.resolve();
     return fetch('/_session', {
         method: 'POST',
         credentials: 'same-origin',

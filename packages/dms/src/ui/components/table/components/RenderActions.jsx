@@ -1,7 +1,7 @@
 import React, {useState, useContext} from "react";
 import {Link} from "react-router";
 import {uniq} from "lodash-es";
-import {convertToUrlParams} from "../../../../patterns/page/pages/_utils";
+import {convertToUrlParams} from "../../../../patterns/page/pages/_utils/basics.js";
 import {DeleteModal} from "../../DeleteModal";
 import Icon from "../../Icon"
 import Button from "../../Button"

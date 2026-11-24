@@ -6,8 +6,8 @@ import { ThemeContext, getComponentTheme } from "../../../../ui/useTheme";
 import { CMSContext, PageContext } from '../../context'
 
 import { SectionEdit, SectionView } from './section'
-import RscSection from './RscSection'
-import { RscCaptureContext } from '../../../../render/rsc/captureContext'
+import CapturedSection from './CapturedSection'
+import { IslandsCaptureContext } from '../../../../render/islands/captureContext'
 import { isJson } from './section_utils'
 import { sectionArrayTheme } from './sectionArray.theme'
 import {useImmer} from "use-immer";
@@ -651,8 +651,8 @@ const View = ({value, attr, group, siteType, collapsed = false}) => {
     const {hash} = useLocation();
     const { format  } =  React.useContext(PageContext) || {}
     const [active, setActive] = useState();
-    // RSC path's server pass: each section gets its own capture (RscSection.jsx)
-    const rscCapture = React.useContext(RscCaptureContext);
+    // Islands path's server pass: each section gets its own capture (CapturedSection.jsx)
+    const islandsCapture = React.useContext(IslandsCaptureContext);
     const { theme:fullTheme = {sectionArray: sectionArrayTheme} } = React.useContext(ThemeContext);
     // `group.theme` selects this band's `pages.sectionArray` style as well as its
     // layoutGroup style — the same convention sectionGroup.jsx already uses for
@@ -736,8 +736,8 @@ const View = ({value, attr, group, siteType, collapsed = false}) => {
                                             isActive={v?.element?.['element-type'] === 'Spreadsheet' ? active === v?.id : undefined}
                                         />
                                     );
-                                    return rscCapture?.sections
-                                        ? <RscSection capture={rscCapture} index={value.indexOf(v)} section={v}>{sectionView}</RscSection>
+                                    return islandsCapture?.sections
+                                        ? <CapturedSection capture={islandsCapture} index={value.indexOf(v)} section={v}>{sectionView}</CapturedSection>
                                         : sectionView;
                                 })()}
                                 </div>

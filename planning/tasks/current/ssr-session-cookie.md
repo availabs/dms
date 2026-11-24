@@ -87,7 +87,7 @@ Unaffected: sites still deployed to Netlify (no SSR) and token clients (the dms 
 
 - **2026-11-18** — Planned with the owner (from chat's cold-load flash).
 - **2026-11-21** — **Phase A built and checked on the hub**, as phase 1 of
-  [rsc-view-pages.md](./rsc-view-pages.md) (details and results there, "Phase 1"). Beyond Phase A it also does
+  [rsc-view-pages.md](../completed/rsc-view-pages.md) (details and results there, "Phase 1"). Beyond Phase A it also does
   what "Not in scope" left out: the server renders as the user, with a per-request Falcor model carrying their
   token (`utils/requestScope.js`), so restricted pages arrive rendered and signed-in hydration matches. The
   server render now runs inside `authProvider` (it had none: every SSR render was signed out regardless).

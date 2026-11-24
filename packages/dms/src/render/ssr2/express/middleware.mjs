@@ -14,9 +14,14 @@
  *   from the page host's session cookie (dms-server auth/session.js). Without it every render is anonymous.
  * @param {Function} [options.getSiteCss] - async (req) => { href, partial, fallbackHtml } | null: the site's
  *   server-compiled stylesheet, put in place of the build's `<link data-dms-site-css>` (server-compiled-site-css.md)
+ * @param {Function} [options.getIslandPreloads] - (plugins: string[]) => string: preload tags for a page with
+ *   sections that mount at once, and the plugins they need
+ * @param {Function} [options.getIslandsTemplate] - () => string | null: the template for a page served as static
+ *   HTML with islands (DMS_ISLANDS; setup.mjs builds it from the client build's manifest). When set, an
+ *   opted-in page view is served that way (render/islands/servePage.js) and everything else as before.
  * @returns {Function} Express middleware
  */
-export function createSSRMiddleware({ getHandler, getTemplate, getHeadTags = null, resolveSession = null, getSiteCss = null }) {
+export function createSSRMiddleware({ getHandler, getTemplate, getHeadTags = null, resolveSession = null, getSiteCss = null, getIslandsTemplate = null, getIslandPreloads = null }) {
   return async function ssrMiddleware(req, res, next) {
     try {
       const handler = getHandler()
@@ -43,7 +48,30 @@ export function createSSRMiddleware({ getHandler, getTemplate, getHeadTags = nul
 
       // who is asking (rsc-view-pages.md phase 1): the render runs as that user
       const session = resolveSession ? await resolveSession(req) : null
-      const result = await handler.render(request, { session })
+
+      // Static HTML with islands (static-html-islands.md): an opted-in page view is served with its content
+      // as HTML that is never hydrated; a page that path can't serve is rendered below as always.
+      const islandsTemplate = getIslandsTemplate ? getIslandsTemplate() : null
+      let islandsPage = null
+      if (islandsTemplate && handler.renderIslands && (req.method === 'GET' || req.method === 'HEAD')) {
+        const nav = req.headers[NAV_HEADER] === '1'
+        const page = await handler.renderIslands(request, { session, nav })
+        if (nav) {
+          // a navigation from a served page: the destination as data, or "not served" (a document load)
+          res.vary('Cookie')
+          res.vary(NAV_HEADER)
+          res.set('Cache-Control', 'private, no-store')
+          res.set('X-DMS-ISLANDS', page.served ? 'served' : `pass: ${page.reason}`.slice(0, 200))
+          return res.status(200).json(page.served
+            ? { island: page.island, slots: page.slots, title: page.island.documentTitle || '' }
+            : { pass: true })
+        }
+        if (page.served) islandsPage = page
+        else res.set('X-DMS-ISLANDS', `pass: ${page.reason}`.slice(0, 200))
+      }
+      const result = islandsPage
+        ? { html: islandsPage.html, status: islandsPage.status, headers: {}, themeFontsHtml: islandsPage.themeFontsHtml }
+        : await handler.render(request, { session })
 
       // Handle redirects
       if (result.redirect) {
@@ -83,8 +111,15 @@ export function createSSRMiddleware({ getHandler, getTemplate, getHeadTags = nul
         try { siteHead = (await getHeadTags(req)) || '' }
         catch (e) { console.warn('[SSR] head tags failed:', e.message) }
       }
+      // an islands page carries its chrome's props and its live sections' data, and no site data
+      const dataScript = islandsPage
+        ? `<script type="application/json" id="${ISLAND_DATA_ID}">${serializeJson({ island: islandsPage.island })}</script>`
+        : `<script>window.__dmsSSRData=${serializedData}</script>`
       const headContent =
-        `<script>window.__dmsSSRData=${serializedData}</script>` +
+        dataScript +
+        // a page with sections that mount at once: their code downloads with the entry, not after hydration.
+        // Sections that keep their HTML until used load theirs when the reader first uses one.
+        (islandsPage?.mountNow && getIslandPreloads ? getIslandPreloads(islandsPage.plugins) || '' : '') +
         (result.themeFontsHtml || '') +
         siteHead
 
@@ -95,9 +130,13 @@ export function createSSRMiddleware({ getHandler, getTemplate, getHeadTags = nul
         try { siteCss = await getSiteCss(req) }
         catch (e) { console.warn('[SSR] site css failed:', e.message) }
       }
+      const base = islandsPage ? islandsTemplate : template
       let page = /<link[^>]*rel="icon"/.test(siteHead)
-        ? template.replace(/<link\s+rel="icon"[^>]*>\s*/, '')
-        : template
+        ? base.replace(/<link\s+rel="icon"[^>]*>\s*/, '')
+        : base
+      if (islandsPage?.island.documentTitle) {
+        page = page.replace(/<title>[\s\S]*?<\/title>/, () => `<title>${escapeHtml(islandsPage.island.documentTitle)}</title>`)
+      }
       if (siteCss) {
         page = page.replace(/<link\b[^>]*\bdata-dms-site-css\b[^>]*>/,
           () => `<link rel="stylesheet" data-dms-site-css href="${siteCss.href}">${siteCss.fallbackHtml || ''}`)
@@ -115,6 +154,14 @@ export function createSSRMiddleware({ getHandler, getTemplate, getHeadTags = nul
       // a page rendered for one user is theirs alone; the cookie decides what a URL renders as
       res.vary('Cookie')
       if (session?.user) res.set('Cache-Control', 'private, no-store')
+      if (islandsPage) {
+        res.vary(NAV_HEADER)
+        res.set('X-DMS-ISLANDS', 'served')
+        // how many sections stay live in the browser (for the coverage census and debugging)
+        if (islandsPage.islands) res.set('x-dms-islands-count', String(islandsPage.islands))
+        // of those, how many keep their HTML until the reader uses them
+        if (islandsPage.islands > islandsPage.mountNow) res.set('x-dms-islands-waiting', String(islandsPage.islands - islandsPage.mountNow))
+      }
       res.send(content)
     } catch (error) {
       console.error('[SSR] Render error, falling back to SPA shell:', error)
@@ -131,6 +178,12 @@ export function createSSRMiddleware({ getHandler, getTemplate, getHeadTags = nul
     }
   }
 }
+
+// render/islands/islandData.js names these too; this file is plain Node (.mjs, loaded by dms-server), outside the bundle
+const ISLAND_DATA_ID = 'dms-islands'
+const NAV_HEADER = 'x-dms-islands-nav'
+const serializeJson = (data) => JSON.stringify(data).replace(/</g, '\\u003c').replace(/>/g, '\\u003e').replace(/&/g, '\\u0026')
+const escapeHtml = (text) => String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
 // the user as the browser's auth state holds it (AuthAPI.getUser), minus the token
 function publicUser(user) {

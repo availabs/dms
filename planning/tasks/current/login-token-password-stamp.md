@@ -5,7 +5,7 @@
 ## Objective
 
 A login token must not reveal anything about the user's password. Found 2026-11-21 while building the
-session cookie ([rsc-view-pages.md](./rsc-view-pages.md) phase 1): `createUserToken` signed
+session cookie ([rsc-view-pages.md](../completed/rsc-view-pages.md) phase 1): `createUserToken` signed
 `{ email, password: <bcrypt hash>, project }`, so the hash sat, base64-encoded, in every token. The token is in
 the browser's `localStorage`, in the `dms_session` cookie, in `Authorization` headers and in anything that
 logs them; anyone holding one could read the hash and attack it offline.

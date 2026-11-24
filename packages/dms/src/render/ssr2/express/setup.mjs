@@ -146,18 +146,11 @@ export async function mountSSR(app, config) {
     const createHandler = mod.default || mod.createHandler
     cachedHandler = createHandler(handlerConfig)
 
-    // RSC spike (rsc-view-pages.md, phase 2): DMS_RSC=1 with an RSC build in DMS_RSC_DIST_DIR (vite.rsc.config.js)
-    // puts the RSC handler in front of today's SSR. It answers what it can serve (an opted-in page view whose
-    // sections need no JavaScript, the router's `.rsc` and `.manifest` requests) and passes the rest on.
-    if (process.env.DMS_RSC === '1' && process.env.DMS_RSC_DIST_DIR) {
-      await mountRsc(app, express, {
-        rscDir: path.resolve(root, process.env.DMS_RSC_DIST_DIR),
-        handlerConfig,
-        templateHead: (cachedTemplate.match(/<head>([\s\S]*)<\/head>/) || [])[1]?.replace('<!--app-head-->', '') || '',
-        resolveSession,
-        getSiteCss,
-      })
-    }
+    // Static HTML with islands (static-html-islands.md): DMS_ISLANDS=1 serves an opted-in page view from this
+    // same handler, with the client build's second entry (render/islands/entry.browser.jsx) in place of the app's.
+    const islandsOn = process.env.DMS_ISLANDS === '1'
+    const islandsTemplate = islandsOn ? await buildIslandsTemplate(clientDir, cachedTemplate) : null
+    if (islandsOn) console.log(islandsTemplate ? '[SSR] static HTML with islands on (DMS_ISLANDS)' : '[SSR] DMS_ISLANDS is set but this build has no islands entry: off')
 
     // Mount SSR catch-all
     app.use('*', createSSRMiddleware({
@@ -166,6 +159,8 @@ export async function mountSSR(app, config) {
       getHeadTags,
       resolveSession,
       getSiteCss,
+      getIslandsTemplate: islandsTemplate ? () => islandsTemplate.page : null,
+      getIslandPreloads: islandsTemplate ? islandsTemplate.islandPreloads : null,
     }))
 
     console.log(`[SSR] Production mode — client ${clientDir}, server ${serverBundle}`)
@@ -175,53 +170,71 @@ export async function mountSSR(app, config) {
 
 const IMMUTABLE = 'public, max-age=31536000, immutable'
 
-async function mountRsc(app, express, { rscDir, handlerConfig, templateHead, resolveSession, getSiteCss = null }) {
-  const { Readable } = await import('node:stream')
-  const mod = await import(path.join(rscDir, 'rsc', 'index.js'))
-  mod.configure({ handlerConfig, templateHead })
-  const handler = mod.default
-  const clientDir = path.join(rscDir, 'client')
-  app.use(express.static(clientDir, {
-    index: false,
-    cacheControl: false,
-    setHeaders(res, filePath) {
-      res.setHeader('Cache-Control', path.relative(clientDir, filePath).startsWith(`rsc-assets${path.sep}`) ? IMMUTABLE : 'no-cache')
-    },
-  }))
-  app.use(async (req, res, next) => {
-    if (req.method !== 'GET' && req.method !== 'HEAD') return next()
-    const isRouterRequest = req.path.endsWith('.rsc') || req.path.endsWith('.manifest')
-    // documents only: a browser navigation asks for text/html
-    if (!isRouterRequest && !(req.headers.accept || '').includes('text/html')) return next()
-    try {
-      // Who is asking (the session cookie): the page renders as them, as on today's path, and a signed-in
-      // response (document or `.rsc` payload) is theirs alone: private, never stored.
-      const session = resolveSession ? await resolveSession(req) : null
-      // the site's server-compiled sheet for the head (navigations render it too, so they get the same one);
-      // best effort, the build's link otherwise
-      let siteCss = null
-      if (getSiteCss) {
-        try { siteCss = await getSiteCss(req) } catch (e) { console.warn('[RSC] site css failed:', e.message) }
-      }
-      const headers = new Headers()
-      for (const [k, v] of Object.entries(req.headers)) if (typeof v === 'string') headers.set(k, v)
-      const response = await handler(new Request(`${req.protocol || 'http'}://${req.headers.host}${req.originalUrl}`, { method: req.method, headers }), { session, siteCss })
-      if (response.headers.get('x-dms-rsc') === 'pass') {
-        res.setHeader('X-DMS-RSC', `pass: ${decodeURIComponent(response.headers.get('x-dms-rsc-reason') || '')}`.slice(0, 200))
-        return next()
-      }
-      res.status(response.status)
-      response.headers.forEach((v, k) => res.setHeader(k, v))
-      res.setHeader('X-DMS-RSC', 'served')
-      res.vary('Cookie')
-      if (session?.user) res.setHeader('Cache-Control', 'private, no-store')
-      if (!response.body) return res.end()
-      Readable.fromWeb(response.body).pipe(res)
-    } catch (error) {
-      console.error('[RSC] error, falling back to SSR:', error)
-      if (!res.headersSent) return next()
-      res.end()
+const ISLANDS_ENTRY = 'render/islands/entry.browser.jsx'
+// a compiled-in plugin's entry among the islands entry's dynamic imports, by its built file's name:
+// plugin.<plugin name>-<hash>.js (the app's build config names it: render/islands/README.md)
+const PLUGIN_ENTRY = /(?:^|\/)plugin\.([a-z][a-z0-9_]*)-[^/]*\.js$/
+
+/**
+ * The page template for the islands path: the build's own, with the app's entry script and its preloads
+ * replaced by the islands entry's (from the client build's Vite manifest). Null when the build has none.
+ * `islandPreloads(plugins)`: preload tags for the code a page imports after it hydrates when it has sections to
+ * mount at once (the entry's dynamic imports and what they import: the section code, and of the plugins only
+ * the ones named), so those chunks download with the entry and not in a chain after it.
+ */
+
+async function buildIslandsTemplate(clientDir, template) {
+  let manifest
+  try { manifest = JSON.parse(await fs.readFile(path.join(clientDir, '.vite', 'manifest.json'), 'utf-8')) }
+  catch { return null }
+  const entryKey = Object.keys(manifest).find((k) => manifest[k].isEntry && k.endsWith(ISLANDS_ENTRY))
+  if (!entryKey) return null
+  // the entry's static imports, transitively: preloaded so they download with the entry, not after it
+  const preloads = new Set()
+  const styles = new Set()
+  const walk = (key) => {
+    const chunk = manifest[key]
+    if (!chunk) return
+    ;(chunk.css || []).forEach((c) => styles.add(c))
+    for (const dep of chunk.imports || []) {
+      if (preloads.has(dep)) continue
+      preloads.add(dep)
+      walk(dep)
     }
-  })
-  console.log(`[RSC] spike mounted from ${rscDir}`)
+  }
+  walk(entryKey)
+  const tags = [
+    `<script type="module" crossorigin src="/${manifest[entryKey].file}"></script>`,
+    ...[...preloads].map((k) => `<link rel="modulepreload" crossorigin href="/${manifest[k].file}">`),
+    ...[...styles].filter((c) => !template.includes(`/${c}"`)).map((c) => `<link rel="stylesheet" crossorigin href="/${c}">`),
+  ].join('\n    ')
+  let replaced = false
+  const page = template
+    .replace(/[ \t]*<link rel="modulepreload"[^>]*>\n?/g, '')
+    .replace(/<script type="module"[^>]*\bsrc="[^"]*"[^>]*><\/script>/, () => { replaced = true; return tags })
+  if (!replaced) return null
+  const sectionCode = []
+  const pluginEntries = {}
+  for (const key of manifest[entryKey].dynamicImports || []) {
+    const plugin = PLUGIN_ENTRY.exec(manifest[key]?.file || '')
+    if (plugin) pluginEntries[plugin[1]] = key
+    else sectionCode.push(key)
+  }
+  const tagsFor = new Map()
+  const islandPreloads = (plugins = []) => {
+    const id = plugins.join(',')
+    if (!tagsFor.has(id)) {
+      const later = new Set()
+      const walkLater = (key) => {
+        const chunk = manifest[key]
+        if (!chunk || later.has(key) || preloads.has(key) || key === entryKey) return
+        later.add(key)
+        ;(chunk.imports || []).forEach(walkLater)
+      }
+      ;[...sectionCode, ...plugins.map((name) => pluginEntries[name]).filter(Boolean)].forEach(walkLater)
+      tagsFor.set(id, [...later].map((k) => `<link rel="modulepreload" crossorigin href="/${manifest[k].file}">`).join(''))
+    }
+    return tagsFor.get(id)
+  }
+  return { page, islandPreloads }
 }

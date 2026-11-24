@@ -20,7 +20,7 @@ fresh headless browser with no token).
 |---|---|---|---|
 | 1 | **Every page view while logged in fails hydration.** Console: "Hydration failed because the server rendered HTML didn't match the client." React throws away the server HTML and rebuilds the page in the browser, so a logged-in user pays for SSR and gets none of its benefit. | Yes, on `/` | No. Nothing in either planning hub records it. |
 | 2 | **A restricted page shows "You do not have permission to view this page", then the real page a few seconds later** (hard refresh, logged in, `/npmrds/reports/single_route`). Loads more slowly than it does without SSR. | Yes | Partly. Perf fix #3 in [perf-auth-revalidate-duplicate-fetch.md](./perf-auth-revalidate-duplicate-fetch.md) (2026-09-02) fixed the page being stuck on that message *forever*. The interim message and the extra wait weren't recorded. |
-| 3 | **Production mode probably never refreshes page data.** An edit to a public page wouldn't show on a hard refresh until the server restarts, and since the browser reuses the server's data when it hydrates, users would see the old version until they navigate away. | Half: read from code, and on 2026-11-22 a production build on the hub (`rscsi2`, [rsc-view-pages.md](./rsc-view-pages.md) S9) made **no** data requests on warm anonymous renders of six pages (server `[graph]` log), so page data comes from the shared model's cache only. The edit-then-refresh check is still to do. | Partly. [pattern-filter-sync.md](../completed/pattern-filter-sync.md) and the parent repo's `county-site-mass-deployment.md` record the route cache never clearing (pattern/filter changes stale until restart), left out of scope. The page-*content* consequence isn't recorded. |
+| 3 | **Production mode probably never refreshes page data.** An edit to a public page wouldn't show on a hard refresh until the server restarts, and since the browser reuses the server's data when it hydrates, users would see the old version until they navigate away. | Half: read from code, and on 2026-11-22 a production build on the hub (`rscsi2`, [rsc-view-pages.md](../completed/rsc-view-pages.md) S9) made **no** data requests on warm anonymous renders of six pages (server `[graph]` log), so page data comes from the shared model's cache only. The edit-then-refresh check is still to do. | Partly. [pattern-filter-sync.md](../completed/pattern-filter-sync.md) and the parent repo's `county-site-mass-deployment.md` record the route cache never clearing (pattern/filter changes stale until restart), left out of scope. The page-*content* consequence isn't recorded. |
 
 ## Cause
 
@@ -83,7 +83,7 @@ then served from memory. `invalidateRoutes()` exists, but nothing calls it. The 
 
 - [ ] Logged out, `/`: server HTML present, no hydration error (passes today; it's the baseline).
 - [x] Logged in, `/`: no "Hydration failed" in the console (2026-11-21, hub build `p1cookie4`: fixed by the session
-      cookie, [rsc-view-pages.md](./rsc-view-pages.md) phase 1; 23 signed-in visits on 5 hosts, none fail). The
+      cookie, [rsc-view-pages.md](../completed/rsc-view-pages.md) phase 1; 23 signed-in visits on 5 hosts, none fail). The
       logged-in sidebar block now comes from the server.
 - [ ] Logged in, hard refresh on `/npmrds/reports/single_route`: the permission panel never shows; the page is ready
       no later than without SSR.

@@ -12,7 +12,7 @@ library and app code, the site's themes (code themes and `:theme` rows), class s
 loading the in-browser Tailwind compiler from the CDN.
 
 Split out of [dms-plugin-system.md](./dms-plugin-system.md) (owner's decision D5, 2026-11-22: server-compiled CSS,
-"for reasons beyond plugins"), and the same as future direction 6 of [rsc-view-pages.md](./rsc-view-pages.md)
+"for reasons beyond plugins"), and the same as future direction 6 of [rsc-view-pages.md](../completed/rsc-view-pages.md)
 ("the CDN Tailwind runtime loads and compiles CSS in the browser on every page, on both paths; move that CSS to
 build time"). The plugin system needs it before its P2 (runtime loading): a plugin's classes were never scanned by
 the app build.

@@ -73,7 +73,7 @@ modes means comparing two saved runs.
 |---|---|
 | **cold** | a new browser profile for every page, straight to the URL. Opt-in: it is the slow one |
 | **warm** | a returning visitor: one browser visits the site once (not recorded), then goes straight to every page's URL. Files are cached and sync's copy of the site is saved |
-| **click** | one session walks the pattern, clicking the real link from each page to the next. A page with no link from where the session is gets reached from its parent, else the home page. Times run from the click. A link hidden in a collapsed menu is clicked from script |
+| **click** | one session walks the pattern, clicking the real link from each page to the next. A page with no link from where the session is gets reached from its parent, else the home page. Times run from the click event itself, also when the click loads a new document. The runner's own wait before the click lands is recorded apart, as `clickWaitMs`: with several pages measuring at once, a page that isn't in front gets no animation frames and Playwright's click can wait out its 5 s timeout (the reason is then in `clickError`, and the link is clicked from script: `scriptedClick`). A link hidden in a collapsed menu is clicked from script |
 | **journey** | one session: a cold landing on the pattern's home page, then N clicks along a fixed route; then the same route again in the same profile (the return visit). Recorded per step and added up |
 
 The journey is what shows a trade like sync's: a costlier first load for cheaper later ones. Comparing a sync run

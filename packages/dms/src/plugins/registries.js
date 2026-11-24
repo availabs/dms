@@ -1,4 +1,4 @@
-// The plugin registries the route builder and the RSC client config read: themes and data-type pages. A module of
+// The plugin registries the route builder and the islands client config read: themes and data-type pages. A module of
 // its own with no imports, so those readers don't pull in the registration code (plugins/index.js) and its
 // dependencies. Task: src/dms/planning/tasks/current/dms-plugin-system.md (P1).
 
@@ -12,6 +12,32 @@ const activeIn = (activations, plugin, activation) => {
 }
 
 export const sectionTypeOwners = new Map() // section (element) type -> { plugin, activation }
+
+// What registration records (plugins/index.js fills both): every plugin, and which plugin registered each name.
+export const pluginRecords = new Map()     // plugin name -> { name, version, api, activation, contributes }
+export const contributionOwners = {}       // kind ('sectionTypes', 'columnTypes', …) -> Map(registered name -> plugin name)
+
+/**
+ * The plugins these page sections need to run in the browser: the owners of their section types, and of any
+ * column type or format function their settings name. Worked out from what each plugin registered, so a plugin
+ * declares nothing. The islands path's server render asks this for a page's live sections and the browser loads
+ * only those plugins (render/islands/servePage.js, IslandHost.jsx). A name is looked for as a quoted string
+ * anywhere in the section's settings: a false match costs one download, a miss would cost a broken section.
+ * @returns {{ name: string, version: string }[]}
+ */
+export function pluginsOfSections(sections = []) {
+  const names = new Set()
+  const named = ['columnTypes', 'formatFunctions'].flatMap((kind) => [...(contributionOwners[kind] || [])])
+  for (const section of sections) {
+    const element = section?.element || {}
+    const owner = contributionOwners.sectionTypes?.get(element['element-type'])
+    if (owner) names.add(owner)
+    const raw = element['element-data']
+    const settings = typeof raw === 'string' ? raw : JSON.stringify(raw || '')
+    for (const [name, plugin] of named) if (!names.has(plugin) && settings.includes(`"${name}"`)) names.add(plugin)
+  }
+  return [...names].map((name) => ({ name, version: pluginRecords.get(name)?.version || '' }))
+}
 
 /** Whether a site may add a section type: a core or theme type always; a plugin's, when that plugin is active. */
 export function isSectionTypeActive(type, activations = {}) {

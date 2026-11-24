@@ -16,7 +16,7 @@ import { getData } from "./getData";
 import { hasUnresolvedRequiredLeaf } from "./buildUdaConfig";
 import { useNowTick } from "./hooks/useNowTick";
 import { walkTreeForTickGranularity } from "./utils/timeFilter";
-import { RscCaptureContext } from "../../../../../../render/rsc/captureContext";
+import { IslandsCaptureContext } from "../../../../../../render/islands/captureContext";
 
 const RESOLVED_TZ = (() => {
     try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; }
@@ -262,14 +262,15 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
   });
   const firstForcedSkippedRef = useRef(false);
 
-  // RSC spike (render/rsc, rsc-view-pages.md phase 2): in the server's capture pass, a section that will
-  // fetch once it mounts can't be served as static HTML (its rows aren't in the markup), so the page stays
-  // on today's path. The same test as the load effect below, made during render.
-  const rscCapture = useContext(RscCaptureContext);
-  if (rscCapture?.eligible && !isEditMode && isValidState && readyToLoad &&
+  // islands path (render/islands, static-html-islands.md): in the server's capture pass, a section that will
+  // fetch once it mounts can't be served as static HTML (its rows aren't in the markup), so it is a section
+  // island that mounts as soon as the page has hydrated. The same test as the load effect below, made during render.
+  const islandsCapture = useContext(IslandsCaptureContext);
+  if ((islandsCapture?.eligible || islandsCapture?.wake) && !isEditMode && isValidState && readyToLoad &&
       (gatedOnRequiredFilter || hasLocalFilters || (bypassDedup && !skipFirstForced) || fetchKey !== lastFetchKeyRef.current)) {
-    rscCapture.eligible = false;
-    rscCapture.reason = `section ${component?.name || 'with data'} loads its rows in the browser`;
+    islandsCapture.eligible = false;
+    islandsCapture.wake = false;
+    islandsCapture.reason = `section ${component?.name || 'with data'} loads its rows in the browser`;
   }
 
   // ─── Main load effect ──────────────────────────────────────────────────────

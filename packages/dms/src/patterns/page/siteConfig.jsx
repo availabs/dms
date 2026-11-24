@@ -267,10 +267,9 @@ const pagesConfig = ({
               ]
             },
             action: 'view',
-            // RSC opt-in (rsc-view-pages.md design §1; spike shape): with DMS_RSC on, a view page whose
-            // sections all render with no JavaScript is served by render/rsc. The core reads the key, never
-            // the pattern type. The final form is a module reference; the spike names its server view.
-            serverComponent: 'page-view',
+            // Islands opt-in (static-html-islands.md): with DMS_ISLANDS on, this route's view pages are served
+            // by render/islands as static HTML with islands. The core reads the key, never the pattern type.
+            islandsView: 'page-view',
             authPermissions,
             reqPermissions: ['view-page']
           },

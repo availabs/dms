@@ -10,13 +10,15 @@ import { falcorGraph } from '@availabs/avl-falcor'
 import dmsSiteFactory from '../spa/dmsSiteFactory.jsx'
 import { preloadAllLazyComponents, collectRenderedLazyComponents } from '../../utils/lazyComponent.js'
 import { setRootDomain } from '../../utils/hostResolver'
-import { RscCaptureContext } from '../rsc/captureContext.js'
+import { IslandsCaptureContext } from '../islands/captureContext.js'
+import { configureIslandsClient } from '../islands/clientConfig.js'
+import { createIslandsRenderer } from '../islands/servePage.js'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { setRequestScopeProvider, sendTokenWith } from '../../utils/requestScope.js'
 import { authProvider } from '../../patterns/auth/providers.jsx'
 
 // Who each page render is for (rsc-view-pages.md phase 1): { session, user, token, models }, read through
-// utils/requestScope.js. Outside a render (route building, the RSC capture) there is no scope: anonymous.
+// utils/requestScope.js. Outside a render (route building, the islands capture) there is no scope: anonymous.
 const requestScope = new AsyncLocalStorage()
 setRequestScopeProvider(() => requestScope.getStore() || null)
 
@@ -269,9 +271,9 @@ export function createSSRHandler({
   }
 
   /**
-   * The RSC spike's server pass (render/rsc): today's render, with RscCaptureContext set. An opted-in
+   * The islands path's server pass (render/islands): today's render, with IslandsCaptureContext set. An opted-in
    * route component that can be served with no JavaScript fills `capture` and renders its content slots
-   * in <dms-rsc-slot name="…"> elements, which are cut out here. Not eligible → `capture.eligible` unset.
+   * in <dms-slot name="…"> elements, which are cut out here. Not eligible → `capture.eligible` unset.
    * Runs as `session`'s user, as render() does: the user's route tree, data and auth state.
    * @returns {Promise<{ status, headers, redirect?, siteData, themeFontsHtml, capture, slots }>}
    */
@@ -292,14 +294,33 @@ export function createSSRHandler({
     setStubLocation(url)
     const capture = {}
     const html = renderToString(
-      React.createElement(RscCaptureContext.Provider, { value: capture },
+      React.createElement(IslandsCaptureContext.Provider, { value: capture },
         React.createElement(Router, { router, context, hydrate: false }))
     )
     const slots = {}
     if (capture.eligible) {
-      for (const m of html.matchAll(/<dms-rsc-slot name="(\w+)">([\s\S]*?)<\/dms-rsc-slot>/g)) slots[m[1]] = m[2]
+      for (const m of html.matchAll(/<dms-slot name="(\w+)">([\s\S]*?)<\/dms-slot>/g)) slots[m[1]] = m[2]
     }
     return { status: context.statusCode || 200, siteData, themeFontsHtml, capture, slots }
+  }
+
+  // Static HTML with islands (render/islands, static-html-islands.md): the same capture, served from this
+  // handler. The chrome it renders reads the app's themes and hosts from the client config.
+  configureIslandsClient({
+    // `themes` is the app's lazy loader (src/themes/index.js), or a plain map of themes
+    loadThemes: typeof themes === 'function' ? themes : async (names) => Object.fromEntries(names.map((n) => [n, themes?.[n]])),
+    API_HOST: apiHost, AUTH_HOST: apiHost, isMultiTenant,
+  })
+  const islands = createIslandsRenderer({ ensureRoutes, capture: captureInScope, setStubLocation })
+
+  /**
+   * A page as static HTML with islands, or `{ served: false, reason }` when today's render should serve it.
+   * @param {Request} request
+   * @param {{ session?: object, nav?: boolean }} [options] - nav: a browser navigation (data, no chrome HTML)
+   */
+  async function renderIslands(request, { session = null, nav = false } = {}) {
+    const scope = { session, user: session?.user || null, token: session?.user ? session.token : null, models: new Map() }
+    return requestScope.run(scope, () => islands.render(request, scope, { nav }))
   }
 
   /**
@@ -310,7 +331,8 @@ export function createSSRHandler({
     generation++
     routeCache.clear()
     userRouteCache.clear()
+    islands.clear()
   }
 
-  return { render, captureRender, invalidateRoutes }
+  return { render, captureRender, renderIslands, invalidateRoutes }
 }

@@ -1,9 +1,9 @@
 # View pages as React Server Components, with streaming
 
-**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** phase 2 spike behind `DMS_RSC`, with section islands: 332 of 338 measured pages served, every sampled page 2–5× faster to Complete, no errors (measured 2026-11-21); phase 0 (React Router 8) done, no change; phase 1 (session cookie) built and measured (signed in ×1.09, signed out no change), router-rebuild fix measured (signed in back to ×1.02); signed-in visitors on the RSC path built and measured (S9: signed in ×0.37 to Complete, as signed out; signed out unchanged); the go/no-go left for the owner · **Created by:** amuro@albany.edu · **Edited by:** amuro@albany.edu
+**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** done: closed 2026-11-24. The RSC delivery was measured against static HTML with islands and removed in its favour (owner); phases 0 and 1 and the capture and island code stay live. See the appendix. Earlier status: phase 2 spike behind `DMS_RSC`, with section islands: 332 of 338 measured pages served, every sampled page 2–5× faster to Complete, no errors (measured 2026-11-21); phase 0 (React Router 8) done, no change; phase 1 (session cookie) built and measured (signed in ×1.09, signed out no change), router-rebuild fix measured (signed in back to ×1.02); signed-in visitors on the RSC path built and measured (S9: signed in ×0.37 to Complete, as signed out; signed out unchanged); the go/no-go left for the owner · **Created by:** amuro@albany.edu · **Edited by:** amuro@albany.edu
 
 Design written 2026-11-18; revised the same day after review with the owner (route opt-in in `siteConfig`
-instead of naming the page pattern; a session cookie in scope; re-unifying on one router as the end state). Replaces the dropped [ssr-streaming.md](../completed/ssr-streaming.md) and brings
+instead of naming the page pattern; a session cookie in scope; re-unifying on one router as the end state). Replaces the dropped [ssr-streaming.md](./ssr-streaming.md) and brings
 [research/ssr-rsc-react-router.md](../../research/ssr-rsc-react-router.md) (February 2026) up to date.
 
 ## Objective
@@ -19,7 +19,7 @@ router, reached a route at a time.
 
 Today a view page sends three things: the HTML, the loader data again as JSON (so React can re-render the same
 HTML in the browser), and the JavaScript for every section type, the editor included. After
-[page-hydration-payload.md](./page-hydration-payload.md) the lightning risk profile is 3.87 MB of HTML, most of
+[page-hydration-payload.md](../current/page-hydration-payload.md) the lightning risk profile is 3.87 MB of HTML, most of
 it that JSON; the client build in `dist/` is 9.8 MB of JS in 167 files (2.08 MB in the main chunk).
 
 | | today | with server components |
@@ -93,7 +93,7 @@ Not a gain either: total server work. The same queries run. Caching (phase 7) is
   the loader, with a 5 s budget, and writes the rows into the section's settings. A server section replaces
   that with its own `await`.
 - **The server renders logged out.** `handler.jsx` never reads the user;
-  [ssr-logged-in-render-and-stale-cache.md](./ssr-logged-in-render-and-stale-cache.md) is open. A server
+  [ssr-logged-in-render-and-stale-cache.md](../current/ssr-logged-in-render-and-stale-cache.md) is open. A server
   component that decides what a user may see has to know the user (design §6).
 - **Two bugs are open in client navigation** (stale content after a click; `sectionSource.find is not a
   function`), both in page-hydration-payload.md. The RSC router replaces the code they live in for view pages.
@@ -243,7 +243,7 @@ Today `view.jsx` keeps page state in memory and sections talk through it (`setAc
 
 The login token lives in the browser's `localStorage` (`userToken`). A page request never carries it, so the
 server always renders as a signed-out visitor
-([ssr-logged-in-render-and-stale-cache.md](./ssr-logged-in-render-and-stale-cache.md), issues 1 and 2). Today
+([ssr-logged-in-render-and-stale-cache.md](../current/ssr-logged-in-render-and-stale-cache.md), issues 1 and 2). Today
 the browser re-renders once it has read the token. A server-rendered section can't be corrected that way: the
 browser has neither its code nor its data. So the server must know the user on the first request.
 
@@ -284,7 +284,7 @@ endpoint that does its own access check (React Router's docs say the same).
 
 ## Measuring the task
 
-Every phase is measured with `dms perf` ([perf-measurement-tool.md](./perf-measurement-tool.md)) on a local
+Every phase is measured with `dms perf` ([perf-measurement-tool.md](../current/perf-measurement-tool.md)) on a local
 production build of the hub, so each gain (or loss) is tied to the phase that made it. Harness, scripts and
 runs live in `dms-template/scratchpad/perf-rsc/` (gitignored, so they exist on one machine only, and runs
 are only comparable on the machine and port they were taken on).
@@ -912,8 +912,8 @@ it says so.
     per-user route tree), or reading rows the user's grants make public from the shared model, would recover most
     of it. (Signed-in RSC rendering, the other half of this item, is S9.)
 19. **Not performance, found on the way (S5), both fixed in S9 with tasks of their own:** the sign-in form lost
-    text typed before it hydrated ([login-form-hydration-race.md](./login-form-hydration-race.md)); the login
-    token carried the user's bcrypt password hash ([login-token-password-stamp.md](./login-token-password-stamp.md)).
+    text typed before it hydrated ([login-form-hydration-race.md](../current/login-form-hydration-race.md)); the login
+    token carried the user's bcrypt password hash ([login-token-password-stamp.md](../current/login-token-password-stamp.md)).
 
 ## Phases
 
@@ -970,7 +970,7 @@ signed in through each host's login form, and records status, final URL, text, e
 - [x] The router rebuild and the signed-in route tree (S5b, measured 2026-11-21)
 - [x] Signed-in visitors on the RSC path (S9, built, checked and measured 2026-11-22: signed in ×0.37 to Complete)
 
-**Built (2026-11-21, build `p1cookie4`).** Phase A of [ssr-session-cookie.md](./ssr-session-cookie.md) plus a
+**Built (2026-11-21, build `p1cookie4`).** Phase A of [ssr-session-cookie.md](../current/ssr-session-cookie.md) plus a
 per-request data model; phase B (the server answering a protected page with a 302) is not done.
 - **dms-server** (`auth/session.js`, new): `POST /_session` sets `dms_session=<token>|signed-out`, `HttpOnly`,
   `SameSite=Lax`, `Path=/`, `Secure` on https, `Max-Age` = the token's remaining life (at most 7 days). Same-origin
@@ -1089,9 +1089,9 @@ today's SSR and a signed-in `.rsc` navigation got a document redirect. Now:
   the page's data script, which then failed to parse ("Invalid or unexpected token"), and the browser rendered
   the page a second time below the server's copy. Signed out the page is a no-access screen, so it showed only
   once signed-in pages rendered as the user (phase 1). Fix: replacer functions.
-- Also built: the sign-in form's hydration race ([login-form-hydration-race.md](./login-form-hydration-race.md)),
+- Also built: the sign-in form's hydration race ([login-form-hydration-race.md](../current/login-form-hydration-race.md)),
   the PDF renderer sets the session cookie for the page's host (`dms-server/src/pdf/render.js openTab`), and
-  tokens carry a password stamp, not the hash ([login-token-password-stamp.md](./login-token-password-stamp.md)).
+  tokens carry a password stamp, not the hash ([login-token-password-stamp.md](../current/login-token-password-stamp.md)).
 
 Checked (2026-11-22, `rscsi1`/`rscsi2`): `parity/session.mjs` 16 of 16 (RSC on); smoke 56 of 57 visits as
 `p1cookie4`, the 57th a fix (County Template home signed in: RSC as the user, without today's path's "Error
@@ -1133,7 +1133,7 @@ Measured (2026-11-22 00:57–01:59, `chain_rscsi.sh`, phase profile, warm visits
   What would recover it is future direction 18 (signed-in renders start with an empty data cache), but a per-user
   model kept across requests would be as stale as the shared one, and the shared one never refetches page data
   (the zero requests above are issue 3 of
-  [ssr-logged-in-render-and-stale-cache.md](./ssr-logged-in-render-and-stale-cache.md), now measured). For editors,
+  [ssr-logged-in-render-and-stale-cache.md](../current/ssr-logged-in-render-and-stale-cache.md), now measured). For editors,
   who reload to see their own edit, that is worse than 20–60 ms. So: invalidate server-side models on writes
   (issue 3) first, then keep per-user models.
 - **Signed out, 44 pages:** against `p1rm-rsc-on`, Complete ×1.03, first byte ×1.03, first paint ×0.95: no
@@ -1247,3 +1247,591 @@ Evidence for the go/no-go so far (2026-11-21, autonomous run; the decision is th
 - Changelog: https://github.com/remix-run/react-router/blob/main/CHANGELOG.md
 - `StaticRouterProvider` source: https://github.com/remix-run/react-router/blob/main/packages/react-router/lib/dom/server.tsx
 - `@vitejs/plugin-rsc`: https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-rsc
+
+## Appendix: the code this task wrote, and what became of it (2026-11-24)
+
+The owner chose the islands path ([static-html-islands.md](../current/static-html-islands.md)) on 2026-11-24
+after the three-way measurement (that doc's log, 2026-11-23): the two paths load pages equally fast, and the
+islands path needs one build, no unstable APIs and less code. The RSC delivery was removed from the tree the
+same day. None of it was ever committed, so **this appendix is the only copy of the removed files.** They are
+reproduced in full below, as they stood at removal, so the path can be rebuilt if React Router's RSC APIs
+become stable and a reason appears (server functions, sections that mix server and client parts).
+
+### Kept, because the islands path uses it
+
+| Written by this task | Where it is now |
+|---|---|
+| Phase 0 (React Router 8) and phase 1 (the session cookie, `utils/requestScope.js`, per-user server renders) | unchanged, live on every path |
+| The capture render: `captureRender` / `captureInScope` in `render/ssr2/handler.jsx`, the capture block in `patterns/page/pages/view.jsx`, the capture's use in `sectionArray.jsx` and `dataWrapper/useDataLoader.js` | unchanged in place; the context is `IslandsCaptureContext` (`render/islands/captureContext.js`, was `RscCaptureContext` in `render/rsc/`); the slot element is `<dms-slot>` (was `<dms-rsc-slot>`) |
+| `render/rsc/ClientChrome.jsx`, `StaticSlot.jsx`, `slotHtmlContext.js`, `IslandHost.jsx`, `SectionIslands.jsx`, `clientConfig.js` | moved to `render/islands/`; `configureRscClient` / `getRscClientConfig` are `configureIslandsClient` / `getIslandsClientConfig` |
+| `patterns/page/components/sections/rscSections.js`, `RscSection.jsx` | `staticSections.js`, `CapturedSection.jsx` in the same folder |
+| The registry keys `serverStatic` and `serverIsland`, and the rules on Card, rich text, footer, the MitigateNY header and the PDF generator | unchanged |
+| The route key `serverComponent: 'page-view'` (`patterns/page/siteConfig.jsx`) | renamed `islandsView: 'page-view'` |
+| `pages/usePageViewState.js`, `utils/nav.js` (`nav2Level`), `LazyReportIssue.jsx`, the `@dms-host/*` aliases | unchanged |
+| `dms perf` RSC detection, the measurement harness in `dms-template/scratchpad/perf-rsc/` | the harness is untouched (scratch); `dms perf` keeps detecting an RSC page so old runs still read |
+
+### Removed
+
+| What | Lines | Purpose |
+|---|---|---|
+| `dms-template/vite.rsc.config.js` | 56 | the second build: `@vitejs/plugin-rsc`, three environments |
+| `render/rsc/rscHandler.js` | 115 | the request handler in front of today's SSR: documents, `.rsc` navigation payloads, `.manifest`, the can't-serve cache |
+| `render/rsc/resolvePage.js` | 93 | capture render → the page's props for `ViewDocument`; trims the island page |
+| `render/rsc/ViewDocument.jsx` | 39 | the server component: the document around `ClientChrome` and the slots |
+| `render/rsc/generateHTML.js` | 28 | payload → HTML in the `ssr` environment |
+| `render/rsc/hydrate.js` | 25 | the browser: `RSCHydratedRouter` over the payload |
+| `render/rsc/entries/{rsc,ssr,browser}.js`, `README.md` | 46 + 19 | the build's three entries |
+| `mountRsc` and its call in `render/ssr2/express/setup.mjs` | 60 | the Express mount behind `DMS_RSC=1` + `DMS_RSC_DIST_DIR` |
+| `@vitejs/plugin-rsc` (`^0.5.39`) in `dms-template/package.json` | 1 | the build plugin |
+| `window.__dmsRscPage` reads in `patterns/auth/api.js` and `providers.jsx` | 2 | replaced by `window.__dmsIslandsPage` |
+
+To build and serve it, as it was: `DMS_RSC_OUT_DIR=<dir> npx vite build --config vite.rsc.config.js`, then
+the server with `DMS_RSC=1 DMS_RSC_DIST_DIR=<dir>`. Last measured build: `hi1` (2026-11-23), earlier
+`rscsi2`.
+
+### The removed sources
+
+#### The Express mount (`render/ssr2/express/setup.mjs`)
+
+In `setupSSR`, production branch, before the SSR catch-all:
+
+```js
+    // RSC spike (rsc-view-pages.md, phase 2): DMS_RSC=1 with an RSC build in DMS_RSC_DIST_DIR (vite.rsc.config.js)
+    // puts the RSC handler in front of today's SSR. It answers what it can serve (an opted-in page view whose
+    // sections need no JavaScript, the router's `.rsc` and `.manifest` requests) and passes the rest on.
+    if (process.env.DMS_RSC === '1' && process.env.DMS_RSC_DIST_DIR) {
+      await mountRsc(app, express, {
+        rscDir: path.resolve(root, process.env.DMS_RSC_DIST_DIR),
+        handlerConfig,
+        templateHead: (cachedTemplate.match(/<head>([\s\S]*)<\/head>/) || [])[1]?.replace('<!--app-head-->', '') || '',
+        resolveSession,
+        getSiteCss,
+      })
+    }
+```
+
+And the function:
+
+```js
+async function mountRsc(app, express, { rscDir, handlerConfig, templateHead, resolveSession, getSiteCss = null }) {
+  const { Readable } = await import('node:stream')
+  const mod = await import(path.join(rscDir, 'rsc', 'index.js'))
+  mod.configure({ handlerConfig, templateHead })
+  const handler = mod.default
+  const clientDir = path.join(rscDir, 'client')
+  app.use(express.static(clientDir, {
+    index: false,
+    cacheControl: false,
+    setHeaders(res, filePath) {
+      res.setHeader('Cache-Control', path.relative(clientDir, filePath).startsWith(`rsc-assets${path.sep}`) ? IMMUTABLE : 'no-cache')
+    },
+  }))
+  app.use(async (req, res, next) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') return next()
+    const isRouterRequest = req.path.endsWith('.rsc') || req.path.endsWith('.manifest')
+    // documents only: a browser navigation asks for text/html
+    if (!isRouterRequest && !(req.headers.accept || '').includes('text/html')) return next()
+    try {
+      // Who is asking (the session cookie): the page renders as them, as on today's path, and a signed-in
+      // response (document or `.rsc` payload) is theirs alone: private, never stored.
+      const session = resolveSession ? await resolveSession(req) : null
+      // the site's server-compiled sheet for the head (navigations render it too, so they get the same one);
+      // best effort, the build's link otherwise
+      let siteCss = null
+      if (getSiteCss) {
+        try { siteCss = await getSiteCss(req) } catch (e) { console.warn('[RSC] site css failed:', e.message) }
+      }
+      const headers = new Headers()
+      for (const [k, v] of Object.entries(req.headers)) if (typeof v === 'string') headers.set(k, v)
+      const response = await handler(new Request(`${req.protocol || 'http'}://${req.headers.host}${req.originalUrl}`, { method: req.method, headers }), { session, siteCss })
+      if (response.headers.get('x-dms-rsc') === 'pass') {
+        res.setHeader('X-DMS-RSC', `pass: ${decodeURIComponent(response.headers.get('x-dms-rsc-reason') || '')}`.slice(0, 200))
+        return next()
+      }
+      res.status(response.status)
+      response.headers.forEach((v, k) => res.setHeader(k, v))
+      res.setHeader('X-DMS-RSC', 'served')
+      res.vary('Cookie')
+      if (session?.user) res.setHeader('Cache-Control', 'private, no-store')
+      if (!response.body) return res.end()
+      Readable.fromWeb(response.body).pipe(res)
+    } catch (error) {
+      console.error('[RSC] error, falling back to SSR:', error)
+      if (!res.headersSent) return next()
+      res.end()
+    }
+  })
+  console.log(`[RSC] spike mounted from ${rscDir}`)
+}
+```
+
+#### `dms-template/vite.rsc.config.js`
+
+```js
+/* global process */
+// RSC spike build (src/dms/planning/tasks/completed/rsc-view-pages.md, phase 2): React Router's RSC Data
+// Mode with @vitejs/plugin-rsc, three environments (rsc, ssr, client), built next to the normal SSR build
+// and served by the same Express server when DMS_RSC=1 (dms render/ssr2/express/setup.mjs).
+//
+//   DMS_RSC_OUT_DIR=<dir> node node_modules/vite/bin/vite.js build --config vite.rsc.config.js
+//
+// Output: <dir>/rsc/index.js (the request handler), <dir>/ssr/, <dir>/client/ (browser code under
+// /rsc-assets/, so it never collides with the normal build's /assets/). The page head (CSS, fonts) is the
+// normal build's index.html, read at runtime; this build has no CSS of its own to make.
+import path from 'path'
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import rsc from '@vitejs/plugin-rsc/plugin'
+import baseConfig from './vite.config.js'
+
+// the entries are the library's; this app says where its own modules are with the `@dms-host/*` aliases in vite.config.js
+const RSC_ENTRIES = 'src/dms/packages/dms/src/render/rsc/entries'
+
+export default defineConfig((env) => {
+  const base = baseConfig({ ...env, isSsrBuild: false })
+  const out = path.resolve(process.env.DMS_RSC_OUT_DIR || 'dist-rsc')
+  const isProd = env.mode === 'production'
+  const progress = base.plugins.find((p) => p?.name === 'build-progress')
+  return {
+    // the `@dms-host/*` aliases the library's entries import come with the base config (vite.config.js)
+    resolve: base.resolve,
+    optimizeDeps: base.optimizeDeps,
+    ssr: base.ssr,
+    plugins: [
+      // React Compiler on browser code only, as the normal build (vite.config.js): memoization is
+      // pointless in one-shot server renders, and server components can't use its cache hook.
+      react({ babel: (id, { ssr }) => (isProd && !ssr ? { plugins: ['babel-plugin-react-compiler'] } : {}) }),
+      rsc({
+        entries: {
+          client: `${RSC_ENTRIES}/browser.js`,
+          rsc: `${RSC_ENTRIES}/rsc.js`,
+          ssr: `${RSC_ENTRIES}/ssr.js`,
+        },
+        serverHandler: false,
+      }),
+      progress,
+    ].filter(Boolean),
+    environments: {
+      client: {
+        build: {
+          outDir: path.join(out, 'client'),
+          assetsDir: 'rsc-assets',
+          rollupOptions: { output: { manualChunks: base.build.rollupOptions.output.manualChunks } },
+        },
+      },
+      ssr: { build: { outDir: path.join(out, 'ssr') } },
+      rsc: { build: { outDir: path.join(out, 'rsc') } },
+    },
+  }
+})
+```
+
+#### `packages/dms/src/render/rsc/rscHandler.js`
+
+```js
+// RSC spike, `rsc` environment: the request handler (rsc-view-pages.md, phase 2, design §1).
+// Serves three kinds of request:
+//   - a document request for a page the RSC path can serve → the page as RSC, rendered to HTML by the
+//     SSR environment (generateHTML). Any other document → a 404 carrying `x-dms-rsc: pass`, and the
+//     Express mount (render/ssr2/express/setup.mjs) hands the request to today's SSR;
+//   - `<path>.rsc` (the RSC router's navigation fetch) → the payload, or, for a page it can't serve, a
+//     document redirect, so the browser loads that page the normal way (design §1: crossing between the
+//     paths is a full page load);
+//   - `<path>.manifest` and `/.manifest?paths=…` (the router's lazy route discovery) → answered by React Router.
+// No server functions: decodeAction / decodeReply / loadServerAction are not passed (design §7).
+import React from 'react'
+import { createTemporaryReferenceSet, renderToReadableStream } from '@vitejs/plugin-rsc/rsc'
+import { unstable_matchRSCServerRequest as matchRSCServerRequest, redirectDocument } from 'react-router'
+import { ViewDocument } from './ViewDocument.jsx'
+
+export const RSC_PASS_HEADER = 'x-dms-rsc'
+
+// Pages the RSC path can't serve, remembered for a while. Deciding means running today's route tree once
+// (loaders included), and a page that can't be served is then rendered again by today's SSR: measured,
+// that doubled the server time of every page left on today's path (S6 on, 2026-11-21). Only "can't
+// serve" is remembered: a stale entry sends a page that became servable down today's path, which is
+// always correct; a stale "can serve" would not be. A signed-in visitor's render is their own (what they may
+// read decides what can be served), so their entries are keyed by user as well as URL.
+const INELIGIBLE_TTL_MS = 5 * 60 * 1000
+const INELIGIBLE_MAX = 5000
+const ineligible = new Map()
+
+function ineligibleKey(docUrl, session) {
+  const u = new URL(docUrl)
+  u.searchParams.delete('_routes')
+  return `${session?.user ? `${session.user.id ?? session.user.email}|` : ''}${u.host}${u.pathname}?${u.searchParams.toString()}`
+}
+
+function recallIneligible(key) {
+  const hit = ineligible.get(key)
+  if (!hit) return null
+  if (Date.now() - hit.at > INELIGIBLE_TTL_MS) {
+    ineligible.delete(key)
+    return null
+  }
+  return hit.page
+}
+
+function rememberIneligible(key, page) {
+  if (ineligible.size >= INELIGIBLE_MAX) ineligible.delete(ineligible.keys().next().value)
+  ineligible.set(key, { at: Date.now(), page: { eligible: false, status: page.status, reason: page.reason, redirect: page.redirect } })
+}
+
+function documentRequest(request) {
+  const url = new URL(request.url)
+  if (url.pathname.endsWith('/_.rsc')) url.pathname = url.pathname.replace(/_\.rsc$/, '')
+  else if (url.pathname.endsWith('.rsc')) url.pathname = url.pathname.replace(/\.rsc$/, '')
+  return new Request(url, { headers: request.headers })
+}
+
+/**
+ * @param {object} o
+ * @param {() => Promise<{ resolveRscPage, generateHTML }>} o.loadSsr - the SSR environment's entry
+ * @param {() => object} o.getConfig - { handlerConfig, templateHead }, set by the Express mount
+ */
+export function createRscHandler({ loadSsr, getConfig }) {
+  // session: { state, user, token } from the page host's session cookie (the Express mount), or null.
+  // The page renders as its user; the mount marks a signed-in response private.
+  // siteCss: { href, partial, fallbackHtml } | null, the site's server-compiled sheet for the document head.
+  return async function handler(request, { session = null, siteCss = null } = {}) {
+    const url = new URL(request.url)
+    const isManifest = url.pathname.endsWith('.manifest')
+    const isRsc = url.pathname.endsWith('.rsc')
+    const ssr = await loadSsr()
+
+    let page = null
+    if (!isManifest) {
+      const doc = documentRequest(request)
+      const key = ineligibleKey(doc.url, session)
+      page = recallIneligible(key)
+      if (!page) {
+        page = await ssr.resolveRscPage(doc, { ...getConfig(), session, siteCss })
+        if (!page.eligible) rememberIneligible(key, page)
+      } else {
+        page = { ...page }
+      }
+      if (!page.eligible && !isRsc) {
+        return new Response(null, { status: 404, headers: { [RSC_PASS_HEADER]: 'pass', 'x-dms-rsc-reason': encodeURIComponent(page.reason || page.redirect || '') } })
+      }
+      // a navigation's payload carries the section HTML; a document's leaves it to the HTML stream (StaticSlot)
+      page.inlineSlots = isRsc
+      if (!page.eligible) page.documentUrl = page.redirect || (new URL(doc.url).pathname + url.search)
+    }
+
+    const route = { id: 'dms', path: '*' }
+    if (page?.eligible) route.Component = function DmsRscPage() { return React.createElement(ViewDocument, { page }) }
+    else {
+      route.Component = function DmsRscRedirect() { return null }
+      if (page) route.loader = () => { throw redirectDocument(page.documentUrl) }
+    }
+
+    const rscResponse = await matchRSCServerRequest({
+      createTemporaryReferenceSet,
+      request,
+      routes: [route],
+      generateResponse(match, options) {
+        return new Response(renderToReadableStream(match.payload, options), {
+          status: page?.eligible ? page.status : match.statusCode,
+          headers: match.headers,
+        })
+      },
+    })
+    if (isRsc || isManifest) return rscResponse
+    const html = await ssr.generateHTML(request, rscResponse, { slots: page?.slots })
+    // how many sections stay live in the browser (section islands): for the coverage census and debugging
+    const islands = page?.island?.sectionIslands?.sections?.length
+    if (islands) html.headers.set('x-dms-rsc-islands', String(islands))
+    return html
+  }
+}
+```
+
+#### `packages/dms/src/render/rsc/resolvePage.js`
+
+```js
+// RSC spike, SSR environment (rsc-view-pages.md, phase 2). Decides whether a request can be served by
+// the RSC path, and if so gathers everything the server component needs, as plain data:
+//   - today's route tree is rendered once with RscCaptureContext set (render/ssr2/handler.jsx
+//     captureRender). An opted-in page view whose sections are all static fills the capture and renders
+//     its three section-group slots as HTML;
+//   - the head is the normal build's own index.html head (its CSS, fonts, Tailwind runtime, analytics),
+//     without the normal client app's module scripts, plus the theme's font tags; as tag data, because
+//     the server component renders <head> as React elements.
+// Runs in the `ssr` environment, where the whole app (contexts, Lexical, linkedom) can load; the `rsc`
+// environment only orchestrates (react-server has no createContext).
+
+let parseHTML = null
+async function headTags(html) {
+  if (!html) return []
+  if (!parseHTML) parseHTML = (await import('linkedom')).parseHTML
+  const { document } = parseHTML(`<!doctype html><html><head>${html}</head><body></body></html>`)
+  return [...document.head.children].flatMap((el) => {
+    const tag = el.tagName.toLowerCase()
+    if (tag === 'script' && el.getAttribute('type') === 'module') return []
+    if (tag === 'link' && el.getAttribute('rel') === 'modulepreload') return []
+    const attrs = {}
+    for (const a of el.attributes) attrs[a.name] = a.value
+    return [{ tag, attrs, text: el.textContent || '' }]
+  })
+}
+
+// The sections that stay live in the browser (section islands, patterns/page/components/sections/
+// RscSection.jsx) and what the browser needs to run them: the page row, with element-data kept only on the
+// island sections (the static ones are HTML already), the page list's nav fields, and the CMS fields the
+// data sections read. Null when every section is static.
+function islandsOf(capture) {
+  const live = (capture.sections || []).filter((s) => !s.eligible)
+  if (!live.length || !capture.islandPage) return null
+  const page = JSON.parse(JSON.stringify(capture.islandPage))
+  const keep = new Set(live.map((s) => s.index))
+  if (Array.isArray(page.item?.sections)) {
+    page.item.sections = page.item.sections.map((section, i) =>
+      keep.has(i) || !section?.element ? section : { ...section, element: { ...section.element, 'element-data': '{}' } })
+  }
+  return { page, sections: live.map(({ key, index }) => ({ key, index })) }
+}
+
+/**
+ * @param {Function} createHandler - the app's SSR handler factory (src/entry-ssr.jsx's default export)
+ * @returns {(request: Request, config: { handlerConfig, templateHead, session }) => Promise<object>}
+ */
+export function createRscPageResolver(createHandler) {
+  let handler = null
+  let templateTags = null
+  // session (the Express mount, from the session cookie): { state, user, token }, or null. The page renders
+  // as that user, and carries who it was rendered for (never the token) so the browser starts from them.
+  return async function resolveRscPage(request, { handlerConfig, templateHead, session = null, siteCss = null }) {
+    if (!handler) handler = createHandler(handlerConfig)
+    if (!templateTags) templateTags = await headTags(templateHead)
+
+    const r = await handler.captureRender(request, { session })
+    if (r.redirect) return { eligible: false, status: r.status, redirect: r.redirect }
+    if (!r.capture?.eligible) return { eligible: false, reason: r.capture?.reason || 'not an opted-in route' }
+
+    const island = JSON.parse(JSON.stringify(r.capture.island))
+    if (session?.user) {
+      const { token, password, ...user } = session.user
+      island.session = { state: 'user', user: JSON.parse(JSON.stringify(user)) }
+    } else island.session = { state: 'anonymous' }
+    const sectionIslands = islandsOf(r.capture)
+    if (sectionIslands) island.sectionIslands = sectionIslands
+    const { loadThemes } = (await import('./clientConfig')).getRscClientConfig()
+    if (island.selection !== 'default' && loadThemes) {
+      // the client rebuilds the theme from code themes only; a theme saved in the database stays on today's path
+      const themes = await loadThemes([island.selection])
+      if (!themes?.[island.selection]) return { eligible: false, reason: `theme ${island.selection} is not a code theme` }
+    }
+    return {
+      eligible: true,
+      status: r.status,
+      title: island.title || '',
+      head: [
+        ...(await Promise.all(templateTags.map(async (t) => {
+          if (t.tag === 'title' && island.documentTitle) return [{ ...t, text: island.documentTitle }]
+          // the build's link to the site's sheet, pointed at the server-compiled one (server-compiled-site-css.md);
+          // the in-browser compiler comes with it while that sheet is partial
+          if (siteCss && t.tag === 'link' && 'data-dms-site-css' in (t.attrs || {})) {
+            return [{ ...t, attrs: { ...t.attrs, href: siteCss.href } }, ...(await headTags(siteCss.fallbackHtml))]
+          }
+          return [t]
+        }))).flat(),
+        ...(await headTags(r.themeFontsHtml)),
+      ],
+      island,
+      slots: { top: r.slots.top || '', content: r.slots.content || '', bottom: r.slots.bottom || '' },
+    }
+  }
+}
+```
+
+#### `packages/dms/src/render/rsc/ViewDocument.jsx`
+
+```jsx
+// RSC spike, `rsc` environment (rsc-view-pages.md, phase 2): the document for a page served by the RSC
+// path. A server component: no hooks, no context, nothing that calls createContext at import (react-server
+// has none). The page's content arrives as HTML from the SSR environment (resolvePage.js) and is placed as
+// static markup (StaticSlot): the browser gets no code for it and no copy of its data. A document request
+// leaves the HTML out of the payload (page.inlineSlots false; generateHTML supplies it to the SSR render).
+// The chrome is the one client component (ClientChrome, a client reference).
+import React from 'react'
+import ClientChrome from './ClientChrome.jsx'
+import StaticSlot from './StaticSlot.jsx'
+
+const ATTR_NAMES = { class: 'className', charset: 'charSet', crossorigin: 'crossOrigin', 'http-equiv': 'httpEquiv' }
+
+function HeadTag({ tag, attrs, text }) {
+  const props = {}
+  for (const [k, v] of Object.entries(attrs || {})) props[ATTR_NAMES[k] || k] = v
+  if ('defer' in props) props.defer = true
+  if ('async' in props) props.async = true
+  if ((tag === 'style' || tag === 'script') && text) props.dangerouslySetInnerHTML = { __html: text }
+  if (tag === 'title') return <title>{text}</title>
+  return React.createElement(tag, props)
+}
+
+export function ViewDocument({ page }) {
+  return (
+    <html lang="en">
+      <head>
+        {page.head.map((t, i) => <HeadTag key={i} {...t} />)}
+      </head>
+      <body>
+        <div id="root">
+          <ClientChrome island={page.island}
+            top={<StaticSlot name="top" html={page.inlineSlots ? page.slots.top : null} />}
+            content={<StaticSlot name="content" html={page.inlineSlots ? page.slots.content : null} />}
+            bottom={<StaticSlot name="bottom" html={page.inlineSlots ? page.slots.bottom : null} />} />
+        </div>
+      </body>
+    </html>
+  )
+}
+```
+
+#### `packages/dms/src/render/rsc/generateHTML.js`
+
+```js
+// RSC spike, `ssr` environment: the RSC payload → streamed HTML for a document request
+// (React Router's Data Mode RSC setup; rsc-view-pages.md, phase 2).
+import React from 'react'
+import { createFromReadableStream } from '@vitejs/plugin-rsc/ssr'
+import { renderToReadableStream } from 'react-dom/server.edge'
+import {
+  unstable_routeRSCServerRequest as routeRSCServerRequest,
+  unstable_RSCStaticRouter as RSCStaticRouter,
+} from 'react-router'
+import { SlotHtmlContext } from './slotHtmlContext'
+
+// slots: the page's section HTML (StaticSlot), which the payload of a document request leaves out
+export async function generateHTML(request, serverResponse, { slots = null } = {}) {
+  return await routeRSCServerRequest({
+    request,
+    serverResponse,
+    createFromReadableStream,
+    async renderHTML(getPayload, options) {
+      const bootstrapScriptContent = await import.meta.viteRsc.loadBootstrapScriptContent('index')
+      return await renderToReadableStream(
+        React.createElement(SlotHtmlContext.Provider, { value: slots }, React.createElement(RSCStaticRouter, { getPayload })), {
+        ...options,
+        bootstrapScriptContent,
+        signal: request.signal,
+      })
+    },
+  })
+}
+```
+
+#### `packages/dms/src/render/rsc/hydrate.js`
+
+```js
+// RSC spike, browser: hydrate the document with React Router's RSC router (rsc-view-pages.md, phase 2).
+// No server functions, so no setServerCallback (design §7).
+import React, { startTransition, StrictMode } from 'react'
+import { hydrateRoot } from 'react-dom/client'
+import { createFromReadableStream } from '@vitejs/plugin-rsc/browser'
+import {
+  unstable_getRSCStream as getRSCStream,
+  unstable_RSCHydratedRouter as RSCHydratedRouter,
+} from 'react-router/dom'
+
+export function hydrateRsc() {
+  // An RSC page: the session cookie is kept in step from here too (patterns/auth/api.js syncSessionCookie).
+  // The page says who it was rendered for in its chrome's props (island.session: the user, or 'anonymous'
+  // for the document every visitor who isn't signed in shares); providers.jsx reads it.
+  window.__dmsRscPage = true
+  createFromReadableStream(getRSCStream()).then((payload) => {
+    startTransition(() => {
+      hydrateRoot(
+        document,
+        React.createElement(StrictMode, null,
+          React.createElement(RSCHydratedRouter, { createFromReadableStream, payload })),
+      )
+    })
+  })
+}
+```
+
+#### `packages/dms/src/render/rsc/entries/rsc.js`
+
+```js
+// RSC path, `rsc` environment entry (rsc-view-pages.md, phase 2). Named in the host app's RSC build config
+// (dms-template vite.rsc.config.js); the Express mount (render/ssr2/express/setup.mjs) calls `configure`
+// once, then the default export per request. The work is in ../rscHandler.js.
+import { createRscHandler } from '../rscHandler.js'
+
+let config = {}
+export function configure(values) { config = values }
+
+export default createRscHandler({
+  loadSsr: () => import.meta.viteRsc.loadModule('ssr', 'index'),
+  getConfig: () => config,
+})
+```
+
+#### `packages/dms/src/render/rsc/entries/ssr.js`
+
+```js
+// RSC path, `ssr` environment entry (rsc-view-pages.md, phase 2): HTML from the RSC payload, and the page
+// resolver, which renders today's route tree with the host app's own SSR handler (its themes, plugins and
+// widgets). The `@dms-host/*` modules are the host app's, named by aliases in its RSC build config
+// (see ./README.md).
+import createHandler from '@dms-host/ssr-handler'
+import loadThemes from '@dms-host/themes'
+import { API_HOST } from '@dms-host/api-host'
+import { createRscPageResolver } from '../resolvePage.js'
+import { configureRscClient } from '../clientConfig.js'
+
+export { generateHTML } from '../generateHTML.js'
+
+// the client chrome also renders here (to HTML); it fetches nothing on the server
+configureRscClient({ loadThemes, API_HOST, AUTH_HOST: API_HOST })
+
+export const resolveRscPage = createRscPageResolver(createHandler)
+```
+
+#### `packages/dms/src/render/rsc/entries/browser.js`
+
+```js
+// RSC path, browser entry (rsc-view-pages.md, phase 2): the only code a page served by the RSC path loads
+// is this, the RSC router, the client chrome (../ClientChrome.jsx) and the theme. The `@dms-host/*` modules
+// are the host app's, named by aliases in its RSC build config (see ./README.md).
+//
+// Every nav widget the server registers must be registered by `@dms-host/widgets` too, or the Layout draws
+// its empty placeholder where the server drew the widget, and hydration fails.
+import loadThemes from '@dms-host/themes'
+import '@dms-host/widgets'
+import { API_HOST } from '@dms-host/api-host'
+import { configureRscClient } from '../clientConfig.js'
+import { hydrateRsc } from '../hydrate.js'
+
+configureRscClient({
+  loadThemes, API_HOST, AUTH_HOST: API_HOST, isMultiTenant: import.meta.env.VITE_DMS_MULTI_TENANT === '1',
+  // the host's plugins, for the section types they ship: loaded only by a page with section islands
+  loadPatternTypes: () => import('@dms-host/plugins'),
+})
+hydrateRsc()
+```
+
+#### `packages/dms/src/render/rsc/entries/README.md`
+
+```md
+# RSC build entries
+
+The three entries of the RSC build (`@vitejs/plugin-rsc`: `rsc`, `ssr`, `client`). A host app names them in
+its RSC build config and writes no entry code of its own. The islands path's browser entry
+(`../../islands/entry.browser.jsx`, a second input of the app's normal client build) works the same way.
+What the library can't import itself, it imports through five aliases the host's build config must define:
+
+| Alias | The host module | Used by |
+|---|---|---|
+| `@dms-host/ssr-handler` | default export `createHandler(config)`: the app's SSR handler factory, with its themes, plugins and widgets loaded | `ssr.js` |
+| `@dms-host/themes` | default export `loadThemes(names) => Promise<{ [name]: theme }>` | `ssr.js`, `browser.js` |
+| `@dms-host/api-host` | named export `API_HOST` | `ssr.js`, `browser.js` |
+| `@dms-host/widgets` | side effect: registers every nav widget the server registers, without loading the plugins | `browser.js` |
+| `@dms-host/plugins` | side effect: registers the app's plugins. Loaded lazily, by pages with section islands | `browser.js` |
+
+The islands entry uses `themes`, `api-host`, `widgets` and `plugins`.
+
+Example: `dms-template/vite.config.js` (the aliases, and the islands entry as a second `input`) and
+`dms-template/vite.rsc.config.js` (the RSC entries).
+```

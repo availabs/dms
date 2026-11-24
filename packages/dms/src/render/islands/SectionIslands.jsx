@@ -1,5 +1,5 @@
-// RSC path (rsc-view-pages.md, phase 2): a server-rendered page's live sections. Loaded lazily by
-// IslandHost after hydration; this module is the one place the RSC client bundle reaches the page
+// Islands path (static-html-islands.md): a server-rendered page's live sections. Loaded lazily by
+// IslandHost after hydration; this module is the one place the islands entry reaches the page
 // pattern's section code (the registry, dataWrapper, column types), so pages with no islands never load it.
 //
 // For each island the server's HTML stays in place (inside the slot's `data-dms-island` element) until
@@ -7,10 +7,12 @@
 // commit, before paint. All islands share one PageContext, rebuilt here as the page view builds it
 // (usePageViewState), so filters and component actions between live sections work as on today's path.
 // Static sections are HTML and don't react to page state; only sections that read no data are static.
+// A `wake` section keeps its server HTML until the reader uses it (IslandHost's `awake`) or the page's
+// state is no longer what the server rendered with (a filter, an action parameter, the URL's parameters).
 import React from 'react'
 import { createPortal } from 'react-dom'
 import { SectionView } from '../../patterns/page/components/sections/section'
-import { registerComponents } from '../../patterns/page/components/sections/componentRegistry'
+import { registerComponents, getRegisteredComponents } from '../../patterns/page/components/sections/componentRegistry'
 import { registerSectionHeaderExtensions } from '../../patterns/page/components/sections/sectionHeaderExtensions'
 import { registerFormatFunction } from '../../patterns/page/components/sections/components/dataWrapper/utils/utils'
 import { FilterControlCell } from '../../patterns/page/components/sections/FilterControlCell'
@@ -46,13 +48,18 @@ function registerThemeParts(theme) {
 class IslandBoundary extends React.Component {
   constructor(props) { super(props); this.state = { failed: false } }
   static getDerivedStateFromError() { return { failed: true } }
-  componentDidCatch(error) { console.error('[RSC] section island failed, keeping its server HTML', error) }
+  componentDidCatch(error) {
+    this.props.container.style.removeProperty('cursor')
+    console.error('[islands] section island failed, keeping its server HTML', error)
+  }
   render() { return this.state.failed ? null : this.props.children }
 }
 
-function RemoveServerNodes({ nodes }) {
+function RemoveServerNodes({ nodes, container }) {
   React.useLayoutEffect(() => {
     nodes.forEach((n) => n.parentNode?.removeChild(n))
+    container.style.removeProperty('cursor')
+    container.dataset.dmsIslandLive = ''
   }, [nodes])
   return null
 }
@@ -62,21 +69,22 @@ function Island({ container, section, group, attributes, format }) {
   const isSpreadsheet = section?.element?.['element-type'] === 'Spreadsheet'
   const [active, setActive] = React.useState(false)
   return createPortal(
-    <IslandBoundary>
+    <IslandBoundary container={container}>
       <React.Suspense fallback={null}>
         <div style={{ display: 'contents' }} onClick={isSpreadsheet ? () => setActive(true) : undefined}>
           <SectionView i={0} group={group} value={section} attributes={attributes} format={format}
             isActive={isSpreadsheet ? active : undefined} />
         </div>
-        <RemoveServerNodes nodes={serverNodes} />
+        <RemoveServerNodes nodes={serverNodes} container={container} />
       </React.Suspense>
     </IslandBoundary>,
     container,
   )
 }
 
-export default function SectionIslands({ islands }) {
+export default function SectionIslands({ islands, awake }) {
   const { page, sections } = islands
+  const registry = getRegisteredComponents()
   const cms = React.useContext(CMSContext) || {}
   const { theme } = React.useContext(ThemeContext) || {}
   registerThemeParts(theme)
@@ -97,6 +105,12 @@ export default function SectionIslands({ islands }) {
 
   const { pageState, setPageState, updatePageStateFilters, setActionParam, clearActionParam } =
     usePageViewState({ item, patternFilters: page.patternFilters || [], baseUrl, syncUrl: !item?.nav_link })
+
+  // the page state the server rendered with: once it differs, the waiting sections mount too
+  const filtersNow = JSON.stringify(pageState.filters || [])
+  const [filtersAtFirst] = React.useState(filtersNow)
+  const stateChanged = React.useRef(false)
+  if (filtersNow !== filtersAtFirst) stateChanged.current = true
 
   const apiLoad = React.useCallback((config, path) => dmsDataLoader(falcor, config, path || '/'), [falcor])
   const apiUpdate = React.useCallback(({ data, config = { format }, requestType = '' }) =>
@@ -121,10 +135,13 @@ export default function SectionIslands({ islands }) {
     <CMSContext.Provider value={cmsValue}>
       <DataSourceContext.Provider value={dataSources}>
         <PageContext.Provider value={pageValue}>
-          {sections.map(({ key, index }) => {
+          {sections.map(({ key, index, wake }) => {
             const section = item?.sections?.[index]
             const container = containers[key]
             if (!section || !container) return null
+            if (wake && !awake?.has(key) && !stateChanged.current) return null
+            // a type nothing registered (its plugin did not load): the server HTML stays
+            if (!registry[section.element?.['element-type'] || 'lexical']) return null
             const group = (item?.section_groups || []).find((g) => g.name === (section.group || 'default')) || { name: section.group || 'default' }
             return <Island key={key} container={container} section={section} group={group} attributes={sectionAttributes} format={format} />
           })}

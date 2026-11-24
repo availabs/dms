@@ -10,11 +10,17 @@ export function detectFromHtml(html = '') {
   // as such; today's pages have none and measure as before.
   const flightBytes = [...html.matchAll(/__FLIGHT_DATA\|\|=\[\]\)\.push\(([\s\S]*?)\)<\/script>/g)].reduce((n, m) => n + m[1].length, 0);
   const rsc = html.includes('__FLIGHT_DATA');
+  // Static HTML with islands (static-html-islands.md): the chrome's props and the live sections' data arrive
+  // in one JSON script. It is that page's hydration data.
+  const islandData = html.match(/<script type="application\/json" id="dms-islands">([\s\S]*?)<\/script>/);
+  const islands = !!islandData;
   return {
-    // server-rendered: the document arrives with the page inside #root and the SSR data script, or as RSC
-    ssr: (html.includes('__dmsSSRData') || rsc) && rootHasContent,
+    // server-rendered: the document arrives with the page inside #root and the SSR data script, as RSC, or
+    // as static HTML with islands
+    ssr: (html.includes('__dmsSSRData') || rsc || islands) && rootHasContent,
     rsc,
-    hydrationBytes: ((html.match(/__staticRouterHydrationData = JSON\.parse\((".*?")\);/s) || [])[1]?.length || 0) + flightBytes,
+    islands,
+    hydrationBytes: ((html.match(/__staticRouterHydrationData = JSON\.parse\((".*?")\);/s) || [])[1]?.length || 0) + flightBytes + (islandData ? islandData[1].length : 0),
     // a dev server (Vite, unbundled modules): not what a visitor is served
     devBuild: html.includes('/@vite/client') || html.includes('/@react-refresh'),
     rootBytes: root ? root[1].length : null,

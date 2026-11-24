@@ -244,22 +244,33 @@ async function measureClick(page, net, cfg, targetPaths) {
   try {
     if (link.visible) await target.click({ timeout: 5000, noWaitAfter: true });
     else throw new Error('hidden');
-  } catch {
+  } catch (e) {
     // a link inside a collapsed menu: clicked from script, which the router handles the same way.
     // Chrome doesn't count it as a user action, so there is no soft-navigation entry for it.
     out.scriptedClick = true;
+    // why the real click did not land, when the link was visible (Playwright's own account of the wait)
+    if (link.visible) out.clickError = String(e.message || e).split('\n').map((l) => l.trim()).filter(Boolean).slice(0, 14).join(' | ').slice(0, 900);
     await inPage(page, () => document.querySelector('[data-dms-perf-link]')?.click());
   }
   try {
     await page.waitForFunction((ps) => ps.includes((location.pathname || '/').replace(/\/+$/, '') || '/'), targetPaths, { timeout: 15000, polling: 50 });
   } catch { out.urlNeverChanged = true; }
-  const after = await inPage(page, () => ({ origin: performance.timeOrigin, lastClick: window.__dmsPerf.lastClick }));
+  const after = await inPage(page, () => {
+    let clickAt = null;
+    try { clickAt = Number(sessionStorage.getItem('__dmsPerfClick')) || null; } catch { /* storage off */ }
+    return { origin: performance.timeOrigin, lastClick: window.__dmsPerf.lastClick, clickAt };
+  });
   out.fullLoad = after.origin !== before.origin;   // the click loaded a new document
   const since = out.fullLoad ? 0 : (after.lastClick ?? 0);
   const done = await waitComplete(page, { quietMs: cfg.quietMs, timeoutMs: cfg.timeoutMs, since });
   const m = await inPage(page, (s) => window.__dmsPerf.read(s), since);
   // a new document's clock starts at its own navigation; put it back on the click's clock
-  const shift = out.fullLoad ? (after.origin - wall) : -since;
+  // The runner can wait seconds before its click lands: Playwright waits for an animation frame, and a page
+  // that isn't the browser's front page gets none (several pages measure at once). That wait is the
+  // runner's, not the site's, so a click that loads a document is timed from the click event itself.
+  const clickWall = out.fullLoad && after.clickAt >= wall ? after.clickAt : wall;
+  out.clickWaitMs = Math.round(clickWall - wall);
+  const shift = out.fullLoad ? (after.origin - clickWall) : -since;
   const rel = (t) => (t == null ? null : round(t + shift));
   const soft = out.fullLoad ? null : m.softNavs.slice(before.softNavs).find((s) => s.start >= since - 5);
   const urlChange = out.fullLoad ? null : (m.urlChanges.find(([t]) => t >= since - 5) || [])[0];

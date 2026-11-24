@@ -1,14 +1,13 @@
 import ComponentRegistry from './components/ComponentRegistry'
+import { registered as registeredComponents, registerComponent, registerComponents } from './componentRegistryStore'
 
-const registeredComponents = { ...ComponentRegistry }
-
-export function registerComponent(name, definition) {
-    registeredComponents[name] = definition
+// The built-in section types join whatever is registered already (a plugin can register before this module
+// loads); a registered type of the same name wins, as it does when it registers afterwards.
+for (const [name, definition] of Object.entries(ComponentRegistry)) {
+    if (!(name in registeredComponents)) registeredComponents[name] = definition
 }
 
-export function registerComponents(comps = {}) {
-    Object.assign(registeredComponents, comps)
-}
+export { registerComponent, registerComponents }
 
 export function getRegisteredComponents() {
     return registeredComponents

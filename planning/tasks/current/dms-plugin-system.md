@@ -788,3 +788,11 @@ All settled 2026-11-23 (D9–D11).
   fetch-and-verify; spike S1: import map + `host.contexts`, SSR resolve hook). All suites run; failures listed above
   predate this work. Nothing committed.
 
+- 2026-11-24 — from the islands task (`static-html-islands.md`, priority C: less JavaScript): a page served as
+  static HTML with islands now loads only the plugins its live sections need. Owner's direction: computed, never
+  declared by the plugin's maintainer. `owners` and the plugin records moved into `plugins/registries.js`
+  (`contributionOwners`, `pluginRecords`; `plugins/index.js` fills them as before) so the server render can ask
+  `pluginsOfSections(sections)` without importing the registration code. The app gained `src/plugins/loaders.js`
+  (one loader per plugin folder, by glob), which the islands browser entry uses in place of `src/plugins/index.js`.
+  A plugin installed at run time is loaded on those pages from the API host by name and version (written, not yet
+  exercised with an installed plugin). Not saved on the activation row: a compiled-in plugin has no row.

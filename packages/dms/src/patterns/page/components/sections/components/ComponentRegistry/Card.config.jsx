@@ -810,7 +810,7 @@ export default {
     showAllColumnsControl: false,
     usesItemMutationProps: true,
     themeKey: 'dataCard',
-    // Read by the RSC spike (render/rsc, rsc-view-pages.md phase 2): a Card is static markup in view unless
+    // Read by the islands path (render/islands, static-html-islands.md): a Card is static markup in view unless
     // something on it responds to the reader (cardServerStatic).
     serverStatic: cardServerStatic,
     defaultState: {
