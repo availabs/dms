@@ -131,6 +131,14 @@ async function run() {
   });
 
   // the admin's Plugins page (P2 step 5): what is installed, what is running, switching the current version
+  await t('host: only the hub app is told it is the hub (public, not cached)', async () => {
+    const hub = await call('GET', '/_dms/plugins/host?app=hubapp');
+    assert.strictEqual(hub.status, 200, hub.text);
+    assert.deepStrictEqual(hub.json, { hub: true });
+    assert.strictEqual(hub.headers.get('cache-control'), 'no-store');
+    assert.deepStrictEqual((await call('GET', '/_dms/plugins/host?app=netlifysite')).json, { hub: false });
+    assert.deepStrictEqual((await call('GET', '/_dms/plugins/host')).json, { hub: false });
+  });
   await t('manage: refused signed out and without install-plugins', async () => {
     assert.strictEqual((await call('GET', '/_dms/plugins/manage')).status, 401);
     assert.strictEqual((await call('GET', '/_dms/plugins/manage', { user: 2 })).status, 403);

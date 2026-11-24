@@ -348,3 +348,12 @@ blocked, and every element's computed style compared (25 properties). Scripts an
   `test-site-css.js` (26). The gap check's `inline-editor-image` / `font-display` hits are false positives (they
   appear only inside other classes' selectors).
 
+- 2026-11-24 — **SPA (Netlify) pages and a partial sheet.** A page dms-server serves gets the in-browser compiler
+  while an app's first content scan runs (`applyToHtml`); a Netlify-served page can't, so it got the partial sheet
+  (no content classes, cached 10 s). Now `/_dms/css/site/<app>/<type>.css` waits for the scan and the rebuild after
+  it, up to `DMS_CSS_SITE_WAIT_MS` (default 20 s; `0` answers at once), through `settledSheetFor`. Only the first
+  scan of an app (no saved `content.json`, one older than the change log, or a failed one) is slow; a restart
+  with the saved scan catches up in moments. The first scans measured above (TransportNY 87 s, MitigateNY 436 s,
+  from this laptop) are longer than the wait, so after deploying to a fresh server keep `DMS_CSS_DIR` on a lasting
+  volume and ask for each site's sheet once before its build goes live. Test `test-site-css.js` 6b (29/29): a
+  slowed scan, the first answer complete with the wait and partial without it. Not committed.

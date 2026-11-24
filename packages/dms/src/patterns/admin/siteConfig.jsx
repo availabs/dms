@@ -16,6 +16,7 @@ import { siteCan, patternCan, tabPermission, VIEW_PATTERN_LIST, MANAGE_TENANTS, 
 import { adminNavOptions } from "../../utils/userMenus";
 
 import { lazyComponent } from "../../utils/lazyComponent";
+import { usePluginHub } from "./usePluginHub";
 import { getPatternType } from "../registry";
 
 // Code-split: the admin pattern is mounted on every site (pattern2routes
@@ -139,10 +140,11 @@ const adminConfig = ({
     baseUrl,
     children: [
       {
-        type: (props) => {
+        type: function AdminLayout(props) {
           const { user, apiUpdate } = props;
           const { Layout, LayoutGroup } = UI;
-          const menuItems = getMenuItems(baseUrl, authPath, props.user, { app, authPermissions, isMultiTenant, tenantSubdomain });
+          const pluginHub = usePluginHub(API_HOST, app, mayInstallPlugins(user, { app, authPermissions, isMultiTenant, tenantSubdomain }));
+          const menuItems = getMenuItems(baseUrl, authPath, props.user, { app, authPermissions, isMultiTenant, tenantSubdomain, pluginHub });
           return (
             <AdminContext.Provider
               value={{
@@ -162,6 +164,7 @@ const adminConfig = ({
                 subdomain,
                 tenantSubdomain,
                 pgEnv,
+                pluginHub,
               }}
             >
               <ThemeContext.Provider value={{ theme, themes, themesLoader, UI }}>
@@ -263,8 +266,8 @@ const adminConfig = ({
           },
           {
             type: (props) => (
-              // The plugin releases installed on this server (pages/plugins.jsx gates it to the server's root site
-              // and install-plugins); reads and writes go to dms-server's /_dms/plugins routes.
+              // The plugin releases installed on this server (pages/plugins.jsx gates it to the server's hub and
+              // install-plugins); reads and writes go to dms-server's /_dms/plugins routes.
               <SectionGroup card={false} padding="p-0" maxWidth="max-w-5xl">
                 <PluginsPage {...props} />
               </SectionGroup>
@@ -360,10 +363,11 @@ const patternConfig = ({
     baseUrl,
     children: [
       {
-        type: (props) => {
+        type: function PatternAdminLayout(props) {
           const { Layout } = UI;
           const { user, apiUpdate, dataItems = [], params = {} } = props;
-          const menuItems = getMenuItems(parentBaseUrl, authPath, props.user, { app, authPermissions, isMultiTenant, tenantSubdomain });
+          const pluginHub = usePluginHub(API_HOST, app, mayInstallPlugins(user, { app, authPermissions, isMultiTenant, tenantSubdomain }));
+          const menuItems = getMenuItems(parentBaseUrl, authPath, props.user, { app, authPermissions, isMultiTenant, tenantSubdomain, pluginHub });
           // `props` here comes from the SAME EditWrapper every route node goes
           // through (dms-manager/wrapper.jsx) — `dataItems` is always the full,
           // unfiltered loader result for this format (every sibling pattern),
@@ -446,7 +450,12 @@ export default [adminConfig, patternConfig];
 // user while the auth pattern grants nothing beyond public). NB: those route
 // checks don't actually block today — dms-manager/_auth.js getReqAuth drops
 // the pattern's authPermissions — so hiding the link is the only gate.
-const getMenuItems = (baseUrl, authPath, user, { app, authPermissions, isMultiTenant = false, tenantSubdomain = '' } = {}) => {
+// The Plugins page is for the server's hub (usePluginHub asks the server) and a user holding install-plugins on it;
+// never a tenant host. This is who may see it at all; the hub answer comes after.
+const mayInstallPlugins = (user, { app, authPermissions, isMultiTenant = false, tenantSubdomain = '' } = {}) =>
+  !(isMultiTenant && tenantSubdomain) && siteCan(user, app, authPermissions, INSTALL_PLUGINS);
+
+const getMenuItems = (baseUrl, authPath, user, { app, authPermissions, isMultiTenant = false, tenantSubdomain = '', pluginHub = false } = {}) => {
   // Icon names are keys in the base registry (ui/icons/icon_defs.jsx) — same
   // set patterns/auth/siteConfig.jsx's manageAuthConfig uses for this same
   // menu when reached via the auth pattern, kept in sync here so the sidenav
@@ -469,8 +478,9 @@ const getMenuItems = (baseUrl, authPath, user, { app, authPermissions, isMultiTe
       path: `${baseUrl}/storage`,
       icon: 'HardDrive',
     }] : []),
-    // Installing plugins on this server: its root site only, never a tenant host (pages/plugins.jsx).
-    ...(!(isMultiTenant && tenantSubdomain) && siteCan(user, app, authPermissions, INSTALL_PLUGINS) ? [{
+    // Installing plugins on this server: its hub only (not another site sharing the API host), never a tenant host
+    // (pages/plugins.jsx).
+    ...(pluginHub === true && mayInstallPlugins(user, { app, authPermissions, isMultiTenant, tenantSubdomain }) ? [{
       name: "Plugins",
       path: `${baseUrl}/plugins`,
       icon: 'Puzzle',

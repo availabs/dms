@@ -12,6 +12,8 @@
  *   5. A restart (fresh module) loads the saved scan, catches up from the change log, and is complete at once.
  *   6. applyToHtml points the build's `<link data-dms-site-css>` at the sheet, with the in-browser compiler
  *      while partial; the routes serve the hashed sheet (immutable) and the site's current one (ETag, 304).
+ *   6b. The site route, asked during an app's first content scan, waits for it and answers complete
+ *      (DMS_CSS_SITE_WAIT_MS=0: at once, partial).
  *
  * Needs the app's Tailwind (dms-template's node_modules); skips when it isn't there.
  * Database: DMS_TEST_DB=dms-sqlite-test (default) or dms-postgres-test.
@@ -176,6 +178,38 @@ async function main() {
   const bad = await get(`/_dms/css/${TEST_APP}/${SITE_TYPE}/nothex.css`);
   check('a name that isn\'t a hash is not served', bad.status === 404 || bad.status === 200 && bad.body === '' || bad.status >= 400);
   server.close();
+
+  console.log('\n6b. the site route during a first content scan (a Netlify page has no in-browser compiler to fall back on)');
+  const firstRequest = async (env) => {
+    await sleep(2500);   // an earlier module's delayed save of the content set must not land after the delete
+    fs.rmSync(path.join(CSS_DIR, TEST_APP, 'content.json'), { force: true });   // a server that never scanned this app
+    if (env == null) delete process.env.DMS_CSS_SITE_WAIT_MS; else process.env.DMS_CSS_SITE_WAIT_MS = env;
+    // a slow content scan (a big app's takes seconds): each batch of the full scan waits 1.5 s
+    const db = getDb(DB_NAME);
+    const query = db.query;
+    db.query = async function (sql, ...rest) {
+      if (/ORDER BY id LIMIT/.test(String(sql))) await sleep(1500);
+      return query.call(this, sql, ...rest);
+    };
+    const mod = fresh();
+    const a = express();
+    mod.registerRoutes(a, { defaultManifest: () => manifestFile });
+    const srv = a.listen(0);
+    const p = srv.address().port;
+    const res = await new Promise((resolve, reject) => {
+      http.get({ port: p, path: `/_dms/css/site/${TEST_APP}/${SITE_TYPE}.css` }, r => { let b = ''; r.on('data', d => b += d); r.on('end', () => resolve({ status: r.statusCode, headers: r.headers, body: b })); }).on('error', reject);
+    });
+    srv.close();
+    db.query = query;
+    return res;
+  };
+  const waited = await firstRequest(null);
+  check('waits: the first answer is the complete sheet', waited.status === 200 && !/-p"$/.test(waited.headers.etag || '') && /max-age=60/.test(waited.headers['cache-control']));
+  check('waits: with the content classes', waited.body.includes(sel('md:grid-cols-[1fr_2fr]')) && waited.body.includes(sel('xl:gap-[13px]')));
+  const noWait = await firstRequest('0');
+  check('DMS_CSS_SITE_WAIT_MS=0: answers at once, partial and briefly cached', noWait.status === 200 && /-p"$/.test(noWait.headers.etag || '') && /max-age=10/.test(noWait.headers['cache-control']));
+  delete process.env.DMS_CSS_SITE_WAIT_MS;
+  await sleep(3000);   // let the last scan finish before the folder goes
 
   fs.rmSync(CSS_DIR, { recursive: true, force: true });
   console.log(`\n${passed} passed, ${failed} failed`);

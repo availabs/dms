@@ -11,11 +11,12 @@ import { pluginsPageTheme } from './plugins.theme'
 // its release index.json URL, see each plugin's versions, what they contribute and ask for, and pick the current
 // version (what new activations get; its server code after a restart). Turning a plugin on for a site is the
 // Plugins card on that site's settings page (components/pluginsCard.jsx), not here.
-// The server's root site only (a single-site server, or the hub's root, never a tenant host), for a user with
-// install-plugins on it; dms-server's /_dms/plugins routes judge the caller again. Server code loads when the
+// The server's hub only (the site the server says is its hub, ../usePluginHub.js: not another site sharing the API
+// host, such as a Netlify SPA, and never a tenant host), for a user with install-plugins on it; dms-server's
+// /_dms/plugins routes judge the caller again. Server code loads when the
 // server starts (D2), so a plugin whose current version's server code isn't running says so: an admin restarts.
 export default function PluginsPage() {
-	const { API_HOST, baseUrl, authPath, app, user, authPermissions, isMultiTenant, tenantSubdomain } = React.useContext(AdminContext) || {}
+	const { API_HOST, baseUrl, authPath, app, user, authPermissions, isMultiTenant, tenantSubdomain, pluginHub } = React.useContext(AdminContext) || {}
 	const { UI, theme: themeFromContext = {} } = React.useContext(ThemeContext) || {}
 	const { Button, Input, Pill, Select } = UI
 	const h = { ...editSiteTheme, ...(themeFromContext?.admin?.editSite || {}) }
@@ -28,7 +29,9 @@ export default function PluginsPage() {
 	const [busy, setBusy] = React.useState('')
 	const [installed, setInstalled] = React.useState(null)   // the last install's answer
 
-	const hasAccess = !(isMultiTenant && tenantSubdomain) && siteCan(user, app, authPermissions, INSTALL_PLUGINS)
+	// pluginHub: null while the admin layout asks the server, then true or false
+	const mayInstall = !(isMultiTenant && tenantSubdomain) && siteCan(user, app, authPermissions, INSTALL_PLUGINS)
+	const hasAccess = mayInstall && pluginHub === true
 
 	React.useEffect(() => {
 		if (!user?.authed) {
@@ -36,8 +39,8 @@ export default function PluginsPage() {
 			return
 		}
 		if (user?.isAuthenticating) return
-		if (!hasAccess) navigate(baseUrl || '/')
-	}, [user?.authed, user?.isAuthenticating, JSON.stringify(user?.groups), hasAccess])
+		if (!mayInstall || pluginHub === false) navigate(baseUrl || '/')
+	}, [user?.authed, user?.isAuthenticating, JSON.stringify(user?.groups), mayInstall, pluginHub])
 
 	const call = React.useCallback(async (path, body) => {
 		const res = await authedFetch(`${API_HOST}/_dms/plugins${path}`, body

@@ -27,6 +27,8 @@ const { getDb } = require('../db');
 const { resolveTable } = require('../db/table-resolver');
 
 const CSS_DIR = process.env.DMS_CSS_DIR || path.resolve(__dirname, '../../var/css');
+// how long the site route (a statically served page's sheet) waits for an app's first content scan
+const siteWaitMs = () => { const n = Number(process.env.DMS_CSS_SITE_WAIT_MS); return Number.isFinite(n) && n >= 0 ? n : 20000; };
 const SEGMENT = /^[\w.+-]+$/;
 const BATCH = 1000;
 // element-data keys that hold cached rows and source metadata, never class strings (P0: ~95% of a big app's bytes)
@@ -318,6 +320,32 @@ async function sheetFor({ app, type, manifestFile }) {
   return rec.current || rec.building;
 }
 
+/**
+ * The sheet for a page the server doesn't serve (the `/_dms/css/site/…` route: a Netlify-served SPA links it, and
+ * no in-browser compiler can be added to that page's head). While the app's content scan is still running the
+ * sheet is partial, so this waits for the scan and the rebuild after it, up to `waitMs` in all, and answers with
+ * whatever sheet it has then (still partial only when the scan took longer, or failed).
+ */
+async function settledSheetFor(site, { waitMs = 20000 } = {}) {
+  const deadline = Date.now() + waitMs;
+  const until = (p) => {
+    let timer;
+    const ms = Math.max(0, deadline - Date.now());
+    return Promise.race([p, new Promise(r => { timer = setTimeout(r, ms); timer.unref?.(); })]).finally(() => clearTimeout(timer));
+  };
+  let sheet = await sheetFor(site);
+  if (!sheet || !sheet.partial) return sheet;
+  const entry = await manifestOf(site.manifestFile);
+  const state = entry && contentOf(site.app, entry);
+  if (!state) return sheet;
+  await until(state.ready);
+  if (!state.done || state.failed) return sheet;
+  sheet = await sheetFor(site);   // starts the rebuild the finished scan asked for
+  const rec = sheets.get(`${site.manifestFile}|${site.app}+${site.type}`);
+  if (rec && rec.building) await until(rec.building);
+  return (rec && rec.current) || sheet;
+}
+
 // The in-browser compiler, for a page whose sheet is partial (and the editor): the version the build used, and the
 // app's `dark` variant (src/index.css).
 const fallbackHtml = (version) =>
@@ -359,12 +387,13 @@ function registerRoutes(app, { defaultManifest }) {
     res.set({ 'Content-Type': 'text/css; charset=utf-8', 'Cache-Control': 'public, max-age=31536000, immutable', 'Access-Control-Allow-Origin': '*' });
     res.sendFile(p);
   });
-  // `/_dms/css/site/<app>/<type>.css`: always the current sheet, revalidated by ETag (Netlify-served sites link it)
+  // `/_dms/css/site/<app>/<type>.css`: always the current sheet, revalidated by ETag (Netlify-served sites link it).
+  // Such a page has no in-browser compiler to fall back on, so a first request during the content scan waits for it.
   app.get('/_dms/css/site/:app/:file', async (req, res, next) => {
     const m = /^([\w.+-]+)\.css$/.exec(req.params.file);
     if (!m) return next();
     try {
-      const s = await sheetFor({ app: req.params.app, type: m[1], manifestFile: defaultManifest() });
+      const s = await settledSheetFor({ app: req.params.app, type: m[1], manifestFile: defaultManifest() }, { waitMs: siteWaitMs() });
       if (!s) return res.status(404).set('Cache-Control', 'no-store').send('');
       const etag = `"${s.hash}${s.partial ? '-p' : ''}"`;
       res.set({ 'Content-Type': 'text/css; charset=utf-8', 'Cache-Control': `public, max-age=${s.partial ? 10 : 60}`, ETag: etag, 'Access-Control-Allow-Origin': '*' });
@@ -377,4 +406,4 @@ function registerRoutes(app, { defaultManifest }) {
   });
 }
 
-module.exports = { sheetFor, headInfo, applyToHtml, noteChange, registerRoutes, rowText, CSS_DIR };
+module.exports = { sheetFor, settledSheetFor, headInfo, applyToHtml, noteChange, registerRoutes, rowText, CSS_DIR };

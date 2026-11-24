@@ -10,6 +10,9 @@
  *
  * Admin (after the auth middleware):
  *   GET  /_dms/plugins                            installed plugins [{ name, versions, current }] (signed in)
+ *   GET  /_dms/plugins/host?app=<app>             { hub }: whether that app is this server's hub, the one site whose
+ *                                                 admin installs plugins here (public; the admin hides the Plugins
+ *                                                 page elsewhere, e.g. on Netlify sites sharing this API host)
  *   GET  /_dms/plugins/manage                     the admin's Plugins page (`install-plugins`, as below): each
  *                                                 installed plugin with its versions (what each contributes and asks
  *                                                 for, whether it has server code), the current one, the one whose
@@ -135,6 +138,14 @@ function registerAdminRoutes(app, { dir, controller, siteCan, requireUser, verif
   app.get('/_dms/plugins', (req, res) => {
     if (!requireUser(req, res)) return;
     res.json(store.listInstalled(dir || store.pluginsDir()));
+  });
+
+  // Whether `app` is this server's hub: the site whose admin installs plugins here. A server answering many
+  // statically served sites (Netlify SPAs on one API host) has one hub; the others' admins hide the Plugins page.
+  app.get('/_dms/plugins/host', (req, res) => {
+    const asked = `${req.query.app || ''}`;
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ hub: Boolean(hubApp()) && asked === hubApp() });
   });
 
   // the caller, if they hold install-plugins on the hub's site row (judged whatever DMS_AUTH_MODE says); else null, answered

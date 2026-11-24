@@ -714,6 +714,15 @@ can be rebuilt for the other).
         `scratchpad/plugin-e2e/plugins-page.png`). On 5557, build `plug9`, read-only: the page from the nav, the view
         route 200, no plugins installed, the Install button off with its note (no unsigned installs there), no
         errors (`parity/plugins_page.mjs`, `analysis/plug9/`). The five hosts 200.
+  - [x] **The Plugins page only on the server's hub (2026-11-24, owner asked).** Several Netlify SPAs share one API
+        host (dmsserver.availabs.org); each site's admin showed the page to anyone with `install-plugins` on that
+        site, and the server then refused (installs are judged on the hub, `DMS_APP`). New public route
+        `GET /_dms/plugins/host?app=<app>` → `{ hub }` (`plugins/routes.js`); the admin asks it once per API host and
+        app, only for a user who could see the page (`patterns/admin/usePluginHub.js`), and shows the nav item and
+        the page only on a yes. An older server (404) or no answer counts as no. Both admin layouts are now named
+        components (`AdminLayout`, `PatternAdminLayout`) so the hook is legal. Test `test-plugin-routes.js` 18; the
+        end-to-end check 18 of 18 (the route says yes for the hub app and no for another; with the answer forced to
+        no, no nav item and `/list/plugins` goes back to the admin home). Not committed.
   - [ ] **The server restarting itself (owner: wanted if possible, an admin restarting is fine for now).** A
         process can't swap its own server code (Node can't evict modules), and exiting so Docker restarts it means
         downtime (the routing data type alone warms ~80 s). Plan: the page's **Restart** asks the host for the
