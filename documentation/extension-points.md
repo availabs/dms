@@ -18,6 +18,19 @@ rather than line numbers, which drift.
 | CLI | 2 | `.dmsrc` keys |
 | Build / deploy | 1 | a script flag |
 
+## An app's Settings sub pages (app-settings-pages.md)
+
+`/list/settings/:sub?` on every app, and the hub's page for a tenant (`/list/tenants/:id/:sub?`), render one list of
+sub pages (`patterns/admin/settingsRegistry.js`; `pages/settingsPages.jsx`). Built in: Overview (domains, data
+environments, app and icon), Plugins, Storage, Server plugins. Three ways to add one, all into that list: the app
+(`registerSettingsPages`, below), a plugin (`host.registerSettingsPages`, under Plugins) and a pattern type
+(`admin.settingsPages`, under Pattern types). A path registered twice is ignored with a warning; built-in paths are
+reserved.
+
+| Name | Registered by | The core calls it in | It gets / is | App users | For |
+|---|---|---|---|---|---|
+| Settings sub page | `registerSettingsPages([...])` (exported), at module scope in a module both entries import | C `patterns/admin/settingsRegistry.js` `settingsPagesFor`, read by `patterns/admin/siteConfig.jsx` (the sidenav's Settings group), `pages/siteSettings.jsx`, `pages/tenantOverview.jsx` | `{name, path, icon, order, component, can(ctx), forTenant, ownHeader}`; the component gets `{target: {app, tenant, apiBase, own}, item, onSummary}`; `can` is required | none yet | the app's own settings pages |
+
 ## Plugins (dms-plugin-system.md)
 
 A plugin packages any of pattern types, section and column types, format functions, widgets, themes and data
@@ -27,7 +40,8 @@ a registry is read. Compiled-in plugins are `default-on` (active unless a site t
 
 | Name | Registered by | The core calls it in | It gets / is | App users | For |
 |---|---|---|---|---|---|
-| Client plugin | `registerPlugin(s)` (exported) | C `plugins/index.js`: `register(host)` once; the host's `registerPatternTypes`, `registerSectionTypes`, `registerColumnTypes`, `registerFormatFunctions`, `registerWidgets`, `registerThemes`, `registerDataTypes` wrap the registries below; activation read in C `render/spa/utils/index.js` (`isPatternTypeActive`, `pluginDataTypes(activations)`, from the site row's `plugin_activations`) and `patterns/admin/components/AddPatternPicker.jsx` | `{name, version, api, activation, register(host)}`; the host also gives `contexts`, `getPatternType`, `defaultCheckAuth` (an installed plugin imports nothing from the library) | app `src/plugins/<name>/plugin.js` (mapeditor, qa, chat; now_playing's `plugin.client.js`), all via `src/plugins/index.js`; `src/plugins/weather_analytics/plugin.js` via `src/plugins/themes.js` | packaging and per-site activation |
+| Client plugin | `registerPlugin(s)` (exported) | C `plugins/index.js`: `register(host)` once; the host's `registerPatternTypes`, `registerSectionTypes`, `registerColumnTypes`, `registerFormatFunctions`, `registerWidgets`, `registerThemes`, `registerDataTypes`, `registerSettingsPages` wrap the registries below; activation read in C `render/spa/utils/index.js` (`isPatternTypeActive`, `pluginDataTypes(activations)`, from the site row's `plugin_activations`) and `patterns/admin/components/AddPatternPicker.jsx` | `{name, version, api, activation, register(host)}`; the host also gives `contexts`, `getPatternType`, `defaultCheckAuth` (an installed plugin imports nothing from the library) | app `src/plugins/<name>/plugin.js` (mapeditor, qa, chat; now_playing's `plugin.client.js`), all via `src/plugins/index.js`; `src/plugins/weather_analytics/plugin.js` via `src/plugins/themes.js` | packaging and per-site activation |
+| ↳ plugin Settings pages | `host.registerSettingsPages([...])` | C `patterns/admin/settingsRegistry.js` `settingsPagesFor` (only where the plugin is active, from the site's `plugin_activations`; on the hub's tenant page, by its default activation) | as `registerSettingsPages` | none yet | an app's Settings sub pages from a plugin, installed ones included |
 | ↳ plugin themes | `host.registerThemes({name: loader})` | C `plugins/registries.js` `withPluginThemes` (used by `resolveThemes`, the admin theme picker, `configureRscClient`); the app wraps its own loader too | `() => Promise<theme>` | weather_analytics | themes from plugins, loaded when a pattern selects them |
 | Installed plugin (run time) | a release installed on the server (`POST /_dms/plugins/install`) + a `plugin_activation` row with `enabled` and `version` | C `plugins/load.js` `loadSitePlugins`, called by `render/spa/dmsSiteFactory.jsx` before routes are built (browser: `/_dms/plugins/<name>/<version>/client.js` on the API host; SSR: the version folder, handler config `resolvePluginUrl`) and by the app's `main.jsx` before hydrating; React shared through `plugins/peers.js` | an ES module built by `dms plugin build` | none yet | plugins that ship without an app release |
 | Server plugin | a data-type module with `register(host)` | S `plugins/index.js` `definitionOf`, from `dama/datatypes/index.js` `registerDatatype` | `{name, version, api, activation, register(host) → definition}` | app `src/plugins/now_playing` (via `data-types/register-datatypes.js`) | the server side of a plugin |
@@ -49,6 +63,7 @@ registers `{ mapeditor, qa, chat }` in `app/src/plugins/index.js`, imported by b
 | `admin.beforeCreate` | C `patterns/admin/pages/editSite.jsx`, `patternList.jsx` | `({falcor, app, instance, row, siblings}) → {problem} \| {row}` | qa, chat | refuse a new pattern, or give its first settings |
 | `admin.afterCreate` | C `patterns/admin/pages/editSite.jsx` (not `patternList.jsx`) | `({falcor, app, siteId, siteInstance, patternId, instance, row, siblings})` | qa, chat | set-up once the site row is saved (qa: its datasets) |
 | `admin.editorTabs` | C `patterns/admin/pages/patternEditor/index.jsx`, `patterns/admin/siteConfig.jsx` | `[{name, path, icon, component}]` | qa (Configure) | Pattern Editor tabs |
+| `admin.settingsPages` | C `patterns/admin/settingsRegistry.js` `settingsPagesFor` (offered when the site has a pattern of the type, and the type is active) | `[{name, path, icon, order, component, can, forTenant, ownHeader}]`, as `registerSettingsPages` below | none yet | sub pages of the app's Settings, for settings of the app rather than one pattern |
 | `onPagePublish` | C `patterns/page/pages/edit/editFunctions.jsx` `publish` (not awaited; failures logged) | `({page, pattern, sitePatterns, type, app, baseUrl, apiLoad, apiUpdate})` | qa (`publish.js`) | react to the editor's Publish |
 | `providesDatasources` | C `render/spa/utils/index.js` | bool | built-in datasets only | the rows become datasources |
 | `pageComponents` | C `patterns/registry.js` → `registerComponents` | `{elementType: section entry}` | mapeditor (`Map`) | ship section types |

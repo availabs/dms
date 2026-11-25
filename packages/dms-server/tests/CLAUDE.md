@@ -125,6 +125,7 @@ DMS_TEST_DB=dms-postgres-test node tests/test-graph.js
 | test-app-routes.js | Yes | Yes | An app's settings routes by app on every server (`/_dms/apps/:app/{pgenvs,plugins,app-settings}`; app-settings-pages.md phase 0): each family's verb on the app's own site row, staff-only attach, 404 for an unknown app or a bad name, tenant routes absent off a hub. Caller and judge stubbed. `npm run test:app-routes` |
 | test-worker-env.js | n/a | n/a | No DB: the environment forked workers and spawned tools get (`src/dama/tasks/worker-env.js`): signing secrets and unrelated credentials left out, the worker chain's variables kept, a real fork checked. `npm run test:worker-env` |
 | test-config-dirs.js | n/a | n/a | No DB: config lookup across `DMS_DB_CONFIG_DIRS` + `src/db/configs` (order, duplicates, missing folders, sqlite paths). `npm run test:config-dirs` |
+| test-tile-join-pg.js | No | Yes (PostGIS) | Joined map tiles over a Postgres join view (`dama/tiles/tiles.rest.js`, joined-tile-nested-loop-fix.md): both CTEs `AS MATERIALIZED`, the tile byte-identical to the inlined statement's, the join computed once. Needs a local-only `dama-postgres-test` config (role dama, localhost:5499, `dms_test`): `npm run test:pg:tile-join` |
 | test-dama-readonly.js | No | Yes | `"readOnly"` DAMA configs: config rules, no init, writes refused (pool, transactions, a worker's own client). Makes its own database and temp configs: `npm run test:pg:dama-readonly` |
 
 ## Test Graph Harness

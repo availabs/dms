@@ -3,6 +3,7 @@ import { AdminContext } from "../context";
 import { ThemeContext } from '../../../ui/useTheme';
 import { authedFetch } from '../../../utils/authedFetch';
 import { pgEnvsCardTheme } from './pgEnvsCard.theme'
+import { NOT_OFFERED } from './settingsMessages';
 
 // The pgEnvs a tenant is attached to, on its settings page (pgenv-config-on-the-site-row.md).
 // One row per pgEnv the server has a database for, plus any the tenant is attached to that this
@@ -11,7 +12,7 @@ import { pgEnvsCardTheme } from './pgEnvsCard.theme'
 // (manage-tenants) attach and remove; a tenant's own admins (manage-domains) see what is attached.
 // Remove asks the server for its plan first (…/detach/plan, read-only), then confirms in place. Until a tenant is attached, the server refuses that pgEnv's sources for it.
 // `tenant` is the tenant's subdomain, or empty for the hub's own site; `onChange` gets the server's description after every load.
-export function PgEnvsCard({ tenant, onChange }) {
+export function PgEnvsCard({ tenant, apiBase, onChange }) {
 	const { API_HOST, user } = React.useContext(AdminContext) || {};
 	const { UI, theme } = React.useContext(ThemeContext) || {};
 	const { Button, Icon, Pill } = UI;
@@ -23,23 +24,24 @@ export function PgEnvsCard({ tenant, onChange }) {
 	// the pgEnv being removed, with the server's plan for it once loaded: { pgEnv, plan }
 	const [removing, setRemoving] = React.useState(null);
 
-	// a tenant's routes, or the hub's own site's when no tenant is named
-	const base = tenant ? `/tenants/${encodeURIComponent(tenant)}/pgenvs` : '/hub/pgenvs';
+	// `apiBase`: the app's routes (/_dms/apps/<app>, its own Settings) or a tenant's (/tenants/<subdomain>, the hub's
+	// tenant page; settingsRegistry.js). Without it, as before: a tenant's routes, or the hub's own site's.
+	const base = apiBase ? `${apiBase}/pgenvs` : tenant ? `/tenants/${encodeURIComponent(tenant)}/pgenvs` : '/hub/pgenvs';
 
 	const call = React.useCallback(async (path = '', body) => {
 		const res = await authedFetch(`${API_HOST}${base}${path}`, body
 			? { user, method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
 			: { user });
 		const json = await res.json().catch(() => ({}));
-		if (!res.ok) throw new Error(json.error || `request failed (${res.status})`);
+		if (!res.ok) throw new Error(json.error || (res.status === 404 && apiBase ? NOT_OFFERED : `request failed (${res.status})`));
 		setInfo(json);
 		onChange?.(json);
 		return json;
-	}, [API_HOST, tenant, user?.token]);
+	}, [API_HOST, base, user?.token]);
 
 	React.useEffect(() => {
 		call().catch(e => setError(e.message));
-	}, [tenant, call]);
+	}, [base, call]);
 
 	const attach = async (pgEnv) => {
 		setBusy(pgEnv);

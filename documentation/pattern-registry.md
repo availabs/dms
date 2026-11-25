@@ -95,6 +95,7 @@ documented resolution so the behaviour is predictable, not a licence to rely on 
     beforeCreate,        // async ({ falcor, app, instance, row, siblings }) → { problem } | { row }
     afterCreate,         // async ({ falcor, app, siteId, siteInstance, patternId, instance, row, siblings })
     editorTabs,          // [{ name, path, icon, component }]: Pattern Editor tabs after Overview
+    settingsPages,       // [{ name, path, icon, order, component, can, forTenant }]: sub pages of the app's Settings
   },
   onPagePublish,         // async ({ page, pattern, sitePatterns, type, app, baseUrl, apiLoad, apiUpdate })
   providesDatasources,   // its rows become internal datasources (CMSContext.datasources → source pickers)
@@ -127,6 +128,10 @@ documented resolution so the behaviour is predictable, not a licence to rely on 
   - **`admin.editorTabs`** become Pattern Editor tabs (`patternEditor/index.jsx`) and admin menu
     entries (`admin/siteConfig.jsx`). Each tab gets the editor's usual props (`value`, `apiLoad`,
     `apiUpdate`, `falcor`, …) and needs edit-pattern.
+  - **`admin.settingsPages`** become sub pages of the app's Settings (`admin/settingsRegistry.js`), for
+    settings that belong to the app rather than to one pattern, offered when the site has a pattern of
+    the type. Same shape as `registerSettingsPages` (documentation/extension-points.md); `can(ctx)` is
+    required and the component gets `{ target: { app, tenant, apiBase, own }, item, onSummary }`.
   - Built-in special cases stay hard-coded: auth/admin routing, the page pattern's own tabs, and
     `permissionOptionsFor`. An app type gets the default pattern-admin permission list.
 - **Theme:** `defaultTheme` is set on the library default theme (`ui/defaultTheme.js`) at

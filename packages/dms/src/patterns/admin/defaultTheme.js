@@ -19,6 +19,7 @@ import { themeListTheme } from './pages/themes/list.theme'
 import { editThemeTheme } from './pages/themes/editTheme.theme'
 import { sectionGroupTheme } from './siteConfig.theme'
 import { storageTheme } from './components/storage.theme'
+import { settingsPagesTheme } from './pages/settingsPages.theme'
 
 export default {
     navOptions: {
@@ -52,6 +53,7 @@ export default {
     pgEnvsCard: pgEnvsCardTheme,
     pluginsCard: pluginsCardTheme,
     pluginsPage: pluginsPageTheme,
+    settingsPages: settingsPagesTheme,
     appSettingsCard: appSettingsCardTheme,
     patternEditor: patternEditorTheme,
     settingsEditor: settingsEditorTheme,

@@ -1,5 +1,5 @@
 import React from "react";
-import { useLocation } from 'react-router'
+import { useLocation, Navigate } from 'react-router'
 
 import { cloneDeep } from "lodash-es";
 import { ThemeContext, mergeTheme, getAdminTheme } from "../../ui/useTheme";
@@ -12,11 +12,12 @@ import ErrorPage from "./components/errorPage.jsx";
 import DefaultMenu from "./components/menu";
 
 import adminFormat, { pattern, themeFormat } from "./admin.format.js";
-import { siteCan, patternCan, tabPermission, VIEW_PATTERN_LIST, MANAGE_TENANTS, MANAGE_DOMAINS, MANAGE_STORAGE, INSTALL_PLUGINS, AUTH_USERS, AUTH_GROUPS, EDIT_PATTERN } from "../../utils/adminPermissions";
+import { siteCan, patternCan, tabPermission, VIEW_PATTERN_LIST, MANAGE_TENANTS, MANAGE_STORAGE, AUTH_USERS, AUTH_GROUPS, EDIT_PATTERN } from "../../utils/adminPermissions";
 import { adminNavOptions } from "../../utils/userMenus";
 
 import { lazyComponent } from "../../utils/lazyComponent";
 import { usePluginHub } from "./usePluginHub";
+import { settingsPagesFor, mayInstallPlugins } from "./settingsRegistry";
 import { getPatternType } from "../registry";
 
 // Code-split: the admin pattern is mounted on every site (pattern2routes
@@ -28,8 +29,6 @@ const ThemeList = lazyComponent('admin/ThemeList', () => import("./pages/themes/
 const TenantsPage = lazyComponent('admin/TenantsPage', () => import("./pages/tenants"));
 const TenantOverviewPage = lazyComponent('admin/TenantOverviewPage', () => import("./pages/tenantOverview"));
 const SiteSettingsPage = lazyComponent('admin/SiteSettingsPage', () => import("./pages/siteSettings"));
-const SiteStoragePage = lazyComponent('admin/SiteStoragePage', () => import("./pages/siteStorage"));
-const PluginsPage = lazyComponent('admin/PluginsPage', () => import("./pages/plugins"));
 const ThemeEdit = lazyComponent('admin/ThemeEdit', () => import("./pages/themes/editTheme"));
 const PatternEditor = lazyComponent('admin/PatternEditor', () => import("./pages/patternEditor"));
 //import ThemeManager from './pages/themeManager/index.jsx'
@@ -45,7 +44,8 @@ const AdminBreadcrumb = ({ theme, baseUrl }) => {
   const { ThemeToggle } = contextUI || {};
   const t = { ...adminChromeTheme, ...(theme?.admin?.chrome || {}) };
   const rest = location.pathname.slice(baseUrl.length).split('/').filter(Boolean);
-  const crumb = PAGE_LABELS[rest[0] || ''] || rest[0] || 'overview';
+  // settings/<sub page>: `settings · storage`
+  const crumb = (PAGE_LABELS[rest[0] || ''] || rest[0] || 'overview') + (rest[0] === 'settings' && rest[1] ? ` · ${rest[1].replace(/_/g, ' ')}` : '');
   return (
     <div className={t.breadcrumbBar}>
       <span className={t.breadcrumbHome}>admin</span>
@@ -100,9 +100,12 @@ const adminConfig = ({
   // unless the tenant hub's root domain is set (utils/hostResolver.js)
   tenantSubdomain = subdomain,
   pgEnv = '',
+  // the site's pattern rows and plugin activations (render/spa/utils): which pattern types' and plugins' Settings
+  // pages it is offered (settingsRegistry.js)
+  sitePatterns = [],
+  pluginActivations = {},
   ssrCollect,
 }) => {
-  console.log('pd?', patternData)
   const format = cloneDeep(adminFormat);
   format.app = app;
   // Build full site type: instance name + :site kind suffix.
@@ -144,7 +147,7 @@ const adminConfig = ({
           const { user, apiUpdate } = props;
           const { Layout, LayoutGroup } = UI;
           const pluginHub = usePluginHub(API_HOST, app, mayInstallPlugins(user, { app, authPermissions, isMultiTenant, tenantSubdomain }));
-          const menuItems = getMenuItems(baseUrl, authPath, props.user, { app, authPermissions, isMultiTenant, tenantSubdomain, pluginHub });
+          const menuItems = getMenuItems(baseUrl, authPath, props.user, { app, authPermissions, isMultiTenant, tenantSubdomain, pluginHub, sitePatterns, pluginActivations });
           return (
             <AdminContext.Provider
               value={{
@@ -165,6 +168,8 @@ const adminConfig = ({
                 tenantSubdomain,
                 pgEnv,
                 pluginHub,
+                sitePatterns,
+                pluginActivations,
               }}
             >
               <ThemeContext.Provider value={{ theme, themes, themesLoader, UI }}>
@@ -246,40 +251,26 @@ const adminConfig = ({
                 <TenantOverviewPage {...props} />
               </SectionGroup>
             ),
-            path: "tenants/:tenantId",
+            path: "tenants/:tenantId/:sub?",
             action: "edit",
           },
-          // A tenant's own settings, on its host: domains and data environments; manage-domains
-          // (pages/siteSettings.jsx). Reads and writes go to dms-server's /domains and /tenants routes.
-          // `domains` is the page's old path (it held the domains card alone until 2026-11-13).
+          // This app's Settings, on every app: sub pages from settingsRegistry.js (pages/siteSettings.jsx). Loads the
+          // site row ("edit"): Storage reads its `patterns`.
           {
-            type: (props) => (
-              // What the site's rows take up, and cleaning up the ones nothing can reach
-              // (design_system_v6/pages/admin-site-storage.html; pages/siteStorage.jsx gates it to manage-storage).
-              // Loads the site row ("edit", like Tenants) for its `patterns` list.
-              <SectionGroup card={false} padding="p-0" maxWidth="max-w-5xl">
-                <SiteStoragePage {...props} />
-              </SectionGroup>
-            ),
-            path: "storage",
-            action: "edit",
-          },
-          {
-            type: (props) => (
-              // The plugin releases installed on this server (pages/plugins.jsx gates it to the server's hub and
-              // install-plugins); reads and writes go to dms-server's /_dms/plugins routes.
-              <SectionGroup card={false} padding="p-0" maxWidth="max-w-5xl">
-                <PluginsPage {...props} />
-              </SectionGroup>
-            ),
-            path: "plugins",
-          },
-          ...["settings", "domains"].map(path => ({
             type: (props) => (
               <SectionGroup card={false} padding="p-0" maxWidth="max-w-5xl">
                 <SiteSettingsPage {...props} />
               </SectionGroup>
             ),
+            path: "settings/:sub?",
+            action: "edit",
+          },
+          // The pages Settings took over keep their old paths (app-settings-pages.md): `domains` (a tenant's settings
+          // until 2026-11-13), `storage` and `plugins` (root admin pages until 2026-11-25).
+          ...[["domains", "overview"], ["storage", "storage"], ["plugins", "server_plugins"]].map(([path, sub]) => ({
+            type: function SettingsRedirect() {
+              return <Navigate to={`${baseUrl}/settings/${sub}`} replace />;
+            },
             path,
           })),
           {
@@ -327,6 +318,8 @@ const patternConfig = ({
   datasources = [],
   authPattern,
   adminThemeSource,
+  sitePatterns = [],
+  pluginActivations = {},
   ssrCollect,
 }) => {
   const format = cloneDeep(pattern);
@@ -367,7 +360,7 @@ const patternConfig = ({
           const { Layout } = UI;
           const { user, apiUpdate, dataItems = [], params = {} } = props;
           const pluginHub = usePluginHub(API_HOST, app, mayInstallPlugins(user, { app, authPermissions, isMultiTenant, tenantSubdomain }));
-          const menuItems = getMenuItems(parentBaseUrl, authPath, props.user, { app, authPermissions, isMultiTenant, tenantSubdomain, pluginHub });
+          const menuItems = getMenuItems(parentBaseUrl, authPath, props.user, { app, authPermissions, isMultiTenant, tenantSubdomain, pluginHub, sitePatterns, pluginActivations });
           // `props` here comes from the SAME EditWrapper every route node goes
           // through (dms-manager/wrapper.jsx) — `dataItems` is always the full,
           // unfiltered loader result for this format (every sibling pattern),
@@ -450,12 +443,11 @@ export default [adminConfig, patternConfig];
 // user while the auth pattern grants nothing beyond public). NB: those route
 // checks don't actually block today — dms-manager/_auth.js getReqAuth drops
 // the pattern's authPermissions — so hiding the link is the only gate.
-// The Plugins page is for the server's hub (usePluginHub asks the server) and a user holding install-plugins on it;
-// never a tenant host. This is who may see it at all; the hub answer comes after.
-const mayInstallPlugins = (user, { app, authPermissions, isMultiTenant = false, tenantSubdomain = '' } = {}) =>
-  !(isMultiTenant && tenantSubdomain) && siteCan(user, app, authPermissions, INSTALL_PLUGINS);
-
-const getMenuItems = (baseUrl, authPath, user, { app, authPermissions, isMultiTenant = false, tenantSubdomain = '', pluginHub = false } = {}) => {
+// Server plugins is for the server's hub (usePluginHub asks the server) and a user holding install-plugins on it, never
+// a tenant host (settingsRegistry.js mayInstallPlugins): whether to ask the server at all.
+const getMenuItems = (baseUrl, authPath, user, { app, authPermissions, isMultiTenant = false, tenantSubdomain = '', pluginHub = false, sitePatterns = [], pluginActivations = {} } = {}) => {
+  // this app's Settings sub pages this user can use (settingsRegistry.js): the Settings group below
+  const { allowed: settingsPages } = settingsPagesFor({ user, app, authPermissions, isMultiTenant, tenantSubdomain, pluginHub, own: true, sitePatterns, activations: pluginActivations });
   // Icon names are keys in the base registry (ui/icons/icon_defs.jsx) — same
   // set patterns/auth/siteConfig.jsx's manageAuthConfig uses for this same
   // menu when reached via the auth pattern, kept in sync here so the sidenav
@@ -472,29 +464,18 @@ const getMenuItems = (baseUrl, authPath, user, { app, authPermissions, isMultiTe
       path: `${baseUrl}`,
       icon: 'Home',
     }] : []),
-    // What the site's rows take up, and cleaning up the ones nothing can reach (pages/siteStorage.jsx).
-    ...(siteCan(user, app, authPermissions, MANAGE_STORAGE) ? [{
-      name: "Storage",
-      path: `${baseUrl}/storage`,
-      icon: 'HardDrive',
-    }] : []),
-    // Installing plugins on this server: its hub only (not another site sharing the API host), never a tenant host
-    // (pages/plugins.jsx).
-    ...(pluginHub === true && mayInstallPlugins(user, { app, authPermissions, isMultiTenant, tenantSubdomain }) ? [{
-      name: "Plugins",
-      path: `${baseUrl}/plugins`,
-      icon: 'Puzzle',
-    }] : []),
     // {
     //     name: 'Datasets',
     //     path: `${baseUrl}/datasets`
     // },
     // No Themes entry: the themes list (`${baseUrl}/themes`) is deprecated; its route stays (2026-11-13).
-    // This site's settings on a hub (a tenant's on its host, the hub's own on the root): pages/siteSettings.jsx.
-    ...(isMultiTenant && siteCan(user, app, authPermissions, tenantSubdomain ? MANAGE_DOMAINS : MANAGE_TENANTS) ? [{
+    // This app's Settings (pages/siteSettings.jsx): one entry per sub page, as the Auth group below. Storage and the
+    // server's Plugins page were root entries until 2026-11-25; they are Settings sub pages now.
+    ...(settingsPages.length ? [{
       name: "Settings",
-      path: `${baseUrl}/settings`,
       icon: 'Settings',
+      defaultOpen: true,
+      subMenus: settingsPages.map(p => ({ name: p.name, path: `${baseUrl}/settings/${p.path}`, icon: p.icon || 'Page' })),
     }] : []),
   ];
 

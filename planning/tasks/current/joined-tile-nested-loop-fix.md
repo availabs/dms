@@ -1,15 +1,31 @@
 # Joined map tiles — nested-loop blowup in the MVT join query
 
-**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** next (was: "DIAGNOSED + fix verified, then REVERTED — NOT APPLIED.") · **Created by:** rdubowsky@albany.edu · **Edited by:** amuro@albany.edu
+**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** built · **Created by:** rdubowsky@albany.edu · **Edited by:** amuro@albany.edu
 
-**Status: DIAGNOSED + fix verified, then REVERTED — NOT APPLIED.** The code change was backed out
-on 2026-09-18 once macroview stopped using a tile join at all (it resolves its columns on hover
-instead), leaving the fix with no consumer. This document is kept because **the bug is real, still
-present, and generic to every joined map layer** — the next person to put a Postgres-side join on a
-map tile will hit it, and the diagnosis below is the expensive part.
+**Applied 2026-11-25 (owner: "lets implement it now"), not committed or deployed.** The fix was
+written and measured on 2026-09-18, then backed out the same day when macroview stopped joining in
+the tile and left it with no consumer. The owner chose to ship it anyway, because any joined map
+layer at low zoom can take the shared database down again (see **Incident 2026-09-18**). The
+`didJoinChange` companion change stays out: nothing changes a layer's join at run time.
 
-To apply it, the change is two lines in `packages/dms-server/src/dama/tiles/tiles.rest.js` (see
-**Fix**). · **Found by:** the MacroView roadname/direction work
+- `packages/dms-server/src/dama/tiles/tiles.rest.js`: `const materialized = joinCtx.dbType === 'pg' ? ' MATERIALIZED' : ''`,
+  then `tile_keys AS${materialized} (` and `joined_cte AS${materialized} (`, with a comment. The
+  ClickHouse branch's SQL text is unchanged. `getJoinedTileData` is now exported, for the test.
+- `packages/dms-server/tests/test-tile-join-pg.js` (`npm run test:pg:tile-join`, PostGIS in Docker): a
+  1500-feature geometry view joined to an aggregated view (40 rows per key, `GROUP BY tmc`) on one z12
+  tile. Checks that the route's statement materializes both CTEs, that the tile is byte-identical to
+  the same statement inlined, and that in the new plan `joined_cte` is scanned once (`loops=1`). 4/4.
+  Without the fix the second and fourth checks fail (no `MATERIALIZED`; no `joined_cte` CTE Scan).
+  The synthetic data does NOT reproduce the slow plan (115 ms inlined, 113 ms materialized: the planner
+  chose a hash join either way), so the speedup below is still only measured on the 2026-09-18 data.
+- `npm run test:ch-tiles` (ClickHouse join SQL): 14/14.
+- Still to do: a check after deploy on a real joined layer, when one exists.
+
+**Correction to the bullets under Fix:** the code applies `MATERIALIZED` to both CTEs on the **PG
+branch only**, as the snippet and "Scoped to PG deliberately" say. The bullet "`joined_cte` is
+materialized on both branches" described a draft; the ClickHouse branch keeps its text byte for byte.
+
+The two-line change in `packages/dms-server/src/dama/tiles/tiles.rest.js` is described under **Fix**. · **Found by:** the MacroView roadname/direction work
 (`planning/transportny/tasks/current/macroview-hover-roadname-direction.md` in the parent repo).
 
 ## Symptom

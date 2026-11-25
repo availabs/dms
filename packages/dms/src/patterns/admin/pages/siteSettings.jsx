@@ -1,88 +1,52 @@
 import React from 'react'
-import { useNavigate } from 'react-router'
+import { useNavigate, useNavigation } from 'react-router'
 import { AdminContext } from "../context";
-import { ThemeContext } from '../../../ui/useTheme';
-import { siteCan, MANAGE_DOMAINS, MANAGE_TENANTS, MANAGE_THEMES } from '../../../utils/adminPermissions';
-import { getRootDomain } from '../../../utils/hostResolver';
-import { editSiteTheme } from './editSite.theme'
-import { DomainsCard } from '../components/domainsCard'
-import { PgEnvsCard } from '../components/pgEnvsCard'
-import { AppSettingsCard } from '../components/appSettingsCard'
+import { settingsPagesFor, mayInstallPlugins } from '../settingsRegistry'
+import SettingsPages from './settingsPages'
 
-// /list/settings on a TENANT host of the tenant hub: the tenant's settings, on its own host (was
-// /list/domains, pages/siteDomains.jsx, until 2026-11-13; that path still opens this page). One card
-// per setting, stacked: domains (design_system_v6/pages/admin-site-domains.html; only on a hub with a
-// root domain) and data environments, the pgEnvs the tenant is attached to
-// (pgenv-config-on-the-site-row.md), and the site's app and icon (components/appSettingsCard.jsx;
-// site-app-settings-pwa.md; for manage-themes, as the server's routes). The same cards as the hub's own page for the tenant
-// (pages/tenantOverview.jsx). On a tenant host (`tenantSubdomain` set) for a user with manage-domains on
-// this site; on the hub's root, for the hub's own site (it has no domains card: it is not a tenant), for
-// hub staff (manage-tenants). Multi-tenant sites only; the server's /domains and /tenants routes judge the
-// caller again. One page for now; when the cards outgrow it they become sub pages, as the pattern
-// editor's tabs are (patternEditor/index.jsx).
-export default function SiteSettingsPage() {
-	const { baseUrl, authPath, app, user, authPermissions, isMultiTenant, tenantSubdomain } = React.useContext(AdminContext) || {}
-	const { theme } = React.useContext(ThemeContext) || {}
-	const t = { ...editSiteTheme, ...(theme?.admin?.editSite || {}) }
+// /list/settings/:sub?: this app's Settings, on every app, multi-tenant or not (app-settings-pages.md). The sub
+// pages come from settingsRegistry.js (built in: Overview, Plugins, Storage, Server plugins; and the ones the app,
+// its plugins and its pattern types add); the sidenav's Settings group lists the same ones (siteConfig.jsx). They
+// call dms-server's routes for this app by name, /_dms/apps/<app>/…, which every server mounts and which judge the
+// caller again. The hub's page for one of its tenants shows the same sub pages (pages/tenantOverview.jsx).
+// Loads the site row ("edit"): Storage reads its `patterns`.
+// `params` comes from the DMS manager's own path match (dms-manager), not react-router's useParams.
+export default function SiteSettingsPage({ item = {}, dataItems, params = {} }) {
+	const ctx = React.useContext(AdminContext) || {}
+	const { baseUrl, authPath, app, user, authPermissions, isMultiTenant, tenantSubdomain, pluginHub, sitePatterns, pluginActivations } = ctx
 	const navigate = useNavigate()
-	const [info, setInfo] = React.useState(null)
-	const [pgEnvs, setPgEnvs] = React.useState(null)
+	const { state: navState } = useNavigation()
 
-	// a tenant's own admins on its host; hub staff on the hub's root, for the hub's own site
-	const hasAccess = Boolean(isMultiTenant) && siteCan(user, app, authPermissions, tenantSubdomain ? MANAGE_DOMAINS : MANAGE_TENANTS)
-	const hasDomains = Boolean(tenantSubdomain) && Boolean(getRootDomain())
-	// the app-settings routes take hub staff, or manage-themes on the site
-	const hasAppSettings = !tenantSubdomain || siteCan(user, app, authPermissions, MANAGE_THEMES)
+	if (!item.id && dataItems?.length > 0) item = dataItems[0]
+
+	const { all, allowed } = settingsPagesFor({ user, app, authPermissions, isMultiTenant, tenantSubdomain, pluginHub, own: true, sitePatterns, activations: pluginActivations })
+	// Server plugins waits for the server to say whether this site is its hub (usePluginHub)
+	const waiting = navState === 'loading' || (pluginHub === null && mayInstallPlugins(user, ctx))
 
 	React.useEffect(() => {
 		if (!user?.authed) {
-			navigate(`${authPath}/login`, { state: { from: `${baseUrl}/settings` } })
+			navigate(`${authPath}/login`, { state: { from: `${baseUrl}/settings${params.sub ? `/${params.sub}` : ''}` } })
 			return
 		}
-		if (user?.isAuthenticating) return
-		if (!hasAccess) navigate(baseUrl || '/')
-	}, [user?.authed, user?.isAuthenticating, JSON.stringify(user?.groups), hasAccess])
+		if (user?.isAuthenticating || waiting) return
+		if (!allowed.length) navigate(baseUrl || '/')
+	}, [user?.authed, user?.isAuthenticating, JSON.stringify(user?.groups), allowed.length, waiting])
 
-	if (!user?.authed || !hasAccess) return null
-
-	const aliases = info?.aliases || []
-	const unverified = aliases.filter(a => a.status !== 'verified').length
+	if (!user?.authed || user?.isAuthenticating || waiting || !allowed.length) return null
 
 	return (
-		<div className={t.tenantPageWrapper}>
-			<div className={t.identityWrapper}>
-				<div className={t.identityText}>
-					<div className={t.identityTitle}>Settings</div>
-					<p className={t.identitySubtitle}>
-						{info?.tenant?.name || tenantSubdomain || window.location.host}
-						{hasDomains && <> · primary domain {info ? (info.primary || info.defaultDomain) : '…'}</>}
-					</p>
-				</div>
-				<span className={t.identitySpacer} />
-				<div className={t.statsStrip}>
-					{hasDomains && (
-						<div className={t.statItem}>
-							<p className={t.statValue}>{info ? aliases.length + 1 : '–'}</p>
-							<p className={t.statLabel}>domains</p>
-						</div>
-					)}
-					{unverified > 0 && (
-						<div className={t.statItem}>
-							<p className={t.statValueWarn}>{unverified}</p>
-							<p className={t.statLabel}>not verified</p>
-						</div>
-					)}
-					<div className={t.statItem}>
-						<p className={t.statValue}>{pgEnvs ? (pgEnvs.attached || []).length : '–'}</p>
-						<p className={t.statLabel}>pgEnvs</p>
-					</div>
-				</div>
-			</div>
-			<div className={t.tenantSettingsStack}>
-				{hasDomains && <DomainsCard tenant={tenantSubdomain} onChange={setInfo} />}
-				<PgEnvsCard tenant={tenantSubdomain} onChange={setPgEnvs} />
-				{hasAppSettings && <AppSettingsCard tenant={tenantSubdomain} />}
-			</div>
-		</div>
+		<SettingsPages
+			pages={all}
+			allowed={allowed}
+			sub={params.sub}
+			linkBase={`${baseUrl}/settings`}
+			title='Settings'
+			subtitle={(s) => <>
+				{s.tenantName || tenantSubdomain || app}
+				{s.primary && <> · primary domain {s.primary}</>}
+			</>}
+			target={{ app, tenant: tenantSubdomain || '', apiBase: `/_dms/apps/${encodeURIComponent(app)}`, own: true }}
+			item={item}
+		/>
 	)
 }
