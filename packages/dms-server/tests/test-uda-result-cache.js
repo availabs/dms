@@ -155,6 +155,15 @@ async function main() {
     check(r.rows[0].n === 2 && c.stats().mismatches === 1 && warned === 1, 'shadow: a kept answer that differs from the database is counted and logged');
   }
 
+  { // shadow: last-digit differences of a float sum are not a stale answer
+    const db = fakeDb(); const c = createResultCache({ mode: 'shadow' });
+    db.answer = () => [{ loss: 114332726963.36789, label: 'x' }];
+    await c.cachedQuery(db, SQL, [1], { tables: ROADS });
+    db.answer = () => [{ loss: 114332726963.3679, label: 'x' }];
+    await c.cachedQuery(db, SQL, [1], { tables: ROADS });
+    check(c.stats().floatNoise === 1 && c.stats().mismatches === 0, 'shadow: a float sum differing in its last digits is noise, not a mismatch', c.stats());
+  }
+
   console.log(`\n${passed} passed, ${failed} failed`);
   process.exit(failed ? 1 : 0);
 }
