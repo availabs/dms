@@ -6,7 +6,8 @@ export const themeLoaders = new Map()     // theme name -> () => Promise<theme o
 export const dataTypes = {}               // data-type name -> { def, plugin, activation }
 export const patternTypeOwners = new Map() // pattern type -> { plugin, activation }
 
-const activeIn = (activations, plugin, activation) => {
+// Whether a plugin is active under these activation rows ({ [plugin]: { enabled } }); none: its default.
+export const activeIn = (activations, plugin, activation) => {
   const row = activations?.[plugin]
   return row && typeof row.enabled === 'boolean' ? row.enabled : activation === 'default-on'
 }

@@ -1,40 +1,26 @@
 // Each entry in ComponentRegistry may optionally export a `componentFunctions` key with
 // `providers` and `subscribers` arrays. Providers publish page action params on UI events;
 // subscribers read them. See component-actions.md in the sections/ directory for the full spec.
-//
-// //import MNYHeader from './mnyHeader';
-//
+
 import lexical from './richtext/config';
-import Header from './header.config'
-import MnyHeaderDataDriven from "./mnyHeader/config";
-import MNYFooter from './footer.config'
 import Spreadsheet from "./spreadsheet/config";
 import Card from "./Card.config";
 import FilterComponent from "./FilterComponent.config";
 // import UploadComponent from "./UploadComponent";
 // import ValidateComponent from "./ValidateComponent";
-import PDFGenerator from "./ExportPdf.config";
-
 import GraphNew from "./graph_new/config"
 
-// //import Item from "./item";
+// The page pattern's built-in section types: Rich Text, Card, Spreadsheet, Filter and Graph (owner, 2026-11-25).
+// Anything else comes from a pattern type (`pageComponents`: the map editor's Map), a theme (`pageComponents`:
+// MNY's Header: MNY Data, Footer: MNY Footer and PDF Generator, in src/themes/mny/components), or the app
+// (`registerComponents`). "Header: Default Header" and the deprecated "Item" were removed the same day.
 const ComponentRegistry = {
     lexical,
     Card,
     Spreadsheet,
     Filter: FilterComponent,
-    "Header: Default Header": Header,
-    "Header: MNY Data": MnyHeaderDataDriven,
-    "Footer: MNY Footer": MNYFooter,
-    PDFGenerator,
     // Upload: UploadComponent,
     // Validate: ValidateComponent,
-    Item: {
-        name: 'Item',
-        controls: {},
-        EditComp: () => <div>Item Component Deprecated.</div>,
-        ViewComp: () => <div>Item Component Deprecated.</div>
-    },
     // "Graph" now resolves to the current implementation — sections saved
     // under the legacy element-type upgrade automatically. "AVL Graph" is
     // kept for sections already saved under it, but hidden from the "Type"

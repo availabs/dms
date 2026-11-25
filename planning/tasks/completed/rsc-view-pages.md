@@ -1250,7 +1250,7 @@ Evidence for the go/no-go so far (2026-11-21, autonomous run; the decision is th
 
 ## Appendix: the code this task wrote, and what became of it (2026-11-24)
 
-The owner chose the islands path ([static-html-islands.md](../current/static-html-islands.md)) on 2026-11-24
+The owner chose the islands path ([static-html-islands.md](./static-html-islands.md)) on 2026-11-24
 after the three-way measurement (that doc's log, 2026-11-23): the two paths load pages equally fast, and the
 islands path needs one build, no unstable APIs and less code. The RSC delivery was removed from the tree the
 same day. None of it was ever committed, so **this appendix is the only copy of the removed files.** They are

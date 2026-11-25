@@ -140,14 +140,17 @@ export const sectionsEditBackill = (item, baseUrl, apiUpdate, search, theme) => 
           newItem.draft_section_groups.push(
             {name: 'footer', position: 'bottom', index: 99, theme: 'clearCentered', full_width: 'show'}
           )
-          if(!item.draft_sections.filter(d => d.is_footer)?.[0]){
+          // the footer section's type is the theme's (pages.footerSectionType: MNY's "Footer: MNY Footer"); a theme
+          // that names none gets the footer group with no section in it
+          const footerType = theme?.pages?.footerSectionType
+          if(footerType && !item.draft_sections.filter(d => d.is_footer)?.[0]){
             newItem.draft_sections.push({
                 "size": "2",
                 "group": "footer",
                 is_footer: true,
                 "order": 0,
                 "element": {
-                    "element-type": "Footer: MNY Footer"
+                    "element-type": footerType
                 },
                 "trackingId": uuidv4(),
             })
@@ -165,7 +168,7 @@ export const sectionsEditBackill = (item, baseUrl, apiUpdate, search, theme) => 
         }
 }
 
-export const sectionsBackill = (item, baseUrl, apiUpdate) => {
+export const sectionsBackill = (item, baseUrl, apiUpdate, theme) => {
      if(!item.section_groups && item.id) {
         //console.log('edit item', item)
         let newItem = {id: item.id}
@@ -184,14 +187,15 @@ export const sectionsBackill = (item, baseUrl, apiUpdate) => {
           newItem.section_groups.push(
             {name: 'footer', position: 'bottom', index: 99, theme: 'clearCentered', full_width: 'show'}
           )
-          if(!item.sections.filter(d => d.is_footers)?.[0]){
+          const footerType = theme?.pages?.footerSectionType
+          if(footerType && !item.sections.filter(d => d.is_footers)?.[0]){
             newItem.sections.push({
                 "size": "2",
                 "group": "footer",
                 is_footer: 'true',
                 "order": 0,
                 "element": {
-                    "element-type": "Footer: MNY Footer"
+                    "element-type": footerType
                 },
                 "trackingId": uuidv4(),
             })

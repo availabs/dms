@@ -172,12 +172,13 @@ function isPrivateAddress(ip) {
   if (v6.startsWith('::ffff:')) return isPrivateAddress(v6.slice(7));
   return v6 === '::1' || v6 === '::' || v6.startsWith('fc') || v6.startsWith('fd') || v6.startsWith('fe8') || v6.startsWith('fe9') || v6.startsWith('fea') || v6.startsWith('feb');
 }
-async function checkHost(hostname) {
-  if (process.env.DMS_PDF_ALLOW_PRIVATE === '1') return null;
+// The perf job (src/perf/index.js) checks its target the same way, under its own variable.
+async function checkHost(hostname, { allowVar = 'DMS_PDF_ALLOW_PRIVATE', does = 'prints' } = {}) {
+  if (process.env[allowVar] === '1') return null;
   const host = hostname.replace(/^\[|\]$/g, '');
   const addresses = net.isIP(host) ? [host] : (await dns.lookup(host, { all: true }).catch(() => [])).map(a => a.address);
   if (!addresses.length) return `cannot resolve ${hostname}`;
-  if (addresses.some(isPrivateAddress)) return `${hostname} is a private address, and this server only prints public sites. A development server can allow it with DMS_PDF_ALLOW_PRIVATE=1.`;
+  if (addresses.some(isPrivateAddress)) return `${hostname} is a private address, and this server only ${does} public sites. A development server can allow it with ${allowVar}=1.`;
   return null;
 }
 
@@ -254,4 +255,4 @@ function registerPdfRoutes(app) {
   });
 }
 
-module.exports = { registerPdfRoutes, validate, isPrivateAddress };
+module.exports = { registerPdfRoutes, validate, isPrivateAddress, checkHost };

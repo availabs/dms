@@ -4,6 +4,7 @@ import { ThemeContext, getComponentTheme } from '../../../ui/useTheme';
 import { authedFetch } from '../../../utils/authedFetch';
 import { listPlugins } from '../../../plugins';
 import { pluginsCardTheme } from './pluginsCard.theme'
+import { NOT_OFFERED } from './settingsMessages';
 
 // A site's plugins, on its settings page in the hub (dms-plugin-system.md, P2 step 5). One row per plugin this
 // server has installed, per plugin compiled into the app, and per activation row the site already has. A row
@@ -14,7 +15,7 @@ import { pluginsCardTheme } from './pluginsCard.theme'
 // A version that asks for permissions the site hasn't accepted is refused (409, `newPermissions`): the card lists
 // them and resends with `acceptPermissions` only when the admin says so (a fresh activation, not a silent upgrade).
 // `tenant` is the tenant's subdomain, or empty for the hub's own site.
-export function PluginsCard({ tenant, onChange }) {
+export function PluginsCard({ tenant, apiBase, onChange }) {
 	const { API_HOST, user } = React.useContext(AdminContext) || {};
 	const { UI, theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
 	const { Button, Pill, Select, Switch } = UI;
@@ -25,22 +26,23 @@ export function PluginsCard({ tenant, onChange }) {
 	const [busy, setBusy] = React.useState('');
 	const [confirm, setConfirm] = React.useState(null);   // { plugin, values, newPermissions }: waiting for the admin
 
-	const base = tenant ? `/tenants/${encodeURIComponent(tenant)}/plugins` : '/hub/plugins';
+	// `apiBase` as in pgEnvsCard.jsx: the app's or a tenant's routes; without it, a tenant's or the hub's own site's
+	const base = apiBase ? `${apiBase}/plugins` : tenant ? `/tenants/${encodeURIComponent(tenant)}/plugins` : '/hub/plugins';
 
 	const call = React.useCallback(async (path = '', body) => {
 		const res = await authedFetch(`${API_HOST}${base}${path}`, body
 			? { user, method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
 			: { user });
 		const json = await res.json().catch(() => ({}));
-		if (!res.ok) throw Object.assign(new Error(json.error || `request failed (${res.status})`), { newPermissions: json.newPermissions });
+		if (!res.ok) throw Object.assign(new Error(json.error || (res.status === 404 && apiBase ? NOT_OFFERED : `request failed (${res.status})`)), { newPermissions: json.newPermissions });
 		setInfo(json);
 		onChange?.(json);
 		return json;
-	}, [API_HOST, tenant, user?.token]);
+	}, [API_HOST, base, user?.token]);
 
 	React.useEffect(() => {
 		call().catch(e => setError(e.message));
-	}, [tenant, call]);
+	}, [base, call]);
 
 	const set = async (plugin, values) => {
 		setBusy(plugin);

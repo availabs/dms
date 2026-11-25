@@ -252,6 +252,9 @@ function createPublishHandler(controller) {
     // Both must be writable (a grant on one source can't reach another's table through the type).
     const typeSourceId = await sourceIdForDataType(controller, app, type);
     if (!await authorizeRowWrite(req, res, [typeSourceId, sourceId], appType)) return;
+    // a dataset with Editable turned off takes no rows (routes/dms/sourceEditable.js)
+    try { await controller.assertSourceEditable(app, type); }
+    catch (e) { return res.status(e.status || 500).json({ err: e.message }); }
 
     const processor = getProcessor(entry.fileExt);
     if (!processor || !processor.parseRows) {
@@ -622,6 +625,9 @@ function createValidateHandler(controller) {
     // Rows are rewritten in the table the type names; fall back to the parent the body names.
     const typeSourceId = await sourceIdForDataType(controller, app, type);
     if (!await authorizeRowWrite(req, res, [typeSourceId ?? parentId], appType)) return;
+    // validation rewrites rows: a dataset with Editable turned off is left as it is
+    try { await controller.assertSourceEditable(app, type); }
+    catch (e) { return res.status(e.status || 500).json({ err: e.message }); }
 
     // New format: type ends with ':data' — all rows share one type, only data.isValid changes
     const isNewFormat = isSplitType(type);

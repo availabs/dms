@@ -7,10 +7,11 @@ import { authedFetch } from '../../../utils/authedFetch';
 import { editSiteTheme } from './editSite.theme'
 import { pluginsPageTheme } from './plugins.theme'
 
-// /list/plugins: the plugin releases installed on this server (dms-plugin-system.md, P2 step 5). Install one from
+// Settings → Server plugins, /list/settings/server_plugins (was /list/plugins, which redirects there;
+// settingsRegistry.js): the plugin releases installed on this server (dms-plugin-system.md, P2 step 5). Install one from
 // its release index.json URL, see each plugin's versions, what they contribute and ask for, and pick the current
-// version (what new activations get; its server code after a restart). Turning a plugin on for a site is the
-// Plugins card on that site's settings page (components/pluginsCard.jsx), not here.
+// version (what new activations get; its server code after a restart). Turning a plugin on for a site is its
+// Settings → Plugins page (components/pluginsCard.jsx), not here.
 // The server's hub only (the site the server says is its hub, ../usePluginHub.js: not another site sharing the API
 // host, such as a Netlify SPA, and never a tenant host), for a user with install-plugins on it; dms-server's
 // /_dms/plugins routes judge the caller again. Server code loads when the
@@ -35,7 +36,7 @@ export default function PluginsPage() {
 
 	React.useEffect(() => {
 		if (!user?.authed) {
-			navigate(`${authPath}/login`, { state: { from: `${baseUrl}/plugins` } })
+			navigate(`${authPath}/login`, { state: { from: `${baseUrl}/settings/server_plugins` } })
 			return
 		}
 		if (user?.isAuthenticating) return

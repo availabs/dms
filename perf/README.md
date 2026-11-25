@@ -43,7 +43,23 @@ dms perf report <run dir>
 | `--timeout` | 60 | seconds before giving up on one page |
 | `--out` | `scratchpad/<app>-<type>/perf/<date>-<label>` | |
 
-It uses the system's Chrome through Playwright (`DMS_PERF_CHROME=/path/to/chrome` to name another).
+It uses the system's Chrome through `playwright-core` (`DMS_PERF_CHROME=/path/to/chrome` to name another).
+
+**Where the code is.** This folder is the CLI front (`cli.js`, and `pages.js`, which reads a pattern's pages through
+the dms CLI). The engine (the runner, aggregation, scoring, comparison, the report) is dms-server's `src/perf/`, so
+the server can run it too; its tests are `npm run test:perf` there.
+
+## Running from the admin
+
+A page pattern's Pattern Editor has a **Performance** tab (`edit-pattern`). **Run** asks dms-server to measure the
+pattern's published pages (10, 25 or all, always with the home page; 1, 3 or 5 repetitions; first, returning and
+click visits by default) from the address the admin is open on, as a signed-out visitor, one page at a time. The
+tab shows progress and can cancel; past runs are listed with their median times and scores, open their report in
+a frame, and two ticked runs compare. One run at a time per server.
+
+Server runs share the server's CPU with the site they measure: compare them with other runs from the same server.
+They need the site to be on https and on a public address (or `DMS_PERF_ALLOW_PRIVATE=1` on a development
+server). Routes, limits and storage: dms-server's `src/perf/index.js`; variables: `documentation/dms-server-env.md`.
 
 **Measure a production build.** A dev server (Vite) serves unbundled, uncompiled modules; the report marks such
 a run "Dev build". It is fine for trying the tool and useless for judging a change. Don't edit files in the repo while a run is

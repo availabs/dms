@@ -61,17 +61,22 @@ export default function Table ({apiUpdate, apiLoad, format, source, params, isDm
 
     useEffect(() => {
         const sourceSlug = nameToSlug(source.name);
+        let internalMetadata = source?.metadata;
+        if (typeof internalMetadata === 'string') { try { internalMetadata = JSON.parse(internalMetadata); } catch { internalMetadata = null; } }
         const sourceInfo = isDms ? {
             app: source.app,
             type: `${sourceSlug}|${params.view_id}:data`,
             env: `${source.app}+${sourceSlug}`,
             doc_type: `${sourceSlug}|${params.view_id}:data`,
             isDms,
+            // the source's Editable flag (its metadata arrives as JSON text, with `config`)
+            isEditable: internalMetadata?.isEditable === true,
             originalDocType: sourceSlug,
             view_id: params.view_id,
             columns
         } : {
             isDms: undefined,
+            isEditable: !!source?.metadata?.isEditable,
             source_id: +id,
             view_id: +view_id,
             env: pgEnv,

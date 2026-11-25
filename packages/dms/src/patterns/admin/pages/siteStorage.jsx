@@ -12,7 +12,8 @@ const DEFAULT_ONLY = ['unlisted_children', 'dead_containers', 'unlisted_patterns
 const BY_PATTERN_ROWS = 7;
 const CHECKING = 'checking links…';
 
-// /list/storage (design_system_v6/pages/admin-site-storage.html): what the whole site's rows take up, and
+// Settings → Storage, /list/settings/storage (was /list/storage, which redirects there; settingsRegistry.js)
+// (design_system_v6/pages/admin-site-storage.html): what the whole site's rows take up, and
 // cleaning up the rows nothing can reach. Pages whose pattern is gone and pattern rows no site lists have no
 // pattern tab to show on, so they are cleaned up here; each pattern's own tab cleans up its own sections.
 // Needs the site's manage-storage (dms-server routes/dms/storageHttp.js judges it again).
@@ -31,7 +32,7 @@ export default function SiteStorage({ item = {}, dataItems }) {
 
 	React.useEffect(() => {
 		if (navState === 'loading') return
-		if (!user?.authed) { navigate(`${authPath}/login`, { state: { from: `${baseUrl}/storage` } }); return }
+		if (!user?.authed) { navigate(`${authPath}/login`, { state: { from: `${baseUrl}/settings/storage` } }); return }
 		if (user?.isAuthenticating) return
 		if (!hasAccess) navigate(baseUrl || '/')
 	}, [navState, user?.authed, user?.isAuthenticating, JSON.stringify(user?.groups), hasAccess])

@@ -14,7 +14,7 @@
 //   label           display name (pattern-type select, picker card)
 //   description     one line for the Add Pattern picker card
 //   admin           { addable, order, defaultName, usesDmsEnv, duplicable,
-//                     beforeCreate, afterCreate, editorTabs }
+//                     beforeCreate, afterCreate, editorTabs, settingsPages }
 //                     addable      offered as a card in the Add Pattern picker
 //                     order        position in the type select / filter chips
 //                     defaultName  the picker's suggested pattern name
@@ -32,6 +32,12 @@
 //                     editorTabs   optional [{ name, path, icon, component }]:
 //                                  Pattern Editor tabs (and admin menu entries)
 //                                  this type adds after Overview
+//                     settingsPages optional [{ name, path, icon, order,
+//                                  component, can, forTenant }]: sub pages of
+//                                  the app's Settings, for settings that
+//                                  belong to the app rather than one pattern;
+//                                  offered when the site has a pattern of this
+//                                  type (admin/settingsRegistry.js)
 //   (format)        REQUIRED, but NOT a key here — declared by each `siteConfig`
 //                   entry returning `format`, which five of the seven types
 //                   already do. A pattern must describe every DMS row kind it

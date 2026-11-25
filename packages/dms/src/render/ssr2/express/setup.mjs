@@ -28,7 +28,8 @@ import { createSSRMiddleware } from './middleware.mjs'
  * @param {Function} [config.getSiteCss] - async (req) => { href, partial, fallbackHtml } | null: the site's
  *   server-compiled stylesheet (dms-server css/siteCss.js), which replaces the build's `<link data-dms-site-css>`;
  *   fallbackHtml (the in-browser compiler) comes with it while the sheet is partial (server-compiled-site-css.md)
- * @returns {Promise<{ invalidateRoutes: Function }>} drops the handler's per-host route cache (a no-op in dev)
+ * @returns {Promise<{ invalidateRoutes: Function, noteChange: Function }>} drops the handler's per-host route cache;
+ *   tells it an app's row was written (both no-ops in dev)
  */
 export async function mountSSR(app, config) {
   const {
@@ -117,7 +118,7 @@ export async function mountSSR(app, config) {
 
     console.log('[SSR] Dev mode — Vite middleware + SSR enabled')
     // a fresh handler per request: nothing cached to invalidate
-    return { invalidateRoutes() {} }
+    return { invalidateRoutes() {}, noteChange() {} }
   } else {
     // --- Production mode: pre-built bundles ---
     const express = (await import('express')).default
@@ -164,7 +165,11 @@ export async function mountSSR(app, config) {
     }))
 
     console.log(`[SSR] Production mode — client ${clientDir}, server ${serverBundle}`)
-    return { invalidateRoutes: () => cachedHandler.invalidateRoutes() }
+    return {
+      invalidateRoutes: () => cachedHandler.invalidateRoutes(),
+      // a handler built before this hook existed has none: its pages stay cached as before
+      noteChange: (app, msg) => cachedHandler.noteChange?.(app, msg),
+    }
   }
 }
 

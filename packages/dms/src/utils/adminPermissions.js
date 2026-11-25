@@ -30,6 +30,8 @@ export const MANAGE_DOMAINS = 'manage-domains';
 export const MANAGE_STORAGE = 'manage-storage';
 // the Plugins page: installing plugin releases on this server (judged again by dms-server's /_dms/plugins routes)
 export const INSTALL_PLUGINS = 'install-plugins';
+// a site's plugin activations, its Settings → Plugins page (judged again by dms-server's …/plugins routes)
+export const ACTIVATE_PLUGINS = 'activate-plugins';
 
 // Site level, but stay on the auth pattern: they gate auth routes.
 export const AUTH_USERS = 'auth-users';

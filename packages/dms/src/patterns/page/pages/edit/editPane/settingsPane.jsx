@@ -737,7 +737,7 @@ const togglePageSetting = async (item,type, value='', apiUpdate) => {
       is_header: true,
       size: 2,
       element : {
-        "element-type": "Header: Default Header",
+        "element-type": "lexical",   // Rich Text (the built-in "Header: Default Header" was removed 2026-11-25)
         "element-data": {}
       }
     })

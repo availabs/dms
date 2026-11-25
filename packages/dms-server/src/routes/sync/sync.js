@@ -608,6 +608,8 @@ function createSyncRoutes(dbName) {
           }
         }
         else if (op === 'create') item.data = await controller.claimParentId(item.app, item.type, item.data, pushTable);
+        // a new source is editable unless its creator says otherwise (routes/dms/sourceEditable.js)
+        if (op === 'create') item.data = controller.withSourceEditableDefault(item.data, item.type);
         // grants are stored as an object, whatever form the client sent (routes/auth/grants.js)
         if (op !== 'delete') item.data = controller.normaliseGrants(item.data, item.type);
         // What gets written: for an edit, only the keys the guard judged (dataAuth.js planEdit). An I

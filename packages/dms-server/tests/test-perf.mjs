@@ -1,11 +1,12 @@
-// node --test src/dms/perf
+// The perf engine (src/perf/): statistics, run settings, aggregation, comparison, mode detection.
+// node --test tests/test-perf.mjs   (npm run test:perf)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { summarize, quantileOf, verdict } from './stats.js';
-import { resolveRunConfig } from './config.js';
-import { aggregate } from './aggregate.mjs';
-import { compareRuns } from './compare.mjs';
-import { detectFromHtml } from './detect.js';
+import { summarize, quantileOf, verdict } from '../src/perf/stats.mjs';
+import { resolveRunConfig } from '../src/perf/config.mjs';
+import { aggregate } from '../src/perf/aggregate.mjs';
+import { compareRuns } from '../src/perf/compare.mjs';
+import { detectFromHtml } from '../src/perf/detect.mjs';
 
 test('summarize: min, max, average, median; ignores missing values', () => {
   assert.deepEqual(summarize([300, 100, null, 200, undefined, 1000]), { n: 4, min: 100, max: 1000, avg: 400, median: 250 });

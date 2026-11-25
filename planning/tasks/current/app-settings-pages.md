@@ -1,6 +1,6 @@
 # An app's Settings as pluggable sub pages, one definition for the app and the hub's tenant page
 
-**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** doing · **Created by:** amuro@albany.edu · **Edited by:** —
+**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** built · **Created by:** amuro@albany.edu · **Edited by:** amuro@albany.edu
 
 **Project:** DMS library (admin pattern, plugin host) · **Topic:** patterns/admin · **Created:** 2026-11-25
 
@@ -124,14 +124,16 @@ on the server.
 
 ## Testing checklist
 
-- [ ] A single-site app shows Settings with Overview and Storage; no Domains card
+- [x] A single-site app shows Settings with Overview and Storage; no Domains card (browser check, below)
 - [ ] A tenant host shows Settings with the same sub pages as the hub's page for that tenant, minus `forTenant: false`
-- [ ] The hub's root shows Server plugins under its own Settings only
-- [ ] `/list/storage`, `/list/plugins`, `/list/domains` land on the new sub pages
-- [ ] A sub page added by an app, by a plugin (compiled in and installed) and by a pattern type each show, and
-      vanish when the plugin is not active
-- [ ] A user with only `manage-storage` sees Settings → Storage and nothing else
-- [ ] Backwards compatible: existing admin pages and the Pattern Editor unchanged; no theme key removed
+      (unit-tested in the registry; not checked in a browser: needs a multi-tenant build with tenants)
+- [x] The hub's root shows Server plugins under its own Settings only (browser: the server's hub; unit: never a tenant host)
+- [x] `/list/storage`, `/list/plugins`, `/list/domains` land on the new sub pages (browser)
+- [~] A sub page added by an app, by a plugin and by a pattern type each show, and vanish when the plugin is not
+      active: unit-tested (`tests/settingsRegistry.test.js`, through the real `registerPlugin`); no live example page
+- [x] A user with only `manage-storage` sees Settings → Storage and nothing else (unit)
+- [x] Backwards compatible: the Pattern Editor unchanged; no theme key removed (`admin.settingsPages` added); the cards
+      keep their `tenant` prop and old routes when not given `apiBase`; old admin paths redirect
 
 ## Progress log
 
@@ -142,3 +144,37 @@ on the server.
   registered by app always and by tenant / hub on a multi-tenant server; `siteAppOf` takes `:app` (an app name
   pattern, and a site row on this server, else 404). `routes/appSettings/index.js`: the by-app base, the same
   check (`store.siteRowOf`, now exported). Judging unchanged. Test `tests/test-app-routes.js` 7/7 (in `npm test`).
+- 2026-11-25 — **Phases 1–3 built, phase 4's docs done** (not committed). Owner: "lets implement the settings task".
+  - **Registry** `patterns/admin/settingsRegistry.js`: the shape in the design, plus `can(ctx)` REQUIRED (a page with
+    none is refused at registration) and `ownHeader` (the page draws its own header: Storage, Server plugins).
+    `settingsPagesFor(ctx)` → `{ all, allowed }`; ctx also carries `staff` (the hub's root and manage-tenants).
+    Built in: Overview (0), Plugins (10), Storage (20, own Settings only), Server plugins (30, own Settings only,
+    the server's hub and install-plugins; `mayInstallPlugins` moved here from siteConfig.jsx).
+  - **Doors:** `registerSettingsPages` (exported from the library); the plugin host's new kind `settingsPages`
+    (`host.registerSettingsPages`, owner tracking and rollback like the others; shown only where the plugin is
+    active); `admin.settingsPages` on a pattern type (offered when the site has a pattern of that type).
+  - **Page** `pages/settingsPages.jsx` (+ `.theme.js`, `admin.settingsPages`): the header (a sub page reports its
+    counts through `onSummary`, as Overview does), then the open sub page; `showNav` adds a strip of sub pages (the
+    hub's tenant page). No sub page in the URL redirects to the first allowed one; a denied one says so.
+  - **Both places:** `pages/siteSettings.jsx` (`settings/:sub?`, every app; `target.apiBase` =
+    `/_dms/apps/<app>`) and `pages/tenantOverview.jsx` (`tenants/:tenantId/:sub?`; `/tenants/<subdomain>`) are
+    wrappers now. The cards moved into `pages/settings/overview.jsx` and `pages/settings/plugins.jsx`;
+    `PgEnvsCard`, `PluginsCard`, `AppSettingsCard` take `apiBase` (without it, their old tenant / `/hub` routes),
+    and say "needs a newer dms-server" on a bare 404 from the by-app routes.
+  - **Moves:** Storage and Server plugins are sub pages; `/list/storage`, `/list/plugins`, `/list/domains`
+    redirect; their root sidenav entries are gone. The sidenav's Settings is now a group listing the sub pages the
+    user can use, on every app (was: a single link, multi-tenant sites only).
+  - **Who sees Settings changed:** any user who can use one sub page (was: manage-domains on a tenant host,
+    manage-tenants on the hub's root, nobody on a single-site app).
+  - **Left out, on purpose:** on the hub's tenant page, pattern-type pages aren't offered (it doesn't load the
+    tenant's patterns), and a plugin's pages follow its default activation, not the tenant's rows. The phase 4
+    example page from an app plugin was not added (it would ship to every admin); the plugin door is covered by the
+    unit test instead. Owner's call whether to add one, or wait for the perf report's app summary.
+  - **Docs:** `documentation/extension-points.md` (a section for the Settings sub pages, the plugin host row, the
+    `admin.settingsPages` row), `documentation/pattern-registry.md`.
+  - **Tests:** `tests/settingsRegistry.test.js` 9/9 (order, refusals, `can`, `forTenant`, the tenant-host rule,
+    the plugin door with activation and rollback, the pattern-type door); `pluginHost.test.js` still passes. Library
+    suite: 985 pass, the same 15 known failures in 7 files. `scratchpad/settings-e2e/check.mjs`: 13/13 in Chromium
+    against a production SSR build on a single-site (not multi-tenant) server: the Settings group, the redirects,
+    Overview's cards over `/_dms/apps/<app>/…` (200), Plugins, Storage, an unknown sub page, no page errors.
+

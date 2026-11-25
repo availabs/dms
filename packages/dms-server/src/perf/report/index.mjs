@@ -249,6 +249,8 @@ function runMeta(run) {
     `${run.pages.length} pages × ${run.config.runs} run(s) · ${run.config.parallel > 1 ? `${run.config.parallel} pages at a time` : 'one page at a time'} · ${esc(run.config.visits.join(', '))}`,
     `started ${esc(run.started?.slice(0, 16).replace('T', ' '))} UTC`,
     `Chrome ${esc(e.chrome)} · ${esc(e.cpu)} (${e.cores} cores) · ${esc(e.host)}`,
+    // a run the admin's Performance tab started: the browser shared the server's CPU with the site it measured
+    ...(run.measuredFrom === 'server' ? [`<b>measured from the server</b>${run.requestedBy ? ` · run by ${esc(run.requestedBy)}` : ''}: its browser shares the CPU with the site it measures, so compare these numbers with other runs from the same server, not with a run from a laptop`] : []),
     `commits: app ${esc(e.commits?.app)} · dms ${esc(e.commits?.dms)}`,
   ].join('<br>');
 }
@@ -589,8 +591,8 @@ function comparison(base, cand, cmp) {
   };
 }
 
-/** `loaded`: one run (its report) or two with a comparison. Returns the file written. */
-export function writeReport(loaded, outFile, cmp = null) {
+/** `loaded`: one run (its report) or two with a comparison. Returns the page's HTML. */
+export function renderReport(loaded, cmp = null) {
   const { title, body } = cmp ? comparison(loaded[0], loaded[1], cmp) : singleRun(loaded[0]);
   const css = fs.readFileSync(path.join(here, 'style.css'), 'utf8');
   const html = `<!doctype html>
@@ -600,7 +602,12 @@ export function writeReport(loaded, outFile, cmp = null) {
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>${css}</style></head>
 <body>${body}<script>${SCRIPT}</script></body></html>`;
-  fs.writeFileSync(outFile, html);
+  return html;
+}
+
+/** `loaded`: one run (its report) or two with a comparison. Returns the file written. */
+export function writeReport(loaded, outFile, cmp = null) {
+  fs.writeFileSync(outFile, renderReport(loaded, cmp));
   return outFile;
 }
 

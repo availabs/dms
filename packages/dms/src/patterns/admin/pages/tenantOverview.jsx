@@ -3,33 +3,28 @@ import { Link, useNavigate, useNavigation } from 'react-router'
 import { AdminContext } from "../context";
 import { ThemeContext } from '../../../ui/useTheme';
 import { siteCan, MANAGE_TENANTS } from '../../../utils/adminPermissions';
+import { settingsPagesFor } from '../settingsRegistry'
 import { editSiteTheme } from './editSite.theme'
-import { DomainsCard } from '../components/domainsCard'
-import { PgEnvsCard } from '../components/pgEnvsCard'
-import { AppSettingsCard } from '../components/appSettingsCard'
-import { PluginsCard } from '../components/pluginsCard'
+import SettingsPages from './settingsPages'
 
-// /list/tenants/:tenantId on the platform root of the tenant hub
-// (design_system_v6/pages/admin-tenant-overview.html): one tenant, opened from its name on the
-// Tenants page. Loads the site row ("edit", as TenantsPage) for its `tenants` list. It is the
-// tenant's settings page: the header, then one card per setting, stacked: domains
-// (components/domainsCard.jsx), data environments, the pgEnvs the tenant is attached to
-// (components/pgEnvsCard.jsx; pgenv-config-on-the-site-row.md), and its app and icon
-// (components/appSettingsCard.jsx; site-app-settings-pwa.md), and its plugins (components/pluginsCard.jsx;
-// dms-plugin-system.md P2 step 5). One page for now; when the cards
-// outgrow it, they become sub pages as the pattern editor's tabs are (patternEditor/index.jsx).
+// /list/tenants/:tenantId/:sub? on the platform root of the tenant hub
+// (design_system_v6/pages/admin-tenant-overview.html): one tenant, opened from its name on the Tenants page, for hub
+// staff (manage-tenants). Loads the site row ("edit", as TenantsPage) for its `tenants` list. It shows the tenant's
+// Settings: the same sub pages as the tenant's own /list/settings (settingsRegistry.js; app-settings-pages.md),
+// less those only an app's own Settings has (`forTenant` false: Storage, Server plugins), with a strip to move
+// between them. They call the hub's routes for the tenant, /tenants/<subdomain>/…, which judge the caller again.
+// Pattern-type pages aren't offered here (this page doesn't load the tenant's patterns), and a plugin's are offered
+// as its default activation says, not the tenant's own rows.
 // Still to port from the mockup: name editing, the pattern-subdomains card, the danger zone
 // (tenant-external-domains.md, Phase B).
 // `params` comes from the DMS manager's own path match (dms-manager), not react-router's useParams.
 export default function TenantOverviewPage({ item = {}, dataItems, params = {} }) {
-	const { baseUrl, authPath, app, user, authPermissions, isMultiTenant, subdomain, tenantSubdomain = subdomain } = React.useContext(AdminContext) || {}
+	const { baseUrl, authPath, app, user, authPermissions, isMultiTenant, subdomain, tenantSubdomain = subdomain, pluginHub } = React.useContext(AdminContext) || {}
 	const { theme } = React.useContext(ThemeContext) || {}
 	const t = { ...editSiteTheme, ...(theme?.admin?.editSite || {}) }
 	const navigate = useNavigate()
 	const { state: navState } = useNavigation()
-	const { tenantId } = params
-	const [info, setInfo] = React.useState(null)
-	const [pgEnvs, setPgEnvs] = React.useState(null)
+	const { tenantId, sub } = params
 
 	if (!item.id && dataItems?.length > 0) item = dataItems[0]
 
@@ -59,33 +54,18 @@ export default function TenantOverviewPage({ item = {}, dataItems, params = {} }
 		)
 	}
 
+	const { all, allowed } = settingsPagesFor({ user, app, authPermissions, isMultiTenant, tenantSubdomain, pluginHub, own: false })
+
 	return (
-		<div className={t.tenantPageWrapper}>
-			<div className={t.identityWrapper}>
-				<div className={t.identityText}>
-					<div className={t.identityTitle}>{tenant.name || tenant.subdomain}</div>
-					<p className={t.identitySubtitle}>
-						{tenant.subdomain} · primary domain {info ? (info.primary || info.defaultDomain) : '…'} · id {tenant.id}
-					</p>
-				</div>
-				<span className={t.identitySpacer} />
-				<div className={t.statsStrip}>
-					<div className={t.statItem}>
-						<p className={t.statValue}>{info ? (info.aliases || []).length + 1 : '–'}</p>
-						<p className={t.statLabel}>domains</p>
-					</div>
-					<div className={t.statItem}>
-						<p className={t.statValue}>{pgEnvs ? (pgEnvs.attached || []).length : '–'}</p>
-						<p className={t.statLabel}>pgEnvs</p>
-					</div>
-				</div>
-			</div>
-			<div className={t.tenantSettingsStack}>
-				<DomainsCard tenant={tenant.subdomain} onChange={setInfo} />
-				<PgEnvsCard tenant={tenant.subdomain} onChange={setPgEnvs} />
-				<AppSettingsCard tenant={tenant.subdomain} />
-				<PluginsCard tenant={tenant.subdomain} />
-			</div>
-		</div>
+		<SettingsPages
+			pages={all}
+			allowed={allowed}
+			sub={sub}
+			linkBase={`${baseUrl}/tenants/${tenantId}`}
+			showNav
+			title={tenant.name || tenant.subdomain}
+			subtitle={(s) => <>{tenant.subdomain} · primary domain {s.primary || '…'} · id {tenant.id}</>}
+			target={{ app: tenant.app || '', tenant: tenant.subdomain, apiBase: `/tenants/${encodeURIComponent(tenant.subdomain)}`, own: false }}
+		/>
 	)
 }

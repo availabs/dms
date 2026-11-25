@@ -13,6 +13,8 @@ export { registerComponents } from "./patterns/page/components/sections/componen
 export { registerSectionMenuExtensions } from "./patterns/page/components/sections/sectionMenuExtensions"
 export { registerSectionHeaderExtensions } from "./patterns/page/components/sections/sectionHeaderExtensions"
 export { registerPatternTypes, getPatternType, listPatternTypes } from "./patterns/registry"
+// an app's own Settings sub pages (patterns/admin/settingsRegistry.js; app-settings-pages.md)
+export { registerSettingsPages } from "./patterns/admin/settingsRegistry"
 // The plugin contract (dms-plugin-system.md): a plugin registers through a host, and the library records what each
 // plugin contributed so activation can be checked where a registry is read
 export {

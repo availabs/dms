@@ -3,7 +3,7 @@
 // Task: src/dms/planning/tasks/current/dms-plugin-system.md (P1, "the contract, still built in").
 //
 // A plugin is one package that can carry pattern types (with their page sections), section types, column types,
-// format functions, nav widgets, themes and data-type pages. Its client entry exports
+// format functions, nav widgets, themes, data-type pages and an app's Settings sub pages. Its client entry exports
 //
 //   { name, version, api, activation?, register(host) }
 //
@@ -32,6 +32,7 @@ import { getComponentTheme } from '../ui/useTheme'
 import { udaListViews, udaCreateView, udaUpdateSourceMetadata, udaGetSourceAuthorities, udaSetAuthoritativeView } from '../api'
 import { singleAuthoritativeViewId } from '../patterns/datasets/utils/authority'
 import { CMSContext, PageContext, ComponentContext, DataSourceContext } from '../patterns/page/context'
+import { registerSettingsPages, removeSettingsPagesOf } from '../patterns/admin/settingsRegistry'
 import { themeLoaders, dataTypes, patternTypeOwners, sectionTypeOwners, pluginRecords, contributionOwners } from './registries'
 
 export { pluginThemeNames, loadPluginThemes, withPluginThemes, pluginDataTypes, activationsOf, isPatternTypeActive, isSectionTypeActive, pluginsOfSections } from './registries'
@@ -47,7 +48,7 @@ const NAME = /^[a-z][a-z0-9_]*$/
 
 const plugins = pluginRecords      // name -> record (what listPlugins shows); kept in ./registries for its readers
 const definitions = new Map()      // name -> the plugin object it was registered with
-const KINDS = ['patternTypes', 'sectionTypes', 'columnTypes', 'formatFunctions', 'widgets', 'themes', 'dataTypes']
+const KINDS = ['patternTypes', 'sectionTypes', 'columnTypes', 'formatFunctions', 'widgets', 'themes', 'dataTypes', 'settingsPages']
 for (const k of KINDS) contributionOwners[k] ||= new Map()
 const owners = contributionOwners   // kind -> (registered name -> plugin name)
 
@@ -147,6 +148,19 @@ function createHost(plugin, activation, contributes) {
     registerThemes(map) { take('themes', map, (name, loader) => { if (typeof loader !== 'function') throw new Error(`theme "${name}" of plugin "${plugin}": a loader function is expected`); themeLoaders.set(name, loader) }) },
     /** Data-type client pages: { name: definition }, as the app's damaDataTypes map holds them. */
     registerDataTypes(map) { take('dataTypes', map, (name, def) => { dataTypes[name] = { def, plugin, activation } }) },
+    /**
+     * An app's Settings sub pages: [{ name, path, icon, order, component, can, forTenant, ownHeader }]
+     * (patterns/admin/settingsRegistry.js). Shown only where this plugin is active. A path the app or the core
+     * already has is ignored, with a warning; one another plugin has throws.
+     */
+    registerSettingsPages(list) {
+      for (const def of list || []) claim('settingsPages', def?.path, plugin)
+      const added = registerSettingsPages(list, { plugin, activation })
+      for (const def of list || []) {
+        if (added.includes(def?.path)) contributes.settingsPages.push(def.path)
+        else if (owners.settingsPages.get(def?.path) === plugin) owners.settingsPages.delete(def?.path)
+      }
+    },
   }
 }
 
@@ -178,6 +192,7 @@ export function registerPlugin(def) {
     for (const n of contributes.sectionTypes) if (sectionTypeOwners.get(n)?.plugin === name) sectionTypeOwners.delete(n)
     for (const n of contributes.themes) themeLoaders.delete(n)
     for (const n of contributes.dataTypes) if (dataTypes[n]?.plugin === name) delete dataTypes[n]
+    removeSettingsPagesOf(name)
     throw e
   }
   return record

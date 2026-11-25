@@ -15,7 +15,6 @@ import { columnManagerTheme } from './components/sections/ColumnManager.theme'
 import { actionControlsTheme } from './components/sections/components/ComponentRegistry/spreadsheet/controls/ActionControls.theme'
 import { sectionMenuTheme } from './components/sections/sectionMenu.theme'
 import { errorPageTheme } from './pages/errorPage.theme'
-import { pdfExportTheme } from './components/sections/components/ComponentRegistry/ExportPdf.theme'
 
 export default {
     sectionGroup: sectionGroupTheme,
@@ -36,7 +35,6 @@ export default {
     actionControls: actionControlsTheme,
     sectionMenu: sectionMenuTheme,
     errorPage: errorPageTheme,
-    pdfExport: pdfExportTheme,
 }
 
 export const pagesThemeSettings = (theme) => {

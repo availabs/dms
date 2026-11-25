@@ -7,6 +7,7 @@ import { getInstance } from "../../../../../../utils/type-utils";
 import UdaTaskList from "../../../Tasks/UdaTaskList";
 import SourceAccessEditorChain from "../../../../components/SourceAccessEditorChain";
 import ChangeHistoryEditor from "../../../../components/ChangeHistoryEditor";
+import { EditableToggle } from "../../default/admin";
 import { DeleteDmsSourceBtn } from "../../../../components/DeleteSource";
 import { ThemeContext } from "../../../../../../ui/useTheme";
 import { adminTheme } from "../../default/admin.theme";
@@ -175,6 +176,8 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params }) => {
                                             apiUpdate={apiUpdate} isDms={true} id={id}/>
                         {/* Whether edits to this dataset's rows are recorded in a history dataset. */}
                         <ChangeHistoryEditor source={source} id={id}/>
+                        {/* Whether this dataset's rows can be edited at all (the server refuses row writes when off). */}
+                        {canUpdate && <EditableToggle source={source} setSource={setSource} format={format} id={id} isDms={true}/>}
                     </div>
 
                     <div className={t.adminSidebar}>

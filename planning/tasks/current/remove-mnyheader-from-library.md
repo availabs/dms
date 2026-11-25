@@ -1,6 +1,6 @@
-# Delete `mnyHeader` from the library — it now ships with the mny theme
+# The page pattern's section catalog: built-ins only; MNY's header, footer and PDF Generator ship with the mny theme
 
-**Initiatives:** [mny_county_template_r2](../../../../../planning/initiatives/mny_county_template_r2.md) · **Status:** next (was: "READY, blocked only on a pre-flight · Raised: 2026-09-09") · **Created by:** amuro@albany.edu · **Edited by:** —
+**Initiatives:** [mny_county_template_r2](../../../../../planning/initiatives/mny_county_template_r2.md) · **Status:** built (2026-11-25, not committed; widened by the owner from the mnyHeader deletion to the whole catalog; the other-app pre-flight is the owner's to run, below) · **Created by:** amuro@albany.edu · **Edited by:** amuro@albany.edu
 
 **Topic:** patterns/page — ComponentRegistry · **Status:** READY, blocked only on a pre-flight ·
 **Raised:** 2026-09-09
@@ -67,3 +67,52 @@ reason to delete rather than leave it.
 - [ ] Submodule commit (the user owns this)
 
 > **Re-linked 2026-10-13** from `mny_county_sites` (closed at the initiative review) to `mny_county_template_r2`.
+
+## Widened and built (owner, 2026-11-25; not committed)
+
+**Owner:** "Header: default and Item should be deleted and Header: Mny, Footer: mny and pdf generator should all be
+moved as components into the mny theme, so the only default system components are Rich Text, Card, Spreadsheet,
+Filter and Graph, and the mapeditor pattern can add Map." For the PDF Generator the owner chose **MNY theme only**
+over keeping it in the library as an opt-in (TransportNY's themev2 has PDF Generator colours, `tnyPdfExport`, from
+2026-10-31; they now style nothing unless a TransportNY theme registers the section).
+
+**The library's catalog** (`ComponentRegistry/index.jsx`): `lexical` (Rich Text), Card, Spreadsheet, Filter, Graph,
+plus the hidden "AVL Graph" alias (the same component, for sections saved under the old name). Map comes from the
+map editor's `pageComponents`, as before.
+
+**Deleted from the library:** `header.jsx` + `header.config.js` ("Header: Default Header"), the `Item` stub, the
+`mnyHeader/` folder (the theme's copy, registered since 09-09, is newer: islands `serverStatic`, plan facts, the
+county note, WebP heroes), and the `pages.pdfExport` key of the page pattern's default theme.
+
+**Moved into `src/themes/mny/components/`, keys unchanged** and registered in the mny theme's `pageComponents`:
+- `footer/` ("Footer: MNY Footer": `footer.jsx`, `footer.config.js`)
+- `pdfGenerator/` ("PDFGenerator": `ExportPdf.jsx`, `.config.js`, `.theme.js`, and the non-UI half `pdfExport.js` with its
+  test, from `patterns/page/components/saveAsPDF/`). The component still spreads its own default theme under the
+  theme's `pages.pdfExport` (MNY's colours), as before.
+
+**The core no longer names these types:**
+- A page's Header setting inserts a Rich Text section (`lexical`) where it inserted "Header: Default Header"
+  (`editFunctions.jsx` `toggleSidebar`, `settingsPane.jsx`, `sectionGroupsPane.jsx`).
+- When an old page gets section groups, its Footer setting adds the section type the theme names in
+  `pages.footerSectionType` (mny: "Footer: MNY Footer"); a theme that names none gets the footer group empty
+  (`pages/_utils/index.js` `sectionsEditBackill`, `sectionsBackill`). Documented in `extension-points.md`.
+
+**Docs:** `extension-points.md`, `skills/creating-page-section-components.md` (the minimal reference is now
+`FilterComponent.config.js`), `dms-server/docs/api.md` (the PDF export's client), the hero-WebP task's note.
+
+**Checked:** library suite 973 pass, the same 15 known failures in 7 files (the PDF helper's 7 tests moved out
+and pass from the theme: `npx vitest run src/themes/mny/components/pdfGenerator/pdfExport.test.js`); eslint on the
+changed files: only unused-variable findings the moved files already had.
+
+### The pre-flight, for the owner (a read-only database census was refused to the agent)
+
+Which saved sections use the removed or moved types, per app and pattern, with the theme each pattern selects.
+Read only; counts only:
+
+    node scratchpad/component-census/census.cjs dms-mercury-3
+    node scratchpad/component-census/census.cjs hub-dms
+
+What to look for:
+- any `Header: Default Header` or `Item` row: those sections now render as an unknown type;
+- any `Header: MNY Data`, `Footer: MNY Footer` or `PDFGenerator` row on a pattern whose theme is not `mnyv1`: those
+  render as an unknown type too (TransportNY's PDF Generator, if it has any).

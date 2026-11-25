@@ -248,6 +248,13 @@ async function getJoinedTileData(pgEnv, viewId, z, x, y, columns, filter, join) 
     ? ', ' + (join.tileCols || []).map((c) => `joined_cte.${quoteIdentifier(c)}`).join(', ')
     : '';
 
+  // PG join: compute tile_keys and joined_cte once each (joined-tile-nested-loop-fix.md). Postgres 12+
+  // folds a CTE used once into the query, guesses it returns 1 row and picks a nested loop that re-runs
+  // the whole join for every feature: 13.7 s for a 1299-feature tile, 0.48 s materialized, same bytes.
+  // The CH branch keeps its text: tile_keys there is unreferenced and must stay prunable, and its
+  // joined_cte (jsonb_to_recordset over rows already fetched) measured the same either way.
+  const materialized = joinCtx.dbType === 'pg' ? ' MATERIALIZED' : '';
+
   const sql = `
     WITH tile_geo AS (
       SELECT
@@ -264,12 +271,12 @@ async function getJoinedTileData(pgEnv, viewId, z, x, y, columns, filter, join) 
       )
       ${filter ? ` AND ${filter}` : ''}
     ),
-    tile_keys AS (
+    tile_keys AS${materialized} (
       SELECT DISTINCT join_value
       FROM tile_geo
       WHERE join_value IS NOT NULL
     ),
-    joined_cte AS (
+    joined_cte AS${materialized} (
       ${joinedCteSql}
     ),
     mvtgeom AS (
@@ -358,4 +365,4 @@ async function serveTile(req, res) {
 }
 
 // Export as Express route handlers — mounted by upload/index.js at /dama-admin/
-module.exports = { serveTile, injectJoinKeys, MAX_CH_JOIN_TILE_KEYS };
+module.exports = { serveTile, getJoinedTileData, injectJoinKeys, MAX_CH_JOIN_TILE_KEYS };

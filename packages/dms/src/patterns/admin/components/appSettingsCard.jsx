@@ -3,6 +3,7 @@ import { AdminContext } from "../context";
 import { ThemeContext } from '../../../ui/useTheme';
 import { authedFetch } from '../../../utils/authedFetch';
 import { appSettingsCardTheme } from './appSettingsCard.theme'
+import { NOT_OFFERED } from './settingsMessages';
 
 // A site's icon, app name and colours, on the tenant's settings page (site-app-settings-pwa.md). They
 // are what the site shows in a browser tab and when it is installed to a phone's home screen. Reads and
@@ -11,7 +12,7 @@ import { appSettingsCardTheme } from './appSettingsCard.theme'
 const HEX = /^#[0-9a-f]{6}$/i;
 const FIELDS = ['name', 'short_name', 'theme_color', 'background_color'];
 
-export function AppSettingsCard({ tenant }) {
+export function AppSettingsCard({ tenant, apiBase }) {
 	const { API_HOST, user } = React.useContext(AdminContext) || {};
 	const { UI, theme } = React.useContext(ThemeContext) || {};
 	const { Button, Input, Icon } = UI;
@@ -24,7 +25,8 @@ export function AppSettingsCard({ tenant }) {
 	const [saved, setSaved] = React.useState(false);
 	const fileRef = React.useRef(null);
 
-	const base = `${API_HOST}${tenant ? `/tenants/${encodeURIComponent(tenant)}` : '/hub'}/app-settings`;
+	// `apiBase` as in pgEnvsCard.jsx: the app's or a tenant's routes; without it, a tenant's or the hub's own site's
+	const base = `${API_HOST}${apiBase || (tenant ? `/tenants/${encodeURIComponent(tenant)}` : '/hub')}/app-settings`;
 
 	const take = (json) => {
 		setInfo(json);
@@ -34,7 +36,7 @@ export function AppSettingsCard({ tenant }) {
 	const call = async (path, options) => {
 		const res = await authedFetch(`${base}${path}`, { user, ...options });
 		const json = await res.json().catch(() => ({}));
-		if (!res.ok) throw new Error(json.error || `request failed (${res.status})`);
+		if (!res.ok) throw new Error(json.error || (res.status === 404 && apiBase ? NOT_OFFERED : `request failed (${res.status})`));
 		take(json);
 		return json;
 	};

@@ -3,6 +3,7 @@ const { loadConfig } = require('#db/config.js');
 const { resolveTable, parseType, isSplitType, ensureSequence, ensureTable, getSequenceName, resolveSplitMode } = require('#db/table-resolver.js');
 const { parseSplitDataType, getKind } = require('#db/type-utils.js');
 const { extractTimeFilterValues, buildTimeFilterSQL } = require('./time-filter.js');
+const { resultCache } = require('./resultCache.js');
 
 /**
  * Resolve the fully-qualified main table name for DMS content (non-split items).
@@ -208,21 +209,38 @@ async function getEssentials({ env, view_id, options = {} }) {
   // DAMA mode — view may point at a ClickHouse-backed table via a
   // `clickhouse.<schema>` prefix in data_manager.views.table_schema. When it
   // does, swap in the CH adapter and strip the prefix before returning.
-  let { table_schema, table_name, featureIdColumn = null } = await getDataTableFromViewId({ db, view_id });
+  let { table_schema, table_name, featureIdColumn = null, isEditable = false } = await getDataTableFromViewId({ db, view_id });
   let dbType = 'pg';
   if (typeof table_schema === 'string' && table_schema.startsWith('clickhouse.')) {
     dbType = 'ch';
     table_schema = table_schema.replace(/^clickhouse\./, '');
     db = getChDb(env);
   }
-  return { isDms, db, app: null, type: null, table_schema, table_name, dmsAttributes: undefined, featureIdColumn, dbType };
+  return { isDms, db, app: null, type: null, table_schema, table_name, dmsAttributes: undefined, featureIdColumn, dbType, isEditable };
 }
 
 /**
  * Look up a view's data table from data_manager.views
  */
+// With the result cache on (./resultCache.js), a view's table is remembered for the cache's window: a query
+// answered from memory would otherwise still start with this lookup, which reads the source's whole metadata.
+const _viewTableCache = new WeakMap();   // db -> Map(view_id -> { value, at })
+
 async function getDataTableFromViewId({ db, view_id }) {
   if (!view_id) return {};
+  const cache = resultCache();
+  if (cache.mode() === 'off') return readDataTableFromViewId({ db, view_id });
+  let byView = _viewTableCache.get(db);
+  if (!byView) { byView = new Map(); _viewTableCache.set(db, byView); }
+  const hit = byView.get(+view_id);
+  if (hit && Date.now() - hit.at < cache.windowMs()) return hit.value;
+  const value = await readDataTableFromViewId({ db, view_id });
+  if (byView.size > 5000) byView.clear();
+  byView.set(+view_id, { value, at: Date.now() });
+  return value;
+}
+
+async function readDataTableFromViewId({ db, view_id }) {
 
   const vTbl = db.type === 'postgres' ? 'data_manager.views' : 'views';
   const sTbl = db.type === 'postgres' ? 'data_manager.sources' : 'sources';
@@ -243,7 +261,9 @@ async function getDataTableFromViewId({ db, view_id }) {
   // which column identifies features (setindex-composite-covering-indexes.md).
   const featureIdColumn = (metadata.columns || []).find(c => c.isFeatureId)?.name || null;
 
-  return { table_schema: rows[0].table_schema, table_name: rows[0].table_name, featureIdColumn };
+  // the source's Editable flag (one flag for every source: source-editable-flag-everywhere.md); the result
+  // cache keeps answers only for sources where it is not true
+  return { table_schema: rows[0].table_schema, table_name: rows[0].table_name, featureIdColumn, isEditable: metadata.isEditable === true };
 }
 
 // ============================================= DMS Source/View Helpers =============================================

@@ -542,7 +542,7 @@ The script is idempotent — re-running it skips already-migrated rows.
 
 Renders a list of site pages to one PDF in headless Chrome, as a background job (`src/pdf/`). A job, not one
 request, because nginx in front of the server cuts proxied requests at 120 s and a large plan takes minutes.
-Client: the page pattern's PDF Generator section (`patterns/page/components/saveAsPDF/pdfExport.js`).
+Client: the PDF Generator section, shipped by dms-template's MNY theme (`src/themes/mny/components/pdfGenerator/pdfExport.js`).
 
 | Route | |
 |---|---|

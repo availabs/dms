@@ -112,7 +112,15 @@ async function createDamaSource(values, pgEnv) {
     { users: user_id ? { [user_id]: ['*'] } : {}, groups: { public: [] } };
 
   const statisticsJson = statistics ? JSON.stringify(statistics) : null;
-  const metadataJson = metadata ? JSON.stringify(metadata) : null;
+  // Every new source says whether it is editable, internal or external, in the same place
+  // (`metadata.isEditable`; planning/tasks/current/source-editable-flag-everywhere.md). An external source
+  // starts NOT editable: an author turns Editable on from its admin page, which needs a primary key first.
+  // Applied here for the same reason as the categories default below: this is the single INSERT.
+  const metadataObject = metadata && typeof metadata === 'object' && !Array.isArray(metadata) ? metadata : null;
+  const metadataJson = JSON.stringify(
+    metadataObject ? (typeof metadataObject.isEditable === 'boolean' ? metadataObject : { ...metadataObject, isEditable: false })
+      : metadata ? metadata   // not a plain object: stored as given, as before
+      : { isEditable: false });
 
   // Sandbox-by-default (see DEFAULT_NEW_SOURCE_CATEGORIES). Only when the caller
   // supplied nothing — an explicit choice always wins.

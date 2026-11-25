@@ -17,13 +17,26 @@
  *
  * Shape: { source_id, view_id, isDms, isEditable, env, srcEnv, app, type, columns, name, view_name, baseUrl }
  *
- * isEditable: external (DAMA) sources only — mirrors the source's metadata.isEditable flag
- * (see set_primary_col_from_meta.md). When true (and isDms is false), dataWrapper's add/edit/
- * delete gates treat the source like an internal (isDms) one, and apiUpdate/dmsDataEditor
- * routes writes to the uda.data.* CALL routes instead of dms.data.* — see
- * external-source-editable-crud.md.
+ * isEditable: mirrors the source's metadata.isEditable flag, for internal and external sources
+ * (read it through sourceIsEditable below, which knows what a missing value means). dataWrapper's
+ * add/edit/delete gates follow it. For an external source (isDms false) apiUpdate/dmsDataEditor routes
+ * the writes to the uda.data.* CALL routes instead of dms.data.* — see external-source-editable-crud.md
+ * and set_primary_col_from_meta.md.
  */
 export const EXTERNAL_SOURCE_KEY = 'externalSource';
+
+/**
+ * Whether a section's source takes row edits: the source's `metadata.isEditable`, one flag for internal
+ * and external sources alike (planning/tasks/current/source-editable-flag-everywhere.md). The server is
+ * the judge; this decides what the section offers.
+ *
+ * `isEditable` here is what the SECTION knows, and a section saved before the flag existed knows nothing
+ * about an internal source (undefined): it keeps offering edits, as it always did, until the source is read
+ * (useDataSource's toSource, the datasets Table page) and the real value lands. A source that has been read
+ * and has no value is not editable, internal or external.
+ */
+export const sourceIsEditable = (externalSource) =>
+    externalSource?.isDms ? externalSource.isEditable !== false : Boolean(externalSource?.isEditable);
 
 /**
  * filters — the user-authored filter tree.
