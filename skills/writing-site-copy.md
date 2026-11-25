@@ -12,7 +12,7 @@ convention is in [`src/dms/voice/README.md`](../voice/README.md). The worked exa
 
 | Site / themes | Brand folder |
 |---|---|
-| WCDB (`wcdb`) | `src/themes/wcdb/voice/` |
+| WCDB (`wcdb`) | `src/plugins/wcdb/theme/voice/` |
 | Weather & Climate Analytics, UAlbany COE (`weather_analytics`) | `src/plugins/weather_analytics/voice/` |
 | AVAIL lab sites: FUSION, Community Indicators, the AVAIL site, Tributary, Tessera, MitigateNY guides | `src/themes/lab_brand/` |
 | anything else | `src/themes/<theme>/voice/` if it exists, otherwise the library default only |

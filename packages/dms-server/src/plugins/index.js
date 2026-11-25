@@ -18,7 +18,7 @@
 const path = require('path');
 
 // The plugin API this server provides: the same version as the client library's (packages/dms/src/plugins).
-const PLUGIN_API_VERSION = '1.0.0';
+const PLUGIN_API_VERSION = '1.1.0';
 const ACTIVATION = ['default-on', 'opt-in'];
 const NAME = /^[a-z][a-z0-9_]*$/;
 const VERSION = /^\d+\.\d+\.\d+(?:[-+][\w.-]+)?$/;

@@ -20,7 +20,7 @@ export { registerSettingsPages } from "./patterns/admin/settingsRegistry"
 export {
   PLUGIN_API_VERSION, registerPlugin, registerPlugins, listPlugins, getPlugin, pluginOf, isPluginActive,
   pluginThemeNames, withPluginThemes, pluginDataTypes,
-  loadPlugins, installedActivations, clientPluginUrl,
+  loadPlugins, loadSitePlugins, installedActivations, clientPluginUrl,
 } from "./plugins"
 
 // Building blocks for pattern types a host app registers (registerPatternTypes)

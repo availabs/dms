@@ -805,3 +805,29 @@ All settled 2026-11-23 (D9–D11).
   (one loader per plugin folder, by glob), which the islands browser entry uses in place of `src/plugins/index.js`.
   A plugin installed at run time is loaded on those pages from the API host by name and version (written, not yet
   exercised with an installed plugin). Not saved on the activation row: a compiled-in plugin has no row.
+
+- 2026-11-25 — **the dms-template half of P1/P2 was found missing** from the checkout: no `src/plugins/` (none of the
+  five converted plugins, `index.js`, `themes.js`, `loaders.js`), no `src/apiHost.js`, no plugin loading in
+  `main.jsx`, no `vite-plugins/dmsCssCandidates.js`, no `longRoutes` in `data-types/routing`; not in any commit,
+  stash or dangling object. The library / dms-server half is committed. `test-plugins.js` "routing declares its
+  searches" fails for that reason.
+- 2026-11-25 — owner asked: the **wcdb theme and the now_playing data type as one plugin, installed only**
+  (`src/plugins/wcdb/`, README there). Removed from `src/themes/index.js`, `src/data-types.js`,
+  `data-types/register-datatypes.js` and the app's Tailwind scan; App.jsx's default app is now `avail`. Owner's
+  choices: (1) widen the host rather than bundle copies: plugin API **1.1.0** (client and server) adds
+  `getComponentTheme`, `api.{udaListViews, udaCreateView, udaUpdateSourceMetadata, udaGetSourceAuthorities,
+  udaSetAuthoritativeView}`, `datasets.singleAuthoritativeViewId`; `mergeTheme` moved to the pure
+  `ui/mergeTheme.js` (re-exported by `useTheme.js`) so `_legacy/` and plugins bundle it; (2) local dev from source
+  behind `VITE_DMS_DEV_PLUGINS` / `DMS_DEV_PLUGINS` (`src/plugins/dev.js`, dropped from production builds);
+  (3) tokens.css and Barlow ship in the plugin (the theme's `fonts`, Barlow's URLs from the plugin's base),
+  Magistral+ stays on the site's origin. Server: an installed server entry may name its data type (`dataType`;
+  `store.js registerInstalledServerPlugins`), so the webhook URLs stay `/now_playing/…`; now_playing declares its
+  webhook in `openRoutes` (installed plugins run under `enforce`). `main.jsx` loads installed plugins before
+  hydrating (`loadSitePlugins`, now exported) with `withPluginThemes`. Checked: production build has no wcdb or
+  now_playing code (with the dev flag set); `npm run dev` renders the wcdb home page through the plugin (theme,
+  tokens, Barlow from the plugin, column types; no page errors); the built `plugin.mjs` (390 KB, 102 KB gz)
+  registers against a stub host and loads the theme; the packed release (20 files) installs through
+  `installRelease` and its server entry registers as `now_playing` with its worker. Suites: dms-server
+  `test-plugins` 41/42 (the routing one above), `-routes` 18, `-rows` 27, `-installer` 10, `test-formats` 13;
+  library plugin tests 22. Not yet seen: an installed release loaded in a browser from an API host.
+
