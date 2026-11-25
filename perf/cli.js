@@ -1,10 +1,12 @@
 /* global process */
-// `dms perf …`: the CLI loads this module from a `.dmsrc` (`commands`) and passes its own helpers.
+// `dms perf …`: the CLI loads this module from a `.dmsrc` (`commands`) and passes its own helpers. The engine (the
+// runner, scoring, the report) lives in dms-server's src/perf/, which also runs it as a job for the admin's
+// Performance tab; this is its command-line front.
 // The site comes from the CLI's connection (--host/--app/--type, DMS_* variables); the pages are
 // loaded from --target, which is the address a visitor uses.
 import path from 'node:path';
 import { execSync } from 'node:child_process';
-import { resolveRunConfig } from './config.js';
+import { resolveRunConfig } from '../packages/dms-server/src/perf/config.mjs';
 import { listPages, choosePages } from './pages.js';
 
 const repoRoot = () => {
@@ -45,7 +47,7 @@ export default function register({ program, helpers }) {
       validateConfig(connection, ['host', 'app', 'type']);
       const cfg = resolveRunConfig(options);
       const root = repoRoot();
-      const { loadRun, runPerf } = await import('./runner.mjs');
+      const { loadRun, runPerf } = await import('../packages/dms-server/src/perf/runner.mjs');
       const falcor = makeClient(connection);
       const { pattern, pages: allPages } = await listPages(falcor, connection, cfg.pattern);
       let pages;
@@ -58,7 +60,7 @@ export default function register({ program, helpers }) {
       const { outDir, run } = await runPerf(cfg, { pattern, pages, allPages, repoRoot: root, connection: { host: connection.host, app: connection.app, type: connection.type } }, log);
       log(`saved ${run.counts.visits} visits to ${outDir}`);
       if (options.report !== false) {
-        const { writeReport } = await import('./report/index.mjs');
+        const { writeReport } = await import('../packages/dms-server/src/perf/report/index.mjs');
         log(`report: ${writeReport([loadRun(outDir)], path.join(outDir, 'report.html'))}`);
       }
       process.stdout.write(outDir + '\n');
@@ -68,8 +70,8 @@ export default function register({ program, helpers }) {
     .description("Write a saved run's HTML report again")
     .option('--out <file>', 'The report file (default: <run-dir>/report.html)')
     .action(guard(async (dir, options) => {
-      const { loadRun } = await import('./runner.mjs');
-      const { writeReport } = await import('./report/index.mjs');
+      const { loadRun } = await import('../packages/dms-server/src/perf/runner.mjs');
+      const { writeReport } = await import('../packages/dms-server/src/perf/report/index.mjs');
       process.stdout.write(writeReport([loadRun(dir)], options.out || path.join(path.resolve(dir), 'report.html')) + '\n');
     }));
 
@@ -78,9 +80,9 @@ export default function register({ program, helpers }) {
     .option('--out <file>', 'The comparison report (default: <candidate-dir>/compare-<baseline label>.html)')
     .option('--json', 'Print the comparison as JSON instead of a summary')
     .action(guard(async (a, b, options) => {
-      const { loadRun } = await import('./runner.mjs');
-      const { compareRuns, compareSummaryText } = await import('./compare.mjs');
-      const { writeReport } = await import('./report/index.mjs');
+      const { loadRun } = await import('../packages/dms-server/src/perf/runner.mjs');
+      const { compareRuns, compareSummaryText } = await import('../packages/dms-server/src/perf/compare.mjs');
+      const { writeReport } = await import('../packages/dms-server/src/perf/report/index.mjs');
       const base = loadRun(a), cand = loadRun(b);
       const cmp = compareRuns(base, cand);
       const out = options.out || path.join(cand.dir, `compare-${base.run.label}.html`.replace(/[^\w.-]+/g, '_'));

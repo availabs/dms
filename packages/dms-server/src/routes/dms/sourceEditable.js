@@ -5,10 +5,13 @@
  * (planning/tasks/current/source-editable-flag-everywhere.md).
  *
  *   - A new internal source is created editable unless its creator says otherwise (withSourceEditableDefault).
- *   - A source whose flag is `false` takes no row writes (refusesRowWrites; the controller's
- *     assertSourceEditable applies it to create, edit, delete and mass edit, and /sync/push to its own writes).
- *   - A source with NO value is an older row the backfill has not reached (scripts/backfill-source-editable.js):
- *     internal rows were always editable, so it still is.
+ *   - A source takes row writes only while its flag is `true` (refusesRowWrites; the controller's
+ *     assertSourceEditable applies it to create, edit, delete and mass edit, the upload routes and
+ *     uda's clearData to theirs).
+ *   - A source with NO value is not editable, as for an external source. Every source created through this
+ *     server has one; a row that predates the flag gets it from scripts/backfill-source-editable.js (run on
+ *     every configured database 2026-11-25). RUN THAT SCRIPT WHEN THIS CODE REACHES A SERVER: a source created
+ *     by the older code since the last run has no value, and its rows are locked until it has.
  */
 const { getKind } = require('../../db/type-utils');
 
@@ -28,9 +31,9 @@ function withSourceEditableDefault(data, type) {
   return typeof data === 'string' ? JSON.stringify(next) : next;
 }
 
-/** Whether the source whose row data this is refuses row writes: only an explicit `false` does. */
+/** Whether the source whose row data this is refuses row writes: it does unless its flag is `true`. */
 function refusesRowWrites(sourceData) {
-  return asObject(asObject(sourceData)?.metadata)?.isEditable === false;
+  return asObject(asObject(sourceData)?.metadata)?.isEditable !== true;
 }
 
 /** The error a refused row write throws: 409, since the request is fine and the dataset's state forbids it. */

@@ -1,5 +1,5 @@
 // Turns a run's raw visits into numbers per page and per visit type.
-import { summarize, quantileOf } from './stats.js';
+import { summarize, quantileOf } from './stats.mjs';
 
 // Every number the report shows. `floor`: the smallest change `compare` treats as real.
 export const METRICS = [

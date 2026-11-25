@@ -537,7 +537,7 @@ const buildPatternMenuItems = (baseUrl, id, pattern, can, canEditUserMenu = fals
     // the tabs the pattern's own type adds (admin.editorTabs; patternEditor/index.jsx lists the same)
     ...(getPatternType(pattern.pattern_type)?.admin?.editorTabs || []).map(({ name, path, icon }) => [name, path, icon || 'Page']),
     ['Access', 'permissions', 'Lock'],
-    ...(isPage ? [['Data', 'sources', 'Database'], ['Activity', 'activity', 'ClockIcon']] : []),
+    ...(isPage ? [['Data', 'sources', 'Database'], ['Activity', 'activity', 'ClockIcon'], ['Performance', 'performance', 'ClockIcon']] : []),
     // site-level manage-storage, not the pattern's (patternEditor/index.jsx gates it the same way)
     ['Storage', 'storage', 'HardDrive'],
     ['Theme', 'theme', 'AdjustmentsHorizontal'],

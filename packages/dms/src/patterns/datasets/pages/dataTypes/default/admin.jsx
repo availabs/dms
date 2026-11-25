@@ -160,7 +160,7 @@ const AddExternalVersionBtn = ({source}) => {
 // (planning/tasks/current/source-editable-flag-everywhere.md). The server refuses row writes when it is off.
 // An external source can only be switched on once it has a real primary key (set/detected via the
 // Advanced Metadata page, see set_primary_col_from_meta.md); an internal one (`isDms`) needs none and
-// is editable until switched off. A deliberate admin action either way.
+// is created editable. A deliberate admin action either way.
 export const EditableToggle = ({source, setSource, format, pgEnv, id, isDms = false}) => {
     const { theme } = useContext(ThemeContext) || {};
     const t = { ...adminTheme, ...(theme?.datasets?.admin || {}) };
@@ -189,10 +189,9 @@ export const EditableToggle = ({source, setSource, format, pgEnv, id, isDms = fa
         }).catch(() => setError('Could not read this setting.'));
     }, [falcor, dmsEnv, id]);
 
-    // an internal source with no value yet is an older, editable source
     const storedMetadata = (isDms ? dmsMetadata : source?.metadata) || {};
     const loading = isDms && dmsMetadata === undefined;
-    const isEditable = isDms ? storedMetadata?.isEditable !== false : !!storedMetadata?.isEditable;
+    const isEditable = storedMetadata?.isEditable === true;
     const canSwitchOn = isDms || !!pkeyInfo?.hasPkey;
 
     // Pessimistic on purpose: the switch's visible state is driven entirely by

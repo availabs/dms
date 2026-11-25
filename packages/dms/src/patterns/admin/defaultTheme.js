@@ -20,6 +20,7 @@ import { editThemeTheme } from './pages/themes/editTheme.theme'
 import { sectionGroupTheme } from './siteConfig.theme'
 import { storageTheme } from './components/storage.theme'
 import { settingsPagesTheme } from './pages/settingsPages.theme'
+import { perfTabTheme } from './pages/patternEditor/pages/perfTab.theme'
 
 export default {
     navOptions: {
@@ -54,6 +55,7 @@ export default {
     pluginsCard: pluginsCardTheme,
     pluginsPage: pluginsPageTheme,
     settingsPages: settingsPagesTheme,
+    perfTab: perfTabTheme,
     appSettingsCard: appSettingsCardTheme,
     patternEditor: patternEditorTheme,
     settingsEditor: settingsEditorTheme,

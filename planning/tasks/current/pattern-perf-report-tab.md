@@ -1,6 +1,6 @@
 # A Performance tab on each pattern: run a perf test on the server and read its reports
 
-**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** next · **Created by:** amuro@albany.edu · **Edited by:** —
+**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** built · **Created by:** amuro@albany.edu · **Edited by:** amuro@albany.edu
 
 **Project:** DMS library + dms-server · **Topic:** patterns/admin · **Created:** 2026-11-25
 
@@ -83,14 +83,57 @@ the server's lasting `var` volume. Kept: the newest 30 runs per pattern. (A DMS 
 
 ## Testing checklist
 
-- [ ] A run from the tab finishes and its report matches a CLI run's shape on the same pages
-- [ ] A private, loopback or non-https origin is refused
-- [ ] A second run while one is going gets 409; Cancel stops the browser
-- [ ] A user without `edit-pattern` gets no tab and a 403 from the routes
-- [ ] Results survive a server deploy (the `var` volume); the newest 30 are kept
-- [ ] The CLI still works: `dms perf run / report / compare`
+- [x] A run from the tab finishes and its report matches a CLI run's shape on the same pages (the same engine and
+      run folder; the CLI's `report` and `compare` read the server's runs)
+- [x] A private, loopback or non-https origin is refused (route test)
+- [x] A second run while one is going gets 409; Cancel stops the browser (route test)
+- [x] A user without `edit-pattern` gets no tab and a 403 from the routes (403: route test; the tab is gated by
+      tabPermission like the others, not checked in a browser with such a user)
+- [~] The newest `DMS_PERF_KEEP` are kept (route test). Surviving a deploy: the folder is on the `var` volume, not
+      checked in the image
+- [~] The CLI: `dms perf report` and `compare` checked on server-saved runs; `dms perf run` only loads (it needs
+      a target and a site connection)
 
 ## Progress log
 
 - 2026-11-25 — created at the owner's request, with [app-settings-pages.md](./app-settings-pages.md), to close out
   the page-load performance initiative. Decisions 1–2 above taken. Not started.
+- 2026-11-25 — **Phases 1–4 built** (not committed). Owner: "lets implement the performance page now".
+  - **Phase 1, the engine moved** to `packages/dms-server/src/perf/`: `runner.mjs`, `collect.mjs`, `detect.mjs`,
+    `stats.mjs`, `config.mjs`, `aggregate.mjs`, `score.mjs`, `compare.mjs`, `report/` (the `.js` ES modules renamed
+    `.mjs`: dms-server is CommonJS), and `pages.mjs` (choosing the pages: `homePage`, `choosePages`). `src/dms/perf/`
+    keeps the CLI front: `cli.js` imports the engine from there, `pages.js` still reads the page list through the dms
+    CLI and re-exports the chooser. `playwright` → `playwright-core`, added to dms-server's dependencies (its lock
+    updated with `--package-lock-only`; the image installs from package.json). The runner finds Chrome as
+    DMS_PERF_CHROME, PUPPETEER_EXECUTABLE_PATH, /usr/bin/chromium, the system's Chrome, then Playwright's own, and
+    adds `--no-sandbox --disable-dev-shm-usage` when it runs as root. `runPerf` takes `signal` (cancel: closes the
+    browser), `onRecord` (progress) and `meta` (kept on run.json). The report: `renderReport` returns the HTML
+    (`writeReport` writes it), and a server run's header says it was measured from the server, and by whom.
+    The engine's 6 tests moved to `tests/test-perf.mjs` (`npm run test:perf`, in `npm test`): pass.
+  - **Phase 2, the job and routes** `src/perf/index.js`, mounted beside the PDF export: as designed, plus
+    `GET /_dms/perf/runs/:id/run.json` and `GET /_dms/perf/compare?a=&b=`. Every route needs `edit-pattern` on the
+    pattern through `requireCan`, with `mode: 'enforce'` (a run costs minutes of server CPU, so not under `log`);
+    the progress route needs a signed-in user and the run's id. The origin check reuses the PDF export's
+    `checkHost` (now exported, with the variable named per caller): https, the request's own Origin, not a private
+    address; `DMS_PERF_ALLOW_PRIVATE=1` for development. Runs: `runs` 1–5, `parallel` 1, profile `public`,
+    sample 10 by default. A cancelled or stopped run still gets a report of what was measured.
+    `tests/test-perf-routes.js` (`npm run test:perf-routes`, needs a Chrome; not in `npm test`): 8/8 against a tiny
+    local site: the refusals, 401/403, a 2-page run with report and run.json, 409, compare, cancel, keep.
+  - **Phase 3, the tab** `patternEditor/pages/perfTab.jsx` (+ `.theme.js`, `admin.perfTab`): page patterns only,
+    after Activity, in the editor and the sidenav (tabPermission: edit-pattern). Run card (pages 10/25/all,
+    repetitions 1/3/5, visits, a label), progress with Cancel (polls every 2 s), the runs table (when, who, pages ×
+    repetitions; first load / returning / navigate: median complete time and the "all there" score; mode pills),
+    a report or a comparison of two ticked runs in a sandboxed frame. The page list is loaded with `apiLoad` as the
+    Activity tab does; the origin is the address the admin is open on. A server without the routes: "This server
+    can't run performance tests yet".
+  - **Phase 4, docs:** `src/dms/perf/README.md` (where the code is; running from the admin),
+    `documentation/dms-server-env.md` (Performance runs: `DMS_PERF_DIR`, `DMS_PERF_KEEP`, `DMS_PERF_ALLOW_PRIVATE`,
+    `DMS_PERF_CHROME`), dms-server `tests/CLAUDE.md`. No new extension point.
+  - **Browser check** `scratchpad/perf-e2e/check.mjs`: 8/8 in Chromium against a production SSR build and a local
+    server (`DMS_PERF_ALLOW_PRIVATE=1`) with a 3-page pattern: Performance in the pattern's sidenav; the tab with no
+    runs; Run → progress → the run in the table with its times and scores; POST 202 and polling; Report in a frame
+    ("measured from the server"); a second run and Compare; no page errors. (The report's commits first showed
+    dms-server's folder as the app's: the job now passes the app checkout's root.)
+  - **Not done:** a check in the deploy image (its Chromium, as root, the `var` volume): after a server deploy, one
+    run from the tab on a real site.
+

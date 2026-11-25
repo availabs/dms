@@ -226,6 +226,21 @@ registerScheduleRoutes(app);
 const { registerPdfRoutes } = require('./pdf');
 registerPdfRoutes(app);
 
+// Performance runs from a pattern's Performance tab: the perf engine as a background job (edit-pattern; src/perf/index.js)
+const { registerPerfRoutes } = require('./perf');
+registerPerfRoutes(app);
+
+// The dataset result cache (routes/uda/resultCache.js): its counters, and a way to empty it. Signed in only.
+app.get('/admin/uda-cache', (req, res) => {
+  if (!require('./routes/auth/requestUser').requireUser(req, res)) return;
+  res.json(require('./routes/uda/resultCache').resultCache().stats());
+});
+app.post('/admin/uda-cache/clear', (req, res) => {
+  if (!require('./routes/auth/requestUser').requireUser(req, res)) return;
+  require('./routes/uda/resultCache').resultCache().clear();
+  res.json({ ok: true });
+});
+
 // Page visit tracking — fire-and-forget from the client on every page navigation.
 // No auth required; user_id extracted from JWT if present.
 app.post('/track/visit', async (req, res) => {

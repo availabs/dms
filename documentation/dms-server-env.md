@@ -122,6 +122,10 @@ no flag: the rules interpreter (`judge.js`) is the only judge.
 | `DAMA_CSV_ANALYZER` | — | `ogrinfo` analyses CSV / TSV with ogrinfo instead of the built-in analyser. |
 | `DMS_PUBLIC_URL` | `https://dmsserver.availabs.org` | Public base URL for tile links written by GIS publish. `DAMA_SERVER_URL` is the old name, still read with a warning. |
 | `DMS_UDA_KEY_CACHE_TTL_MS` | `60000` | How long UDA caches a view's key columns. |
+| `DMS_UDA_CACHE` | `off` | The dataset result cache (`routes/uda/resultCache.js`): `on` answers a repeated dataset query from memory while its tables are unchanged, for sources that are not editable; `shadow` keeps answers and compares them with the database but never serves them. Both share identical queries that arrive together. Counters at `GET /admin/uda-cache` (signed in). |
+| `DMS_UDA_CACHE_MB` | `256` | The cache's memory budget per server process, MB. |
+| `DMS_UDA_CACHE_WINDOW_MS` | `5000` | How long a table's version is trusted before Postgres is asked again: a write from outside the server can go unseen this long plus about a second. |
+| `DMS_UDA_CACHE_MAX_AGE_MS` | `600000` | The longest a cached answer is kept. |
 | `DAMA_TASK_POLL_INTERVAL` | `5000` | DAMA task-queue poll, ms. |
 | `DMS_TASK_POLL_INTERVAL` | `DAMA_TASK_POLL_INTERVAL`, then `5000` | DMS task-queue poll, ms. |
 | `DAMA_SCHEDULE_SWEEP_INTERVAL` | `30000` | Schedule sweep, ms. |
@@ -131,6 +135,18 @@ no flag: the rules interpreter (`judge.js`) is the only judge.
 **Set by the server, never by hand:** `DAMA_TASK_ID`, `DAMA_PG_ENV`, `DAMA_WORKER_PATH` (DAMA worker
 processes) and `DMS_TASK_ID`, `DMS_WORKER_PATH` (DMS worker processes). The task runner passes them to the
 child it forks.
+
+## Performance runs
+
+The Pattern Editor's Performance tab runs the perf engine on the server (`src/perf/`, `/_dms/perf` routes;
+`planning/tasks/current/pattern-perf-report-tab.md`).
+
+| Variable | Default | What it does |
+|---|---|---|
+| `DMS_PERF_DIR` | `var/perf` | Where runs are saved: `<app>/<pattern id>/<run id>/` (`run.json`, `visits.jsonl`, `report.html`). Keep it on the lasting `var` volume. |
+| `DMS_PERF_KEEP` | `30` | Runs kept per pattern; older ones are removed after each run. |
+| `DMS_PERF_ALLOW_PRIVATE` | unset | `1` lets a run load pages from localhost / private addresses and over plain http. Local only, never on a public server. |
+| `DMS_PERF_CHROME` | — | Chrome or Chromium path. Tried first, then `PUPPETEER_EXECUTABLE_PATH`, `/usr/bin/chromium`, the system's Chrome, Playwright's download. The `dms perf` CLI reads it too. |
 
 ## PDF export
 

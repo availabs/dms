@@ -1,6 +1,6 @@
 # One editable flag on every source, internal and external
 
-**Initiatives:** [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) (primary), [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** in progress: defaults, the server refusal, the client and the backfill script are built and tested (2026-11-25, not committed); the backfill is applied to every database configured on this machine; phase 5 (no value reads as not editable for internal sources too) is next and needs the server changes deployed first; not checked in a browser · **Created by:** amuro@albany.edu · **Edited by:** amuro@albany.edu
+**Initiatives:** [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) (primary), [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** built, all five phases (2026-11-25, not committed); the backfill is applied to every database configured on this machine and must be re-run at each deploy; not checked in a browser; a `documentation/` page is not written · **Created by:** amuro@albany.edu · **Edited by:** amuro@albany.edu
 
 Prerequisite for [uda-result-cache.md](./uda-result-cache.md): the cache serves only sources whose flag is
 false, so the flag has to mean the same thing, and be present, on every source.
@@ -72,11 +72,23 @@ databases and the internal sources in each DMS database are not counted yet (pha
 - [x] **Phase 4 (backfill).** Applied 2026-11-25 to every database configured on this machine: the hub and
       production DMS databases and the five DAMA databases (log). A database not configured here still needs it. To apply, per database: `node src/scripts/backfill-source-editable.js --db <config>
       [--app a,b] --apply` from `packages/dms-server`, with `DMS_DB_CONFIG_DIRS` naming the config folder.
-- [ ] **Phase 5 (drop the fallback).** After phase 4 has run everywhere: `sourceIsEditable` and
-      `refusesRowWrites` treat no value as not editable for an internal source too.
+- [x] **Phase 5 (drop the fallback).** Built 2026-11-25 (owner: "do the last phase now"), not committed.
+  - Server: `refusesRowWrites` refuses unless the flag is `true`, so an internal source with no value is not
+    editable. A row type whose source row can't be found is still not judged.
+  - Client, where the source has been read: `toSource` (`useDataSource`) records `isEditable` as true or
+    false for an internal source; the datasets Table page sets it from the source's metadata (and now for an
+    external source too, which it never passed); the Editable switch shows off for anything but `true`.
+  - Client, where it has not: `sourceIsEditable` still offers edits for an internal source whose section
+    holds no value. That is not a fallback about the source but about saved sections: a section stores its
+    source's fields, sections saved before today hold no flag, and several are built with only `isDms: true`
+    and no source id to refresh from (the validate page, tenant provisioning, the pages/components
+    pseudo-sources, builder-written sections). Reading "no value held" as not editable would have switched
+    off editing on those with nothing to turn it back on. The server refuses the write either way.
+  - **At every deploy of this code, run the backfill script on that server's databases.** A source created
+    by the older code after the last run has no value and its rows are locked until it gets one.
 - [x] **Tests.** `packages/dms-server/tests/test-source-editable.js` (30 checks, in `npm test` and
-      `npm run test:source-editable`): create defaults, the refusal on every row write and its return, the
-      backfill on SQLite. `packages/dms/tests/sourceIsEditable.test.js` (3).
+      `npm run test:source-editable`; 32 checks after phase 5): create defaults, the refusal on every row write
+      and its return, no value refused, the backfill on SQLite. `packages/dms/tests/sourceIsEditable.test.js` (3).
 - [ ] **Docs.** `dama/CLAUDE.md` says it (sources table, `createDamaSource`). A `documentation/` page for the
       datasets metadata contract is not written.
 
@@ -126,6 +138,12 @@ databases and the internal sources in each DMS database are not counted yet (pha
   client, as for other thrown route errors), so the page relies on hiding the controls. A source row changed
   by `uda.sources.update` or `/sync/push` is seen by the row-write check within 5 s (its cache), not at once.
   Legacy `…:data-invalid-entry` row types are not covered by the check.
+
+- Phase 5 test runs (one file at a time): source-editable 32 pass; controller, graph, workflow, delete-cascade,
+  transactions, change-history, upload-pipeline, uda-auth, upload-auth, delete-surfaces, orphan-sweep,
+  safe-delete pass. Failing, on code this work does not touch: `test-sync.js` (asserts on the text of
+  `src/index.js`, which carries someone else's uncommitted edit), `test-table-splitting.js` and
+  `test-deprecate-internal-dataset.js` (split-table naming assertions). Not checked against a clean tree.
 
 ## Not in this task
 

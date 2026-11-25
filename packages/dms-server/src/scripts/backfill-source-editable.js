@@ -26,8 +26,10 @@
  * Safe to run again: a source that has a value is never touched.
  *
  * The internal write is a direct UPDATE: no change_log row, so a browser's local copy of the source row
- * picks the flag up at its next full load. Readers treat a missing value as editable for an internal
- * source, so nothing changes for it in the meantime.
+ * picks the flag up at its next full load.
+ *
+ * The server refuses row writes to an internal source with no value (routes/dms/sourceEditable.js), so run
+ * this on a database whenever code that predates the flag may have created sources in it: at a deploy.
  */
 const fs = require('fs');
 const path = require('path');

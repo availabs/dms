@@ -4,7 +4,8 @@
  *
  *   1. A new internal source is created with data.metadata.isEditable = true; a creator's own value is kept.
  *   2. With Editable off, the server refuses to create, edit, mass-edit, delete or clear the dataset's rows, and
- *      takes them again once it is back on. A source with no value (an older row) stays editable.
+ *      takes them again once it is back on. A source with no value is not editable until the backfill
+ *      gives it one; a row type with no source row at all is not judged.
  *   3. A new external source is created with metadata.isEditable = false; a creator's own value is kept.
  *   4. scripts/backfill-source-editable.js: internal blanks become true, external blanks false, a source
  *      with no metadata or an odd value is left alone, and a second run writes nothing.
@@ -52,7 +53,8 @@ async function main() {
   check(obj(withSourceEditableDefault({ name: 'x' }, `${ENV}|x:source`)).metadata.isEditable === true, 'default: a source row gets isEditable true');
   check(withSourceEditableDefault({ name: 'x' }, 'docs|page').metadata === undefined, 'default: another row kind is untouched');
   check(obj(withSourceEditableDefault({ metadata: { isEditable: false, a: 1 } }, `${ENV}|x:source`)).metadata.isEditable === false, 'default: a stated false is kept');
-  check(refusesRowWrites({ metadata: { isEditable: false } }) && !refusesRowWrites({ metadata: {} }) && !refusesRowWrites({}) && !refusesRowWrites(null), 'only an explicit false refuses row writes');
+  check(!refusesRowWrites({ metadata: { isEditable: true } }) && !refusesRowWrites('{"metadata":{"isEditable":true}}') && refusesRowWrites({ metadata: { isEditable: false } })
+    && refusesRowWrites({ metadata: {} }) && refusesRowWrites({}) && refusesRowWrites({ metadata: { isEditable: 'yes' } }), 'only a true flag takes row writes');
   check(bucketOf(null) === 'none' && bucketOf({}) === 'blank' && bucketOf('{"isEditable":true}') === 'true'
     && bucketOf({ isEditable: 'yes' }) === 'not_boolean' && bucketOf('[1]') === 'not_object', 'bucketOf');
 
@@ -100,10 +102,13 @@ async function main() {
   await setEditable(true);
   check(await refused(() => graph.callAsync(['uda', 'viewsById', 'clearData'], [`${APP}+roads`, viewId])) === null && await count() === 0, 'back on: the clear is taken');
 
-  // a source with no value (created before the flag) stays editable
+  // a source with no value (a row that predates the flag and missed the backfill) is not editable
   await db.query(`UPDATE ${T} SET data = $1 WHERE id = $2`, [JSON.stringify({ name: 'Roads', type: 'internal_table' }), srcId]);
   await new Promise(r => setTimeout(r, 5200)); // the controller remembers a source's flag for 5 s
-  check(await refused(() => graph.callAsync(['dms', 'data', 'edit'], [APP, rowId, { name: 'Again' }, DATA])) === null, 'no value: the edit is taken');
+  const ne = await refused(() => graph.callAsync(['dms', 'data', 'edit'], [APP, rowId, { name: 'Again' }, DATA]));
+  check(ne && /not editable/i.test(ne.message || String(ne)), 'no value: the edit is refused', ne && (ne.message || String(ne)));
+  // a row type whose source can't be found has no flag to read, and passes
+  check(Number.isFinite(await create('no_such_source|1:data', { name: 'x' })), 'no source row: the write is taken');
 
   // ── 4a. internal backfill ──
   await db.query(`UPDATE ${T} SET data = $1 WHERE id = $2`, [JSON.stringify({ name: 'Locked', type: 'internal_table', metadata: { isEditable: 'no' } }), lockedId]);
@@ -113,6 +118,8 @@ async function main() {
   check(wrote.length === 1 && wrote[0] === srcId && (await stored(srcId)).metadata?.isEditable === true && (await stored(srcId)).name === 'Roads', 'backfill: the blank internal source becomes true, the rest of its data kept');
   check((await stored(lockedId)).metadata?.isEditable === 'no', 'backfill: an odd value is left alone');
   check((await backfillDms(db, APP, splitMode)).length === 0, 'backfill: a second run writes nothing');
+  await new Promise(r => setTimeout(r, 5200));
+  check(await refused(() => graph.callAsync(['dms', 'data', 'edit'], [APP, rowId, { name: 'After backfill' }, DATA])) === null, 'backfill: the dataset takes edits again');
 
   // ── 3. external create default, 4b. external backfill ──
   const dama = getDb(DAMA_DB);

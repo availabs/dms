@@ -30,8 +30,10 @@ export const EXTERNAL_SOURCE_KEY = 'externalSource';
  * and external sources alike (planning/tasks/current/source-editable-flag-everywhere.md). The server is
  * the judge; this decides what the section offers.
  *
- * A source with NO value is an older row: an internal one was always editable and still is until the
- * backfill gives it a value (dms-server scripts/backfill-source-editable.js), an external one is not.
+ * `isEditable` here is what the SECTION knows, and a section saved before the flag existed knows nothing
+ * about an internal source (undefined): it keeps offering edits, as it always did, until the source is read
+ * (useDataSource's toSource, the datasets Table page) and the real value lands. A source that has been read
+ * and has no value is not editable, internal or external.
  */
 export const sourceIsEditable = (externalSource) =>
     externalSource?.isDms ? externalSource.isEditable !== false : Boolean(externalSource?.isEditable);

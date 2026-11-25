@@ -1,7 +1,8 @@
 /**
  * One Editable flag for internal and external sources (planning/tasks/current/source-editable-flag-everywhere.md).
- * What a section offers follows the source's `isEditable`; a source with no value is an older row, and
- * reads as it always did: an internal one editable, an external one not.
+ * What a section offers follows the `isEditable` it holds for its source. A section saved before the flag
+ * existed holds none for an internal source and keeps offering edits until the source is read; the server
+ * is the judge either way.
  */
 import { describe, it, expect } from "vitest";
 import { sourceIsEditable } from "../src/patterns/page/components/sections/components/dataWrapper/schema";
@@ -15,7 +16,7 @@ describe("sourceIsEditable", () => {
         expect(sourceIsEditable({ isDms: false, isEditable: true })).toBe(true);
         expect(sourceIsEditable({ isDms: false, isEditable: false })).toBe(false);
     });
-    it("reads no value as editable for an internal source and not editable for an external one", () => {
+    it("with no value held: an internal source stays offered for edits, an external one does not", () => {
         expect(sourceIsEditable({ isDms: true })).toBe(true);
         expect(sourceIsEditable({ isDms: false })).toBe(false);
         expect(sourceIsEditable(undefined)).toBe(false);

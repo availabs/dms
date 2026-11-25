@@ -41,11 +41,11 @@ const toSource = ({ envs, e, source_id, valueGetter }) => {
 
             if (attr === "metadata" && envs[e].isDms) {
                 // An internal source's columns come from `config`; its metadata carries the Editable flag
-                // (text here: the DMS branch of uda sources serves `data->>'metadata'`). No value stays
-                // undefined, which sourceIsEditable (schema.js) reads as an older, editable source.
+                // (text here: the DMS branch of uda sources serves `data->>'metadata'`). The source has been
+                // read, so the section now knows: editable only when the flag is true, as for an external one.
                 let meta = value;
                 if (typeof meta === "string") { try { meta = JSON.parse(meta); } catch { meta = null; } }
-                return typeof meta?.isEditable === "boolean" ? { ...acc, isEditable: meta.isEditable } : acc;
+                return { ...acc, isEditable: meta?.isEditable === true };
             }
             if (attr === "metadata") {
                 // Row-identity (real PK column, which can be any name) is resolved

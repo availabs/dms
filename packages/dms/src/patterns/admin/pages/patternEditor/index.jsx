@@ -12,6 +12,7 @@ import { PatternPagesEditor } from "./pages/pagesEditor";
 import { SourcesTab } from "./pages/sourcesTab";
 import { ActivityTab } from "./pages/activityTab";
 import { StorageTab } from "./pages/storageTab";
+import { PerfTab } from "./pages/perfTab";
 import FormatManager from './formatManager';
 import PageTemplateManagerPane from './pageTemplateManagerPane';
 import UserMenuEditor from './userMenuEditor';
@@ -66,6 +67,14 @@ const activityTab = {
   name: 'Activity',
   path: 'activity',
   component: ActivityTab
+}
+
+// Performance runs of this pattern's pages, on the server, and their reports (pattern-perf-report-tab.md).
+// edit-pattern, like the other tabs (tabPermission); the server's /_dms/perf routes judge it again.
+const perfTab = {
+  name: 'Performance',
+  path: 'performance',
+  component: PerfTab
 }
 
 // What this pattern's rows take up, and cleaning up its unused ones (orphan-sweeper.md, Phase 2). A
@@ -132,7 +141,7 @@ const PatternEditor = ({params, dataItems, item, format, attributes, apiUpdate, 
   const allPages = [
     ...navPages,
     userMenuTab,
-    ...(item.pattern_type === 'page' ? [pagesTab, sourcesTab, activityTab] : []),
+    ...(item.pattern_type === 'page' ? [pagesTab, sourcesTab, activityTab, perfTab] : []),
     storageTab,
     // the tabs the pattern's own type adds (patterns/registry.js admin.editorTabs)
     ...(getPatternType(item.pattern_type)?.admin?.editorTabs || []),

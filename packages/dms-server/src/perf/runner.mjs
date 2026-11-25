@@ -12,11 +12,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
-import { chromium } from 'playwright';
-import { collector } from './collect.js';
-import { detectFromHtml, detectInPage } from './detect.js';
-import { PROFILES } from './config.js';
-import { homePage } from './pages.js';
+import { chromium } from 'playwright-core';
+import { collector } from './collect.mjs';
+import { detectFromHtml, detectInPage } from './detect.mjs';
+import { PROFILES } from './config.mjs';
+import { homePage } from './pages.mjs';
 
 const DATA_TYPES = new Set(['fetch', 'xhr']);
 const BUCKET = { document: 'doc', script: 'js', stylesheet: 'css', image: 'img', font: 'font', fetch: 'data', xhr: 'data' };
@@ -25,12 +25,19 @@ const norm = (p) => (p || '/').replace(/\/+$/, '') || '/';
 
 const git = (dir) => { try { return execSync('git rev-parse --short HEAD', { cwd: dir, stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim(); } catch { return null; } };
 
+// The browser: DMS_PERF_CHROME, else the image's Chromium (PUPPETEER_EXECUTABLE_PATH, what the server image sets for
+// its own headless loaders, or /usr/bin/chromium), else the system's Chrome, else Playwright's own download.
+const CHROME_PATHS = () => [process.env.DMS_PERF_CHROME, process.env.PUPPETEER_EXECUTABLE_PATH, '/usr/bin/chromium', '/usr/bin/chromium-browser']
+  .filter(Boolean).filter((p) => fs.existsSync(p));
+
 async function launch() {
   const args = ['--enable-features=SoftNavigationHeuristics', '--disable-extensions'];
-  const exe = process.env.DMS_PERF_CHROME;
-  try { return await chromium.launch(exe ? { executablePath: exe, args } : { channel: 'chrome', args }); }
-  catch (e) {
-    if (exe) throw e;
+  // in a container, as root: Chrome's sandbox can't start, and /dev/shm is small
+  if (process.getuid?.() === 0) args.push('--no-sandbox', '--disable-dev-shm-usage');
+  const exe = CHROME_PATHS()[0];
+  if (exe || process.env.DMS_PERF_CHROME) return chromium.launch({ executablePath: exe || process.env.DMS_PERF_CHROME, args });
+  try { return await chromium.launch({ channel: 'chrome', args }); }
+  catch {
     // Playwright's own browser, when system Chrome isn't there
     return chromium.launch({ args });
   }
@@ -297,8 +304,14 @@ async function measureClick(page, net, cfg, targetPaths) {
   return out;
 }
 
+/**
+ * Runs one measurement and saves it in a folder (`cfg.out`, else scratchpad/<app>-<type>/perf/<date>-<label>).
+ * `site`: { pattern, pages, allPages, connection, repoRoot } and, for the server's job (./index.js), optionally
+ * `signal` (an AbortSignal: aborting closes the browser and ends the run), `onRecord(run)` (after every visit, for
+ * progress) and `meta` (kept on run.json: who asked, measured from the server).
+ */
 export async function runPerf(cfg, site, log = () => {}) {
-  const { pattern, pages, allPages, connection, repoRoot } = site;
+  const { pattern, pages, allPages, connection, repoRoot, signal = null, onRecord = null, meta = null } = site;
   const d = new Date(), two = (n) => String(n).padStart(2, '0');
   const stamp = `${d.getFullYear()}-${two(d.getMonth() + 1)}-${two(d.getDate())}-${two(d.getHours())}${two(d.getMinutes())}`;
   const outDir = path.resolve(cfg.out || path.join(repoRoot, 'scratchpad', `${connection.app}-${connection.type}`.replace(/[^\w.-]+/g, '_'), 'perf', `${stamp}-${cfg.label}`.replace(/[^\w.-]+/g, '_')));
@@ -313,6 +326,9 @@ export async function runPerf(cfg, site, log = () => {}) {
   const pathsOf = (p) => (p.path === home.path ? [...new Set([norm(p.path), basePath])] : [norm(p.path)]);
 
   const browser = await launch();
+  // cancelling closes the browser: whatever it was doing fails, and record() refuses the rest
+  const onAbort = () => { run.cancelled = true; browser.close().catch(() => {}); };
+  signal?.addEventListener('abort', onAbort, { once: true });
   const run = {
     version: 1, label: cfg.label, started: new Date().toISOString(), finished: null,
     config: { ...cfg, out: undefined }, connection, pattern,
@@ -324,13 +340,16 @@ export async function runPerf(cfg, site, log = () => {}) {
       commits: { app: git(repoRoot), dms: git(path.join(repoRoot, 'src/dms')) },
     },
     counts: { visits: 0, errors: 0 },
+    ...(meta || {}),
   };
   const saveRun = () => fs.writeFileSync(path.join(outDir, 'run.json'), JSON.stringify(run, null, 1));
   // a target that stops answering (restarted, or down) must end the run, not fill it with failures
   let failedInARow = 0;
   const record = (v) => {
+    if (signal?.aborted) throw new Error('cancelled');
     run.counts.visits++; if (v.error) run.counts.errors++;
     fs.appendFileSync(visitsFile, JSON.stringify(v) + '\n');
+    onRecord?.(run);
     if (v.visit === 'cold' || v.visit === 'warm') failedInARow = v.error ? failedInARow + 1 : 0;
     if (failedInARow >= 6) {
       run.aborted = `stopped after ${failedInARow} page loads in a row failed: ${v.error}`;
@@ -512,6 +531,7 @@ export async function runPerf(cfg, site, log = () => {}) {
       }
     }
   } finally {
+    signal?.removeEventListener('abort', onAbort);
     run.finished = new Date().toISOString();
     saveRun();
     await within(browser.close(), 15000, null);

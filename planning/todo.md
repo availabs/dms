@@ -962,7 +962,7 @@
 ### patterns/admin
 
 - [ ] [An app's Settings as pluggable sub pages, one definition for the app and the hub's tenant page](tasks/current/app-settings-pages.md) — created 2026-11-25 (initiative `dms_page_load_performance`). **Built 2026-11-25** (phases 0–3, phase 4 docs), waiting on a commit; a browser check on a multi-tenant hub still to do. Settings on every app, as sub pages like the Pattern Editor's tabs; extended by the app, plugins (a new host kind) and pattern types (`admin.settingsPages`); the hub's tenant page renders the same list; Storage and the server Plugins page move under it. Not started.
-- [ ] [A Performance tab on each pattern: run a perf test on the server and read its reports](tasks/current/pattern-perf-report-tab.md) — created 2026-11-25 (initiative `dms_page_load_performance`). Owner: a Pattern Editor tab; runs as a dms-server job with the image's Chromium (the perf engine moves into dms-server); runs list, report, compare. Not started.
+- [ ] [A Performance tab on each pattern: run a perf test on the server and read its reports](tasks/current/pattern-perf-report-tab.md) — created 2026-11-25 (initiative `dms_page_load_performance`). **Built 2026-11-25** (phases 1–4), waiting on a commit and a server deploy; one run on a real site after the deploy still to do. Owner: a Pattern Editor tab; runs as a dms-server job with the image's Chromium (the perf engine moves into dms-server); runs list, report, compare. Not started.
 
 
 - [x] Tenant table on the platform admin list page doesn't scroll: rows past the viewport are cut off behind the page. Reported 2026-09-29, **fixed 2026-09-29, uncommitted**.

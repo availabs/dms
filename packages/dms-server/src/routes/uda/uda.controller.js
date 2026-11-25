@@ -1277,7 +1277,7 @@ async function clearViewData(env, view_id) {
     const { rows: [source] } = await db.query(
       `SELECT data FROM ${await dmsMainTable(db, app, splitMode)} WHERE app = $1 AND type LIKE '%|' || $2 || ':source' ORDER BY id DESC LIMIT 1`,
       [app, ownerSlug]);
-    if (refusesRowWrites(source?.data)) throw notEditableError();
+    if (source && refusesRowWrites(source.data)) throw notEditableError();
   }
 
   // Only ever a split table. A type that doesn't resolve to one falls back to the main table, which

@@ -24,6 +24,8 @@ const {
   restoreLongColumnNames
 } = require('../utils');
 const { typeCast } = require('#db/query-utils.js');
+const { resultCache } = require('../resultCache.js');
+const { getEssentials } = require('../utils');
 
 /**
  * Translate PostgreSQL-specific SQL expressions to SQLite equivalents.
@@ -46,6 +48,32 @@ function translatePgToSqlite(expr) {
 }
 
 
+
+/**
+ * What the result cache (../resultCache.js) needs to know about a query: every table it reads, when all of
+ * them belong to external sources that are not editable. `{ tables: null, why }` otherwise, and the answer
+ * is then never kept:
+ *   - an internal (DMS) dataset: not handled here (its tables and its flag live in the DMS database);
+ *   - an editable source, the queried one or a joined one;
+ *   - a join this can't follow to a table in the same database (a federated source, another env).
+ * Skipped entirely while the cache is off.
+ */
+async function cacheScope(ctx, join) {
+  if (resultCache().mode() === 'off') return {};
+  if (ctx.isDms || ctx.db.type !== 'postgres') return { tables: null, why: 'noTables' };
+  if (ctx.isEditable) return { tables: null, why: 'editable' };
+  const tables = [{ table_schema: ctx.table_schema, table_name: ctx.table_name }];
+  const joined = Object.keys(join?.sources || {}).filter(alias => alias !== 'ds');
+  for (const alias of joined) {
+    const source = join.sources[alias];
+    if (!source || source.pgFederated || !source.view_id) return { tables: null, why: 'noTables' };
+    const ess = await getEssentials({ view_id: source.view_id, env: source.env });
+    if (ess.isDms || ess.db !== ctx.db || !ess.table_name) return { tables: null, why: 'noTables' };
+    if (ess.isEditable) return { tables: null, why: 'editable' };
+    tables.push({ table_schema: ess.table_schema, table_name: ess.table_name });
+  }
+  return { tables };
+}
 
 async function simpleFilterLength(ctx, options) {
   const { isDms, db, app, type, table_schema, table_name } = ctx;
@@ -175,7 +203,7 @@ async function simpleFilterLength(ctx, options) {
       fanoutValues.push(...armValues);
     }
     const sql = `SELECT ${armCountSqls.join(' + ')} AS numrows`;
-    const { rows } = await db.query(sql, fanoutValues);
+    const { rows } = await resultCache().cachedQuery(db, sql, fanoutValues, await cacheScope(ctx, join));
     return rows?.[0]?.numrows ?? 0;
   }
 
@@ -209,7 +237,7 @@ async function simpleFilterLength(ctx, options) {
            ${combinedWhere}
            ${handleHaving(having)}`;
 
-  const { rows } = await db.query(sql, values);
+  const { rows } = await resultCache().cachedQuery(db, sql, values, await cacheScope(ctx, join));
   return rows?.[0]?.numrows ?? 0;
 }
 
@@ -481,7 +509,7 @@ async function simpleFilter(ctx, options, attributes, indices) {
       LIMIT ${+num}
       OFFSET ${indices.from}
     `;
-    const fanoutRes = await db.query(fanoutSql, fanoutValues);
+    const fanoutRes = await resultCache().cachedQuery(db, fanoutSql, fanoutValues, await cacheScope(ctx, join));
     return restoreLongColumnNames(fanoutRes.rows, columnNameMap);
   }
 
@@ -495,7 +523,7 @@ async function simpleFilter(ctx, options, attributes, indices) {
     LIMIT ${+num}
     OFFSET ${indices.from}
   `;
-  const res = await db.query(sql, values);
+  const res = await resultCache().cachedQuery(db, sql, values, await cacheScope(ctx, join));
 
   // Restore long column names from short aliases
   let rows = restoreLongColumnNames(res.rows, columnNameMap);

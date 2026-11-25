@@ -1,6 +1,6 @@
 // Two saved runs: what moved by more than the noise.
 import { aggregate, METRICS, VISITS } from './aggregate.mjs';
-import { verdict } from './stats.js';
+import { verdict } from './stats.mjs';
 
 const COMPARED = ['complete', 'usable', 'idle', 'lcp', 'fcp', 'ttfb', 'tbt', 'bytes', 'dataRequests', 'componentRequests'];
 

@@ -7,7 +7,7 @@ This is step 1 (server result cache) of
 indexes and summary datasets were done. They are (2026-11-25). The plan was also published as an HTML page
 for the owner; this file is the source of truth.
 
-**Prerequisite:** [source-editable-flag-everywhere.md](./source-editable-flag-everywhere.md) (owner, 2026-11-25): every
+**Prerequisite (met 2026-11-25, uncommitted and not deployed):** [source-editable-flag-everywhere.md](./source-editable-flag-everywhere.md) (owner, 2026-11-25): every
 source, internal and external, carries an explicit `isEditable`, so the cache's gate reads one flag. With it
 done, the gate is "`isEditable` is false" for any source type, and an internal source switched to not
 editable becomes cacheable like any other.

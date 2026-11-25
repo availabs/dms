@@ -564,9 +564,9 @@ function createController(dbName = 'dms-sqlite', options = {}) {
   }
 
   /**
-   * Throws when `type` is a dataset row type whose source has Editable turned off
-   * (`data.metadata.isEditable === false`, sourceEditable.js). Every other type, and a dataset whose
-   * source can't be found or has no value yet, passes. Called before a row write's transaction: it reads
+   * Throws when `type` is a dataset row type whose source is not editable: `data.metadata.isEditable` is
+   * anything but `true` (sourceEditable.js). Every other type passes, and so does a dataset whose source
+   * row can't be found (nothing to read the flag from). Called before a row write's transaction: it reads
    * through the adapter.
    */
   async function assertSourceEditable(app, type) {
@@ -578,7 +578,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
     if (!cached || Date.now() - cached.ts >= SOURCE_EDITABLE_CACHE_TTL) {
       const table = await mainTable(app);
       const [source] = await dms_db.promise(`SELECT data FROM ${table} WHERE id = $1`, [sourceId]);
-      cached = { refused: refusesRowWrites(source?.data), ts: Date.now() };
+      cached = { refused: Boolean(source) && refusesRowWrites(source.data), ts: Date.now() };
       if (_sourceEditableCache.size > 500) _sourceEditableCache.clear();
       _sourceEditableCache.set(cacheKey, cached);
     }
