@@ -54,6 +54,11 @@ export default function dmsPageFactory({
   // the loader's own cache-resync retry, this one gates a full route
   // revalidate from the rendered component — different layers, don't share.
   let lastRevalidateAttemptToken;
+  // The path this route is showing in the browser now (set by DMS below, null while it isn't mounted). A
+  // loader run for that same path is a reload of a page already on screen (sync's invalidation, an auth
+  // change), not a navigation: the pattern's preload hook is told, so it doesn't fetch again what the
+  // mounted page already loaded for itself. A closure variable, as above, so the loader can read it.
+  let shownPath = null;
 
   async function loader({ request, params }) {
     if (isAuth) return { data: [] };
@@ -101,7 +106,8 @@ export default function dmsPageFactory({
     const t1 = import.meta.env.DEV ? performance.now() : 0;
     // Pre-load dataWrapper section data if the pattern supports it
     if (dmsConfig.preload) {
-      data = await dmsConfig.preload(falcor, data, request, params);
+      const reload = !import.meta.env.SSR && shownPath !== null && shownPath === new URL(request.url).pathname;
+      data = await dmsConfig.preload(falcor, data, request, params, { reload });
     }
     if (import.meta.env.DEV) {
       const t2 = performance.now();
@@ -135,6 +141,8 @@ export default function dmsPageFactory({
     const { user } = useAuth();
     const loaderData = useLoaderData();
     const revalidator = useRevalidator();
+    // what the loader compares a request with (shownPath, above)
+    useEffect(() => { shownPath = location.pathname; return () => { shownPath = null; }; }, [location.pathname]);
 
     // SSR always renders as anonymous — the server never sees a browser's
     // localStorage token (see the loader's comment above) — and client

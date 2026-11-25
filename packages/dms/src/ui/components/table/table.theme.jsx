@@ -118,6 +118,8 @@ export const tableTheme = {
             inlineAddGutter: 'bg-[var(--t-well)] border border-[var(--t-rule)] flex items-center justify-center',
             inlineAddSaveStyle: 'tableAddSave',
             inlineAddSaveFloatingStyle: 'tableAddSaveFloating',
+            // Shown under a scrolling table (pagination off) while its next page of rows loads.
+            loadingMoreRows: 'py-2 text-center font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--t-pencil)]',
 
             // actions column (RenderActions.jsx): url / delete buttons and the ⋯ menu
             actionLinkBtn: 'flex items-center w-fit px-1.5 py-0.5 mx-0.5 rounded-md border border-[var(--t-rule-strong)] bg-[var(--t-panel)] text-[var(--t-ink)] t-metaXS hover:bg-[var(--t-well)]',

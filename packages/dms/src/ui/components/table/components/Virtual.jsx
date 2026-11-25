@@ -122,22 +122,34 @@ export function VirtualList({
             setCols({ start: startCol, end: Math.min(Math.max(endCol - 1, startCol), columnCount - 1) });
         }
 
-        // endReached callback
-        if (
-            endReached && !isFetchingRef.current &&
-            scrollTop + clientHeight >= getTotalHeight() - increaseViewportBy.bottom
-        ) {
-            isFetchingRef.current = true;
-            endReached();
-        }
-
     }, [
         rowCount,
         columnCount,
         increaseViewportBy,
-        virtualizeColumns,
-        endReached
+        virtualizeColumns
     ]);
+
+    // The next page is asked for only when the reader scrolls a scrolling table to its end: never on mount,
+    // on a resize or on measuring rows. A table that grows with its rows has no end to scroll to (its
+    // "end" is always in view), and used to load every page one after another; it now stays at its one
+    // page (owner, 2026-11-24: a table is paged or scrolled). `scroller` is whichever element scrolled:
+    // this list, or the table container around it when the theme puts the max height there.
+    const endReachedOnScroll = useCallback((scroller) => {
+        if (!endReached || isFetchingRef.current || !scroller) return;
+        const { scrollTop, clientHeight, scrollHeight } = scroller;
+        if (scrollHeight <= clientHeight) return;
+        if (scrollTop + clientHeight < scrollHeight - increaseViewportBy.bottom) return;
+        isFetchingRef.current = true;
+        endReached();
+    }, [endReached, increaseViewportBy]);
+
+    useEffect(() => {
+        const parent = containerRef.current?.parentElement;
+        if (!parent) return;
+        const onParentScroll = () => endReachedOnScroll(parent);
+        parent.addEventListener('scroll', onParentScroll, { passive: true });
+        return () => parent.removeEventListener('scroll', onParentScroll);
+    }, [endReachedOnScroll]);
 
     useEffect(() => {
         isFetchingRef.current = false;
@@ -172,16 +184,11 @@ export function VirtualList({
     }, [rowCount, columnCount, columnSizes, calculateRange]);
 
 
-    useLayoutEffect(() => {
-        const el = containerRef.current;
-        if (!el) return;
-
-        const ro = new ResizeObserver(() => {
-            calculateRange();
-        });
-        ro.observe(el);
-        return () => ro.disconnect();
-    }, []);
+    // A second observer used to be registered here once, with the first render's calculateRange: its row count,
+    // its endReached. On a table that grows with its rows (no max height) every appended page resized the
+    // container, the old closure still saw the end of the first page and asked for the second page again, and
+    // the table re-fetched and appended that page for as long as it was open. The observer above is
+    // re-registered with the current calculateRange and covers resizes.
 
     const getTotalHeight = () => Array.from({ length: rowCount }).reduce((s, _, i) => s + getRowHeight(i), 0);
     const getTotalWidth = () => Array.from({ length: columnCount }).reduce((s, _, i) => s + getColWidth(i), 0);
@@ -212,7 +219,7 @@ export function VirtualList({
     return (
         <div
             ref={containerRef}
-            onScroll={calculateRange}
+            onScroll={(e) => { calculateRange(); endReachedOnScroll(e.currentTarget); }}
             style={{ overflow: "auto", height: "100%", width: "100%" }}
         >
             <div className={headerClassName || theme.header} style={{ paddingLeft, paddingRight }}>

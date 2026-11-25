@@ -8,7 +8,7 @@ import { CMSContext, PageContext } from '../../context'
 import { SectionEdit, SectionView } from './section'
 import CapturedSection from './CapturedSection'
 import { IslandsCaptureContext } from '../../../../render/islands/captureContext'
-import { isJson } from './section_utils'
+import { elementHidesSection } from './section_utils'
 import { sectionArrayTheme } from './sectionArray.theme'
 import {useImmer} from "use-immer";
 import { getParent } from '../../../../utils/type-utils.js'
@@ -663,13 +663,7 @@ const View = ({value, attr, group, siteType, collapsed = false}) => {
     // that fills its column while the public bands keep the centered measure.
     const theme = getComponentTheme(fullTheme,'pages.sectionArray', group?.theme)
 
-    const hideSectionCondition = section => {
-        //console.log('hideSectionCondition', section?.element?.['element-data'] || '{}')
-        let value = section?.element?.['element-data']
-        let elementData = typeof value === 'object' ?
-            value : value && isJson(value) ? JSON.parse(value) : {}
-        return !elementData?.hideSection && !elementData?.display?.hideSection && !section?.hideInView;
-    }
+    const hideSectionCondition = section => !elementHidesSection(section?.element) && !section?.hideInView;
 
     return (
         <div

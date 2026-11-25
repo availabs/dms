@@ -540,7 +540,10 @@ export const resolveClearedPageVariables = (removeFilter = {}, pageFilters = [],
 export const updatePageStateFiltersOnSearchParamChange = ({searchParams, item, patternFilters, setPageState}) => {
     // Extract filters from the URL
     const urlFilters = Array.from(searchParams.keys()).reduce((acc, searchKey) => {
-        acc[searchKey] = searchParams.get(searchKey)?.split('|||');
+        // An empty param (`?state=`, which initNavigateUsingSearchParams writes for a variable with no value)
+        // is no values, not one empty value: [''] differed from the registry's [] and sent every section that
+        // reads the variable to fetch a second time, and a third when a reload set it back.
+        acc[searchKey] = searchParams.get(searchKey)?.split('|||').filter(v => v !== '');
         return acc;
     }, {});
 

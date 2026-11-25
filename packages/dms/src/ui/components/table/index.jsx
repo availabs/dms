@@ -330,7 +330,7 @@ export default function Table ({
     updateItem, removeItem, isEdit,
     numColSize=defaultNumColSize, frozenColClass, frozenCols=[],
     columns=[], data: unFilteredData=[], localFilteredData, fullData, display={}, controls={}, setState, isActive,
-    addItem, newItem={}, setNewItem, infiniteScrollFetchData, currentPage, activeStyle,
+    addItem, newItem={}, setNewItem, infiniteScrollFetchData, currentPage, activeStyle, loading,
     highlightedRow,
     conditionalRowStyle,
     onRowMouseClick,
@@ -730,6 +730,11 @@ export default function Table ({
         return dataToReturn;
     }, [fullData, unFilteredData, visibleAttrsWithoutOpenOut]);
 
+    const endReached = useCallback(() => {
+        if (display.usePagination) return;
+        infiniteScrollFetchData && infiniteScrollFetchData(currentPage + 1);
+    }, [display.usePagination, infiniteScrollFetchData, currentPage]);
+
     const components = useMemo(() => ({
         // display.hideHeader (2026-10-15): no header row at all (a key / value list such as the datasets file metadata)
         Header: ({start, end}) => display.hideHeader ? null : (
@@ -751,7 +756,12 @@ export default function Table ({
                     activeStyle={activeStyle}
             />
         ),
-        Footer: () => paginationActive || rows.length === display.totalLength || !infiniteScrollFetchData ? null : <div>loading...</div>,
+        // Pagination off: the table shows one page. A table that scrolls (a max height) gets its next page when
+        // the reader scrolls to its end (Virtual.jsx), and says so while that page loads; a table that
+        // doesn't scroll stays at its one page. Nothing loads on its own, and there is no button.
+        Footer: () => paginationActive || !loading || rows.length === 0 || rows.length >= display.totalLength || !infiniteScrollFetchData ? null : (
+            <div className={theme?.loadingMoreRows}>Loading…</div>
+        ),
         bottomFrozen: ({start, end}) => (
             <>
                 {
@@ -778,13 +788,9 @@ export default function Table ({
         theme, rowTheme, visibleAttrsWithoutOpenOut,
         numColSize, frozenCols, frozenColClass, selectedCols,
         isEdit, columns, display, controls, setState, colResizer, showTotal, totalRow,
-        display.allowAdddNew, isDragging, theme, localFilterData, paginationActive
+        display.allowAdddNew, isDragging, theme, localFilterData, paginationActive,
+        rows.length, infiniteScrollFetchData, loading
     ]);
-
-    const endReached = useCallback(() => {
-        if (display.usePagination) return;
-        infiniteScrollFetchData && infiniteScrollFetchData(currentPage + 1);
-    }, [display.usePagination, infiniteScrollFetchData, currentPage]);
 
     return (
         <div className={`${theme?.tableContainer} ${!paginationActive && theme?.tableContainerNoPagination}`}

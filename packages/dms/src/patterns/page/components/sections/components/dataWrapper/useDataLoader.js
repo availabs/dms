@@ -108,6 +108,10 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
   // recently issued request is ever applied; a stale, slower response is
   // discarded instead of clobbering fresher data.
   const requestIdRef = useRef(0);
+  // The key of the request that is out now. The load effect also re-runs for dependencies that are not part
+  // of the key (localFilters is a new object whenever state.columns is); until the first response sets
+  // lastFetchKeyRef, such a re-run sent the same query again and threw the first answer away.
+  const inFlightKeyRef = useRef(null);
 
   // ─── Local filters (client-side slicing) ───────────────────────────────────
 
@@ -292,9 +296,11 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
         if (!bypassDedup) return;
         if (skipFirstForced && !firstForcedSkippedRef.current) { firstForcedSkippedRef.current = true; return; }
       }
+      if (fetchKey === inFlightKeyRef.current) return;
 
       async function load() {
         const requestId = ++requestIdRef.current;
+        inFlightKeyRef.current = fetchKey;
         setLoading(true);
         try {
           const { length, data, invalidState, outputSourceInfo } = await getData({
@@ -324,7 +330,7 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
         } catch (e) {
           console.error("useDataLoader: fetch error", e);
         } finally {
-          if (requestId === requestIdRef.current) setLoading(false);
+          if (requestId === requestIdRef.current) { inFlightKeyRef.current = null; setLoading(false); }
         }
       }
 
@@ -355,6 +361,8 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
         const { length, data } = await getData({
           state,
           currentPage: page,
+          // the count the first page read: asking again doubled every "load more"
+          knownLength: page > 0 ? Number(state.display.totalLength) : undefined,
           apiLoad,
           keepOriginalValues: component.keepOriginalValues,
           optionsOnly: component.optionsOnly,

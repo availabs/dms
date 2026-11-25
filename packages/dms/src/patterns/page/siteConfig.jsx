@@ -156,7 +156,11 @@ const pagesConfig = ({
     // that don't need it. A lazy section shows its Suspense fallback until its
     // chunk lands. See boot-chain-fewer-serial-hops.md (and
     // bundle-split-initial-graph.md for the chunks themselves).
-    preload: async (falcor, data, request, params) => {
+    // `reload`: the loader is re-reading a page that is already on screen (dmsPageFactory). Its sections have
+    // their rows, or are fetching them: preloading again ran every section's queries a second time (twice on
+    // a first visit, once sync's bootstrap and delta land) for rows nothing read. The editor still preloads.
+    // See section-data-query-repeats.md.
+    preload: async (falcor, data, request, params, { reload = false } = {}) => {
       const raw = params?.['*'] || '';
       const isEdit = raw.startsWith('edit/');
       const slug = isEdit ? raw.slice('edit/'.length) : raw;
@@ -164,7 +168,7 @@ const pagesConfig = ({
       // the registry tells the preload which section types fetch before render (preloadData) and how;
       // draft sections only show in the editor
       const components = getRegisteredComponents();
-      const loaded = preloadEnabled
+      const loaded = preloadEnabled && !(reload && !isEdit)
         ? await preloadPageSections(falcor, data, request.url, patternFilters, slug, components, { drafts: isEdit })
         : data;
       // a view page's data goes into its HTML: each section type leaves out what only its editor

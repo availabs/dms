@@ -45,7 +45,7 @@ function resolveFilterMap(pageFilters, patternFilters, searchParams) {
 
     const urlFilters = {}
     for (const key of searchParams.keys()) {
-        urlFilters[key] = searchParams.get(key)?.split('|||')
+        urlFilters[key] = searchParams.get(key)?.split('|||').filter(v => v !== '')
     }
 
     const resolved = merged.map(filter => {
