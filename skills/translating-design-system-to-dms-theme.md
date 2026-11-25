@@ -2153,7 +2153,7 @@ Before translating, read in order:
    write a new component" philosophy. Important for understanding
    why the Card primitive is the workhorse and gets the most theme
    attention.
-7. **`src/themes/avail/theme.js`** and **`src/themes/wcdb/`** —
+7. **`src/themes/avail/theme.js`** and **`src/plugins/wcdb/theme/`** —
    two existing themes that demonstrate full theme overlays.
 8. **`src/themes/tessera/tessera-theme.js`** — the worked example
    for this skill, paired with `src/themes/tessera/design_system_v2/`

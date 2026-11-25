@@ -43,14 +43,14 @@ check('^2.0 does not', !satisfies(PLUGIN_API_VERSION, '^2.0'));
 check('ranges', satisfies('1.2.9', '~1.2.3') && !satisfies('1.3.0', '~1.2.3') && satisfies('1.7.0', '>=1.0 <2') && !satisfies('0.4.0', '^0.3') && satisfies('1.7.0', '1.x'));
 
 console.log('\n2. validateManifest');
-const pkg = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../../../../src/plugins/now_playing/package.json'), 'utf8'));
-check('now_playing\'s package.json is valid', validateManifest(pkg).length === 0, JSON.stringify(validateManifest(pkg)));
-for (const p of ['mapeditor', 'qa', 'chat']) {
-  const m = JSON.parse(fs.readFileSync(path.resolve(__dirname, `../../../../../src/plugins/${p}/package.json`), 'utf8'));
+// the app's plugin folders (dms-template src/plugins/), each checked when present
+const appPlugins = path.resolve(__dirname, '../../../../../src/plugins');
+for (const p of ['wcdb', 'mapeditor', 'qa', 'chat', 'weather_analytics']) {
+  const file = path.join(appPlugins, p, 'package.json');
+  if (!fs.existsSync(file)) { console.log(`  (no src/plugins/${p}; skipping)`); continue; }
+  const m = JSON.parse(fs.readFileSync(file, 'utf8'));
   check(`${p}'s package.json is valid`, validateManifest(m).length === 0, JSON.stringify(validateManifest(m)));
 }
-const wa = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../../../../src/plugins/weather_analytics/package.json'), 'utf8'));
-check('weather_analytics\'s package.json is valid', validateManifest(wa).length === 0, JSON.stringify(validateManifest(wa)));
 check('a release index.json is valid', validateManifest(release(), { release: true }).length === 0, JSON.stringify(validateManifest(release(), { release: true })));
 check('no dms key', validateManifest({ name: 'x', version: '1.0.0' })[0] === 'package.json has no `dms` key');
 const bad = (over) => validateManifest(release(over), { release: true }).join(' | ');
@@ -113,14 +113,17 @@ check('another API is refused', /needs plugin API/.test(refused));
 
 console.log('\n4. registerDatatype with a plugin module');
 let np = null;
-try { np = require('../../../../../src/plugins/now_playing'); } catch (e) { console.log(`  (now_playing did not load here: ${e.message.split('\n')[0]}; skipping)`); }
+// the wcdb plugin's server entry: the now_playing data type, registered under that name
+try { np = require('../../../../../src/plugins/wcdb/server.js'); } catch (e) { console.log(`  (the wcdb plugin did not load here: ${e.message.split('\n')[0]}; skipping)`); }
 if (np) {
   const { registerDatatype, getDatatypes } = require('../src/dama/datatypes');
   registerDatatype('now_playing', np);
   const stored = getDatatypes().now_playing;
-  check('now_playing registers as a plugin', typeof np.register === 'function' && listServerPlugins().some(p => p.name === 'now_playing'));
+  check('now_playing registers as the wcdb plugin', typeof np.register === 'function' && np.dataType === 'now_playing'
+    && listServerPlugins().some(p => p.name === 'wcdb' && p.dataType === 'now_playing'));
   check('the registry holds its definition, not the module', !!stored && typeof stored.register !== 'function'
-    && typeof stored.workers?.['now_playing/backfill'] === 'function' && typeof stored.routes === 'function');
+    && typeof stored.workers?.['now_playing/backfill'] === 'function' && typeof stored.routes === 'function'
+    && (stored.openRoutes || []).includes('POST /streams/:sourceId/webhook'));
 }
 
 console.log('\n5. long routes are data (P0: the core names no data type)');

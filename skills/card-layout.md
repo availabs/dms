@@ -1478,7 +1478,7 @@ Row 2: [album_cover cont.] [artist_name (4-10)]
 Row 3: [album_cover cont.] [album (4-10)]
 ```
 
-The `stream_player` column type renders a 52×52 ▶ button and nothing else (see `src/themes/wcdb/columnTypes/streamPlayer.jsx`). It declares `cardHints.defaultHideHeader: true` so the picker ships new instances with the header hidden. No `fullBleed`, no `spanFullColumns` — it's a normal Card cell that happens to render a button.
+The `stream_player` column type renders a 52×52 ▶ button and nothing else (see `src/plugins/wcdb/theme/columnTypes/streamPlayer.jsx`). It declares `cardHints.defaultHideHeader: true` so the picker ships new instances with the header hidden. No `fullBleed`, no `spanFullColumns` — it's a normal Card cell that happens to render a button.
 
 ### Two fields on one editorial line (`formatFn: 'combine'`)
 

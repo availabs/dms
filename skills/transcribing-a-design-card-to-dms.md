@@ -112,7 +112,7 @@ pivotal rung is #3.
 - **Column type** when the new thing renders **one focused visual element that has
   (or derives from) a value**: a pill, a bar, a sparkline, an arrow-delta. It
   slots into a normal Card cell; the section author still lays it out. Precedents:
-  `src/themes/wcdb/columnTypes/streamPlayer.{jsx,config.js}` and `portraitBanner.*`
+  `src/plugins/wcdb/theme/columnTypes/streamPlayer.{jsx,config.js}` and `portraitBanner.*`
   — each renders exactly one element and declares `cardHints`. This is almost
   always the right answer.
 - **New section component** only when the component must own the **entire
@@ -351,6 +351,6 @@ Two lessons worth carrying:
   ratio.)
 - `card-layout.md` — every Card display/column knob, the `formatFn` table, `cardHints`.
 - `creating-page-section-components.md` — how to build a column type / section.
-- `src/themes/wcdb/columnTypes/` — `streamPlayer`, `portraitBanner`, `nowIndicator`:
+- `src/plugins/wcdb/theme/columnTypes/` — `streamPlayer`, `portraitBanner`, `nowIndicator`:
   worked single-element column types (the pattern atoms 1/5/6 should follow).
 - `src/themes/CLAUDE.md` — the configure-the-Card-don't-write-a-component principle.

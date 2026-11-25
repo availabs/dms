@@ -28,6 +28,9 @@ import { registerColumnType } from '../ui/columnTypes'
 import { registerFormatFunction } from '../patterns/page/components/sections/components/dataWrapper/utils/utils.jsx'
 import { registerWidget } from '../ui/widgets'
 import { ThemeContext } from '../ui/themeContext'
+import { getComponentTheme } from '../ui/useTheme'
+import { udaListViews, udaCreateView, udaUpdateSourceMetadata, udaGetSourceAuthorities, udaSetAuthoritativeView } from '../api'
+import { singleAuthoritativeViewId } from '../patterns/datasets/utils/authority'
 import { CMSContext, PageContext, ComponentContext, DataSourceContext } from '../patterns/page/context'
 import { themeLoaders, dataTypes, patternTypeOwners, sectionTypeOwners, pluginRecords, contributionOwners } from './registries'
 
@@ -37,7 +40,7 @@ export { loadPlugins, loadSitePlugins, installedActivations, clientPluginUrl } f
 
 // The plugin API this library provides. Bump the minor for additions, the major for anything a plugin written
 // for the previous one could trip on.
-export const PLUGIN_API_VERSION = '1.0.0'
+export const PLUGIN_API_VERSION = '1.1.0'
 
 const ACTIVATION = ['default-on', 'opt-in']
 const NAME = /^[a-z][a-z0-9_]*$/
@@ -110,6 +113,13 @@ function createHost(plugin, activation, contributes) {
     // auth check, for the same reason: read through the host, never imported.
     getPatternType,
     defaultCheckAuth,
+    // Since 1.1: what a code theme's components need besides the contexts. A theme's components read their styles
+    // with getComponentTheme; a section editing dataset views uses the UDA calls (each takes the host's falcor, from
+    // CMSContext) and the authoritative-view rule. (mergeTheme needs no host: ui/mergeTheme.js is pure, so a plugin
+    // bundles it.)
+    getComponentTheme,
+    api: { udaListViews, udaCreateView, udaUpdateSourceMetadata, udaGetSourceAuthorities, udaSetAuthoritativeView },
+    datasets: { singleAuthoritativeViewId },
     /** Pattern types, as registerPatternTypes takes them (their pageComponents come with them). */
     registerPatternTypes(map) {
       take('patternTypes', map, (name) => patternTypeOwners.set(name, { plugin, activation }))

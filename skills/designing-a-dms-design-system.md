@@ -1549,7 +1549,7 @@ Before designing for DMS, read in order:
    cardHints, etc.). Read before deciding how a dataCard variant is
    themed — the Card is the workhorse primitive and most of its
    visual personality is configurable, not themed.
-6. **`src/themes/avail/theme.js`** and **`src/themes/wcdb/`** — two
+6. **`src/themes/avail/theme.js`** and **`src/plugins/wcdb/theme/`** — two
    existing themes, very different in tone, that demonstrate how
    the platform supports a wide visual range.
 7. **`src/themes/transportny/TransportNY Design System/dms_design_system_v2/`**

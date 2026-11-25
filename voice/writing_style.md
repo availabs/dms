@@ -53,4 +53,4 @@ should feel like a tool, not a publication.
 ## Change log
 
 - 2026-11-08: created, with the tool register, from Alex's review of the WCDB admin schedule dialog
-  (recorded in `src/themes/wcdb/voice/preferences.md`).
+  (recorded in `src/plugins/wcdb/theme/voice/preferences.md`).

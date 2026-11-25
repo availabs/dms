@@ -97,19 +97,24 @@ function listInstalled(dir = pluginsDir()) {
 
 /**
  * At boot: each installed plugin's current version with a server entry is registered as a data type, its routes
- * judged under `enforce` whatever DMS_AUTH_MODE says (P0 finding 1). A plugin compiled into the app of the same
- * name is left alone. Returns the names registered.
+ * judged under `enforce` whatever DMS_AUTH_MODE says (P0 finding 1), under the data-type name the entry declares
+ * (`dataType`) or the plugin's name. A data type compiled into the app under that name is left alone. Returns the names registered.
  */
 const loadedServer = new Map();   // name -> the version whose server entry this process registered at start
 
 function registerInstalledServerPlugins(registerDatatype, { dir = pluginsDir(), isRegistered = () => false } = {}) {
   const done = [];
   for (const { name, current } of listInstalled(dir)) {
-    if (!current || isRegistered(name)) continue;
+    if (!current) continue;
     const entry = entryPath(name, current, 'server', dir);
     if (!entry) continue;
     try {
-      registerDatatype(name, require(entry), { authMode: 'enforce' });
+      // A server entry may name the data type its routes mount under (`dataType`, e.g. a plugin `wcdb` keeping the
+      // `/dama-admin/:pgEnv/now_playing/…` URLs its webhooks already call); the plugin's own name otherwise.
+      const mod = require(entry);
+      const dataType = typeof mod?.dataType === 'string' && NAME.test(mod.dataType) ? mod.dataType : name;
+      if (isRegistered(dataType)) continue;
+      registerDatatype(dataType, mod, { authMode: 'enforce' });
       loadedServer.set(name, current);
       done.push(name);
     } catch (e) {
