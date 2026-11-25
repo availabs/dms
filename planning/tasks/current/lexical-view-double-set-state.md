@@ -1,6 +1,10 @@
 # Rich text in view mode sets its content twice on mount
 
-**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** doing · **Created by:** amuro@albany.edu · **Edited by:** —
+**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** dropped · **Created by:** amuro@albany.edu · **Edited by:** —
+
+**Dropped 2026-11-20:** removing the second set changed how pages look in more ways than could be patched
+(see Results and [lexical-view-keep-empty-text-paragraphs.md](./lexical-view-keep-empty-text-paragraphs.md), which keeps
+the double set and removes its cost another way). The code change was reverted in the working tree.
 
 ## Objective
 
