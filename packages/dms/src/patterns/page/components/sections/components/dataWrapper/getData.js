@@ -231,6 +231,9 @@ export const getData = async ({
     // sections with matching filter/groupBy/join from colliding on the same Falcor
     // path. Never read server-side (see falcor-sibling-query-cache-collision.md).
     sectionId,
+    // The row count a caller already has for this same query (a later page of it): the count query is a
+    // second full run of the query, and it can't differ between pages.
+    knownLength,
 }) => {
     debugTime && console.time('getData fn')
     const debug = debugCall || false;
@@ -369,7 +372,9 @@ export const getData = async ({
             ? 1
             : isOptionsLoad
                 ? OPTIONS_LIMIT
-                : await getLength({ options, state, apiLoad });
+                : Number.isFinite(knownLength) && knownLength >= 0
+                    ? knownLength
+                    : await getLength({ options, state, apiLoad });
         debugTime && console.timeEnd('length')
     } catch (e) {
         console.error("Error:", e);

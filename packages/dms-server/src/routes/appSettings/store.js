@@ -198,4 +198,4 @@ async function readIcon(app, file) {
   catch { return null; }
 }
 
-module.exports = { appForHost, read, write, saveIcon, removeIcon, readIcon, drawIcons, streamToBuffer, hubApp, multiTenant, ICON_NAMES };
+module.exports = { appForHost, siteRowOf, read, write, saveIcon, removeIcon, readIcon, drawIcons, streamToBuffer, hubApp, multiTenant, ICON_NAMES };

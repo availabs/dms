@@ -45,6 +45,10 @@ module.exports = {
 
   theme:  { owner: 'site', ops: { '*': ['manage-themes'] } },
   tenant: { owner: 'site', ops: { '*': ['manage-tenants'] } },
+  // plugins (dms-plugin-system.md): the install record and a tenant's activation, judged by site verbs
+  // serverOnly: the general write path refuses it to everyone, under every mode (routes/auth/index.js)
+  plugin: { owner: 'site', serverOnly: true, ops: { '*': ['install-plugins'] } },
+  plugin_activation: { owner: 'site', ops: { '*': ['activate-plugins'] } },
 
   pattern: {
     owner: 'self',

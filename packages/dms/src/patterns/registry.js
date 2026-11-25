@@ -113,7 +113,7 @@ import { PATTERN_ROW_DOMAIN } from './patternRow.domain'
 import { declarationsOf } from './declarations'
 import defaultTheme from '../ui/defaultTheme'
 import { mergeTheme, resetBaseThemeCache } from '../ui/useTheme'
-import { registerComponents } from './page/components/sections/componentRegistry'
+import { registerComponents } from './page/components/sections/componentRegistryStore'
 
 const isDev = typeof process !== 'undefined' && process.env?.NODE_ENV !== 'production'
 

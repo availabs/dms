@@ -8,7 +8,7 @@ const unwrap = (v) => (v && typeof v === 'object' && '$type' in v ? v.value : v)
 // `fresh`: drop the view's cached reads first. A row created through dmsDataEditor invalidates
 // only `dms.data`, so a read that must see it (a check-then-create) can't trust the cache.
 // The CLI's reader (it has no apiLoad), also handed to a host app's CLI page-publish hook; browser
-// code reads through apiLoad instead (e.g. dms-template's qa pattern, src/patterns/qa/datasets.js).
+// code reads through apiLoad instead (e.g. dms-template's qa pattern, src/plugins/qa/datasets.js).
 export async function loadDatasetRows(falcor, { env, viewId, columns = [], fresh = false }) {
   const attrs = columns.map((c) => (c === 'id' ? 'id' : `data->>'${c}' as ${c}`))
   const base = ['uda', env, 'viewsById', viewId, 'options', '{}']

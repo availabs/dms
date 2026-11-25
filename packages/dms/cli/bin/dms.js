@@ -14,6 +14,7 @@ import * as section from '../src/commands/section.js';
 import * as dataset from '../src/commands/dataset.js';
 import * as formats from '../src/commands/formats.js';
 import * as stack from '../src/commands/stack.js';
+import * as plugin from '../src/commands/plugin.js';
 import { pathToFileURL } from 'url';
 import { makeClient, resolvePattern, parseData, fetchById } from '../src/utils/data.js';
 import { output, outputError } from '../src/utils/output.js';
@@ -192,6 +193,37 @@ formatsCmd
     const config = getConfig(cmd);
     validateConfig(config, ['host', 'app']);
     await formats.diff(file, config, getOutputOptions(cmd));
+  });
+
+// ============================================================================
+// PLUGINS (offline: a package folder)
+// ============================================================================
+
+const pluginCmd = program
+  .command('plugin')
+  .description('Plugin packages: check one, write its release index (planning/tasks/current/dms-plugin-system.md)');
+
+pluginCmd
+  .command('validate <dir>')
+  .description("Check a plugin package: its package.json `dms` key, and that its entries exist (exit 1 when not)")
+  .action(async (dir, options, cmd) => {
+    await plugin.validate(dir, getOutputOptions(cmd));
+  });
+
+pluginCmd
+  .command('build <dir>')
+  .description("Build a plugin's browser/SSR entry from its package.json `dms.source` into `dms.entries.client`, React and the router shared with the host (and `dms.entries.classes`, its class names)")
+  .option('--host <dir>', "the app the plugin runs in (its Vite and React; default: found from <dir> upward)")
+  .action(async (dir, options, cmd) => {
+    await plugin.buildCmd(dir, { ...getOutputOptions(cmd), host: options.host });
+  });
+
+pluginCmd
+  .command('pack <dir>')
+  .description('Write the release index.json: the manifest plus every file with its size and sha512')
+  .option('--out <file>', 'where to write it (default <dir>/index.json)')
+  .action(async (dir, options, cmd) => {
+    await plugin.pack(dir, { ...getOutputOptions(cmd), out: options.out });
   });
 
 // ============================================================================

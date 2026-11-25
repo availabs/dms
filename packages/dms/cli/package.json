@@ -9,7 +9,8 @@
   "scripts": {
     "start": "node bin/dms.js",
     "test": "node test/run.js",
-    "test:seed": "node test/seed.js"
+    "test:seed": "node test/seed.js",
+    "test:plugin": "node test/plugin.js"
   },
   "dependencies": {
     "commander": "^12.0.0",

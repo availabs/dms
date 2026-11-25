@@ -11,7 +11,9 @@
  *     POST /tenants/:tenant/app-settings/icon/remove
  *
  * The same four under `/hub/app-settings` are the server's own site (the hub's, or a single-tenant
- * server's). The tenant routes are mounted on a multi-tenant server only.
+ * server's), and under `/_dms/apps/:app/app-settings` any app with a site row on this server (an app's own
+ * Settings page, on every server: app-settings-pages.md). The tenant routes are mounted on a multi-tenant
+ * server only.
  *
  * Public, answered for the site the request's Host shows:
  *
@@ -24,6 +26,8 @@ const { siteCan } = require('../auth');
 const domains = require('../domains/store');
 const store = require('./store');
 
+// an app name as the routes take it: what a per-app table name is built from, nothing else
+const APP_NAME = /^[\w.+-]+$/;
 const fail = (res, e) => res.status(e.status || 500).json({ error: e.message });
 const esc = (s) => `${s}`.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -32,7 +36,10 @@ async function editable(req, res) {
   const user = requireUser(req, res);
   if (!user) return null;
   let app = store.hubApp();
-  if (req.params.tenant !== undefined) {
+  if (req.params.app !== undefined) {
+    app = req.params.app;
+    if (!APP_NAME.test(app) || !(await store.siteRowOf(app))) { res.status(404).json({ error: `no app "${app}" on this server` }); return null; }
+  } else if (req.params.tenant !== undefined) {
     const row = await domains.tenantBySubdomain(req.params.tenant, { fresh: true });
     if (!row || !row.data.app) { res.status(404).json({ error: `no tenant "${req.params.tenant}"` }); return null; }
     app = row.data.app;
@@ -91,7 +98,7 @@ async function headTags(req) {
 }
 
 function registerAppSettingsRoutes(app) {
-  const bases = store.multiTenant() ? ['/tenants/:tenant/app-settings', '/hub/app-settings'] : ['/hub/app-settings'];
+  const bases = [...(store.multiTenant() ? ['/tenants/:tenant/app-settings'] : []), '/hub/app-settings', '/_dms/apps/:app/app-settings'];
   for (const base of bases) {
     app.get(base, async (req, res) => {
       try {

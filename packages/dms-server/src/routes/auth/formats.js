@@ -134,7 +134,12 @@ async function listFormats(app) {
  * authRules, childRefs }`). A row equal to what is stored is not written; a stored key the payload
  * leaves out is removed, since the payload is everything the registry declares. Returns what changed.
  */
-async function upsertFormats(app, rows) {
+/**
+ * Writes a site's format rows. The payload is the whole set (a deploy's registration): a stored key it leaves out
+ * is removed. With `{ merge: true }` it adds and updates only, and removes nothing: a plugin's rows, written on
+ * its activation, beside the core set (dms-plugin-system.md).
+ */
+async function upsertFormats(app, rows, { merge = false } = {}) {
   if (typeof app !== 'string' || !/^[A-Za-z0-9_.-]{1,200}$/.test(app)) throw new Error('formats: app must be a site name');
   if (!Array.isArray(rows)) throw new Error('formats: expected an array of { type, attributes, authVocabulary, authRules, childRefs }');
   const seen = new Set();
@@ -170,7 +175,7 @@ async function upsertFormats(app, rows) {
     }
     written.push(r.type);
   }
-  const removed = stored.map(r => r.type).filter(t => !seen.has(t));
+  const removed = merge ? [] : stored.map(r => r.type).filter(t => !seen.has(t));
   for (const t of removed) await db.query(`DELETE FROM ${T} WHERE app = $1 AND type = $2`, [app, t]);
   if (written.length || removed.length) {
     cache.delete(app);

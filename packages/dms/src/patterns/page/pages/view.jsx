@@ -1,17 +1,12 @@
 import React, {useContext, useEffect, useRef} from 'react'
-import { Link, Navigate, useSearchParams, useLocation, useNavigate } from "react-router";
+import { Link, Navigate, useLocation } from "react-router";
 import { cloneDeep } from "lodash-es"
-import { useImmer } from "use-immer";
 import {
     dataItemsNav,
     nav2Level,
-    buildSearchString,
-    mergeFilters,
-    getPageVariableRegistry,
-    resolveClearedPageVariables,
-    initNavigateUsingSearchParams,
-    updatePageStateFiltersOnSearchParamChange
+    pageVariablesUrl,
 } from './_utils'
+import { usePageViewState } from './usePageViewState'
 import SectionGroup from '../components/sections/sectionGroup'
 import { PageContext, CMSContext, DataSourceContext } from '../context';
 import { ThemeContext, mergeTheme, getComponentTheme as getThemeKey } from "../../../ui/useTheme";
@@ -19,21 +14,37 @@ import { errorPageTheme } from "./errorPage.theme";
 import { PageStateScreen } from "../components/PageStatePanel";
 import { ABSOLUTE_URL } from "../../../utils/nav";
 import { resolveSubdomainPath } from "../../../utils/subdomainPath";
+import { IslandsCaptureContext } from "../../../render/islands/captureContext";
+import { sectionServerStatic, sectionWakeOnUse, sectionIslandRefused } from "../components/sections/staticSections";
 
-function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdate, reqPermissions, format,busy}) {
+// islands path (render/islands, static-html-islands.md): why this page can't be served as server HTML with
+// client chrome, or null when it can. Read only during the server pass. A section that isn't static is
+// no reason: it stays live in the browser as a section island (CapturedSection.jsx), unless its type refuses.
+function captureIneligible({ islandsView, item }) {
+    if (!islandsView) return 'route not opted in';
+    for (const section of item?.sections || []) {
+        if (!sectionServerStatic(section) && sectionIslandRefused(section)) return `section ${section?.element?.['element-type']}`;
+    }
+    return null;
+}
+
+function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdate, reqPermissions, format,busy, islandsView}) {
     //console.log('create doc', { item, dataItems: allDataItems })
-    const navigate = useNavigate()
-    const [searchParams] = useSearchParams();
     const { search, pathname } = useLocation()
     const pdfRef = useRef(); // To capture the section of the page to be converted to PDF
     const {theme: fullTheme, UI, getComponentTheme} = useContext(ThemeContext);
-    const { Menu, baseUrl, patternFilters = [], isUserAuthed = () => true, authPermissions, user, authBaseUrl, API_HOST, app } = React.useContext(CMSContext) || {};
+    const { Menu, baseUrl, patternFilters = [], isUserAuthed = () => true, authPermissions, user, authBaseUrl, API_HOST, app, type, siteType, hasEditor, pattern, datasources, pgEnv, subdomain } = React.useContext(CMSContext) || {};
+    const islandsCapture = useContext(IslandsCaptureContext);
     const dataItems = allDataItems.filter(d => !d.authPermissions || isUserAuthed(reqPermissions, d.authPermissions));
 
-    const [pageState, setPageState] = useImmer({
-      ...item,
-      filters: getPageVariableRegistry(item, patternFilters)
-    });
+    // LINK PAGE (`nav_link`, page.format.js): the page carries no content — it exists
+    // only to put a nav entry pointing somewhere else into the page tree. Landing on
+    // its own slug should take you to the destination instead of rendering an empty
+    // page. Edit mode deliberately does NOT redirect (pages/edit/index.jsx), or the
+    // author could never open the page to change the link again.
+    const navLink = item?.nav_link ? resolveSubdomainPath(`${item.nav_link}`) : '';
+    const { pageState, setPageState, updatePageStateFilters, setActionParam, clearActionParam } =
+        usePageViewState({ item, patternFilters, baseUrl, syncUrl: !navLink });
     const {Layout} = UI;
     let theme = mergeTheme(fullTheme, item?.theme || {})
 
@@ -58,12 +69,6 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
       hasTrackedVisitRef.current = item.id;
     }, [item?.id, user?.isAuthenticating, search]);
 
-    // LINK PAGE (`nav_link`, page.format.js): the page carries no content — it exists
-    // only to put a nav entry pointing somewhere else into the page tree. Landing on
-    // its own slug should take you to the destination instead of rendering an empty
-    // page. Edit mode deliberately does NOT redirect (pages/edit/index.jsx), or the
-    // author could never open the page to change the link again.
-    const navLink = item?.nav_link ? resolveSubdomainPath(`${item.nav_link}`) : '';
     // A full URL is not a router path — navigate()/<Navigate> would mangle it, so it
     // leaves as a document load. Same split as TopNav's absolute-destination handling.
     const navLinkIsAbsolute = Boolean(navLink) && ABSOLUTE_URL.test(navLink);
@@ -94,102 +99,6 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
     //     //sectionsBackill(item,baseUrl,apiUpdate)
 
     // },[])
-
-    useEffect(() => {
-        updatePageStateFiltersOnSearchParamChange({searchParams, item, patternFilters, setPageState})
-        // Depend on item?.id, not just item?.filters: a page's DERIVED page vars
-        // (e.g. a map section's `layers`) come from item.sections, and item.filters
-        // is usually undefined — so on SPA navigation to such a page this URL→state
-        // mapping must re-run when the item itself resolves, or the params never
-        // register (they only worked on a full reload, where the item is present at
-        // mount). item?.sections?.length also covers sections arriving after the id.
-    }, [searchParams, item?.id, item?.filters, item?.sections?.length]);
-
-    useEffect(() => {
-        // A link page never syncs its own page variables into the URL. It may still
-        // carry `filters` from whatever it was before it became a link (the MitigateNY
-        // county Actions Dashboard kept 12 url-bound variables), and this effect
-        // navigates to `${baseUrl}/${item.url_slug}?<params>` — which lands straight
-        // back on the link page and cancels the <Navigate> below, so the redirect
-        // silently never happened.
-        if (navLink) return;
-        initNavigateUsingSearchParams({pageState, search, navigate, baseUrl, item, isView: true})
-    }, [])
-
-    const setActionParam = React.useCallback((key, value) => {
-        setPageState(draft => {
-            const existing = draft.filters.find(f => f.searchKey === key && f.type === 'action');
-            const arrayValue  = Array.isArray(value) ? value : [value];
-            if (existing) {
-                existing.values = arrayValue;
-            } else {
-                draft.filters.push({ searchKey: key, values: arrayValue, useSearchParams: false, type: 'action' });
-            }
-        });
-    }, [setPageState]);
-
-    const clearActionParam = React.useCallback((key) => {
-        setPageState(draft => {
-            const idx = draft.filters.findIndex(f => f.searchKey === key && f.type === 'action');
-            if (idx !== -1) draft.filters.splice(idx, 1);
-        });
-    }, [setPageState]);
-
-    const updatePageStateFilters = (filters, removeFilter={}) => {
-        // A cleared URL-bound variable with a registered default resets to that default instead of
-        // emptying (see resolveClearedPageVariables) — rewrite those keys as a set-to-default.
-        const resets = resolveClearedPageVariables(removeFilter, pageState.filters, getPageVariableRegistry(item, patternFilters));
-        const resetKeys = Object.keys(resets);
-        if(resetKeys.length){
-            filters = [...filters.filter(f => !resets[f.searchKey]), ...resetKeys.map(searchKey => ({searchKey, values: resets[searchKey]}))];
-            removeFilter = Object.fromEntries(Object.entries(removeFilter).filter(([searchKey]) => !resets[searchKey]));
-        }
-        const searchParamFilters = pageState.filters.filter(f => f.useSearchParams && !removeFilter[f.searchKey]).map(f => filters.find(updatedFilter => updatedFilter.searchKey === f.searchKey) || f)
-        const nonSearchParamFilters = filters
-            .filter(({searchKey}) => {
-                const matchingFilter = (pageState.filters || []).find(f => f.searchKey === searchKey);
-                return matchingFilter && !matchingFilter.useSearchParams
-            })
-        // set non navigable filters
-        const searchKeysToRemove = Object.keys(removeFilter).filter(searchKey => removeFilter[searchKey])
-        if(nonSearchParamFilters?.length || searchKeysToRemove?.length || resetKeys.length){
-            setPageState(page => {
-                nonSearchParamFilters.forEach(f => {
-                    const idx = page.filters.findIndex(({searchKey}) => searchKey === f.searchKey);
-                    if(idx >= 0) {
-                        page.filters[idx].values = f.values;
-                    }
-                })
-
-                searchKeysToRemove.forEach(sk => {
-                    const idx = page.filters.findIndex(({searchKey}) => searchKey === sk);
-                    if(idx >= 0) {
-                        page.filters[idx].values = [];
-                    }
-                })
-
-                // Written even when the URL already carries the default (so there is no navigation and no
-                // URL→pageState pass): the clearing control has already emptied its own leaf and only
-                // re-syncs from a pageState.filters change (usePageFilterSync). A fresh array guarantees one.
-                resetKeys.forEach(sk => {
-                    const idx = page.filters.findIndex(({searchKey}) => searchKey === sk);
-                    if(idx >= 0) {
-                        page.filters[idx].values = [...resets[sk]];
-                    }
-                })
-            })
-        }
-
-        // navigate
-        if(searchParamFilters?.length || true){
-            const filtersObject = searchParamFilters
-                .reduce((acc, curr) => ({...acc, [curr.searchKey]: typeof curr.values === 'string' ? [curr.values] : curr.values}), {});
-            const url = buildSearchString(filtersObject);
-            if(url !== search){
-                navigate(`${baseUrl}/${item.url_slug}${url}`)
-            }
-        }
-    }
 
   const getSectionGroups =  ( sectionName ) => {
     return (item?.section_groups || [])
@@ -236,6 +145,61 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
     if (navLink) {
         return navLinkIsAbsolute ? null : <Navigate to={navLink} replace />;
     }
+  // Islands path: the server pass records what the client chrome needs and renders only the content, each
+  // section-group slot in a marker element that render/ssr2/handler.jsx cuts out (captureRender).
+  if (islandsCapture) {
+    const reason = captureIneligible({ islandsView, item });
+    if (reason) {
+      islandsCapture.reason = reason;
+    } else {
+      islandsCapture.kind = 'page-view';
+      islandsCapture.eligible = true;
+      islandsCapture.island = {
+        navItems: menuItems,
+        secondNav: menuItemsSecondNav,
+        baseUrl, app, type, siteType, authPermissions, authBaseUrl, hasEditor,
+        title: item?.title,
+        // what PatternTitle (render/spa/utils) sets in the browser on today's path; the islands path puts it in the HTML
+        documentTitle: (typeof pattern?.html_title === 'string' && pattern.html_title.trim()) || pattern?.name || '',
+        itemTheme: item?.theme || null,
+        patternTheme: pattern?.theme || null,
+        selection: pattern?.theme?.selectedTheme || pattern?.theme?.settings?.theme?.theme || 'default',
+        // the user menu as route building left it (site menu, the pattern's own menu over it)
+        authMenu: fullTheme?.navOptions?.authMenu || null,
+        // where the browser moves a page opened with no search string (usePageViewState): this same render,
+        // so the islands entry answers that navigation with the page it already has
+        variablesUrl: search || navLink ? null : pageVariablesUrl({ pageState, baseUrl, item, isView: true }),
+      };
+      // Section islands (sections that stay live in the browser) push themselves here while the slots
+      // render (CapturedSection.jsx); what the browser needs to rebuild PageContext around them goes with them.
+      // render/islands/islandData.js keeps it only when there are islands, and trims it.
+      islandsCapture.sections = [];
+      // CapturedSection reads it from here: importing the registry from sectionArray's graph is a cycle
+      islandsCapture.sectionServerStatic = sectionServerStatic;
+      islandsCapture.sectionWakeOnUse = sectionWakeOnUse;
+      islandsCapture.islandPage = {
+        renderKey: pathname + search,
+        item,
+        dataItems: dataItems.map(({ id, parent, title, url_slug, index, hide_in_nav, nav_link, published }) =>
+          ({ id, parent, title, url_slug, index, hide_in_nav, nav_link, published })),
+        patternFilters, datasources: datasources || null, pgEnv: pgEnv || null, subdomain: subdomain || null,
+        additionalSectionAttributes: pattern?.additionalSectionAttributes || null,
+      };
+      return (
+        <DataSourceContext.Provider value={dataSourceActions}>
+        <PageContext.Provider
+          value={{ item, pageState, setPageState, updatePageStateFilters, setActionParam, clearActionParam, dataItems, apiLoad, apiUpdate, format, busy, baseUrl }}
+        >
+          <ThemeContext.Provider value={{theme, UI, getComponentTheme}}>
+            <dms-slot name="top">{getSectionGroups('top')}</dms-slot>
+            <dms-slot name="content">{getSectionGroups('content')}</dms-slot>
+            <dms-slot name="bottom">{getSectionGroups('bottom')}</dms-slot>
+          </ThemeContext.Provider>
+        </PageContext.Provider>
+        </DataSourceContext.Provider>
+      );
+    }
+  }
   return (
       <DataSourceContext.Provider value={dataSourceActions}>
       <PageContext.Provider

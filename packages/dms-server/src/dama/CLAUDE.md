@@ -143,13 +143,13 @@ The `AND … NOT (metadata ? 'columns')` guard means a re-run of provisioning wo
 
 ### Curated default vs. all columns
 
-Plugins that have many columns (e.g. now_playing's ~50) typically write a **curated default** to `metadata.columns` — the 10-20 worth surfacing in the Table page — and keep a `JSONB raw` column for the full payload. The physical table still has every column; `metadata.columns` only controls what's visible by default. See `data-types/now_playing/schema.js` for a worked example with `COLUMN_METADATA` (curated) and `ALL_COLUMN_METADATA` (full).
+Plugins that have many columns (e.g. now_playing's ~50) typically write a **curated default** to `metadata.columns` — the 10-20 worth surfacing in the Table page — and keep a `JSONB raw` column for the full payload. The physical table still has every column; `metadata.columns` only controls what's visible by default. See `src/plugins/now_playing/schema.js` for a worked example with `COLUMN_METADATA` (curated) and `ALL_COLUMN_METADATA` (full).
 
 ### Reference implementations
 
 - `dama/upload/workers/csv-publish.js#L137-L154` — CSV inference path (columns derived from the inferred `tableDescriptor`).
 - `dama/upload/workers/gis-publish.js#L253-L267` — GIS path (columns from ogr2ogr's reported types).
-- `data-types/now_playing/routes.js#POST /streams` — fixed schema written at provision (no inference needed).
+- `src/plugins/now_playing/routes.js#POST /streams` — fixed schema written at provision (no inference needed).
 
 ---
 
@@ -170,8 +170,15 @@ External plugins get loaded at boot via `DMS_EXTRA_DATATYPES` (an env var pointi
 }
 ```
 
-A definition can also carry `schedulables` (cron-scheduled runs, see `data-types/CLAUDE.md`) and
-`rules` (source-rule templates, see "Source rules" below).
+A definition can also carry `schedulables` (cron-scheduled runs, see `data-types/CLAUDE.md`),
+`rules` (source-rule templates, see "Source rules" below), `longRoutes` (`['POST /path']`: routes that run past the
+server's 30 s request timeout; the core names none itself) and `start(helpers)` / `stop()` (the data type's own
+background work, e.g. a warm-load: `start` runs once every route is mounted).
+
+**As a plugin** (`planning/tasks/current/dms-plugin-system.md`): the module may instead export
+`{ name, version, api, activation, register(host) }`, where `register` returns the definition above
+(`src/plugins/index.js` `definitionOf`; dms-template's `src/plugins/now_playing` is the first). Its `package.json` carries the manifest
+under a `dms` key (`validateManifest`).
 
 ### Mount path
 
@@ -180,6 +187,13 @@ A definition can also carry `schedulables` (cron-scheduled runs, see `data-types
 Every plugin router gets `writeGate` (`datatypes/auth.js`) in front of it: a write (anything but GET / HEAD /
 OPTIONS) needs a signed-in user unless the plugin lists the route in `openRoutes: ['POST /path/:id']`.
 `enforce` refuses an anonymous write (401); `log` lets it through with one `would-deny route` line. The route then checks its own permission with the helpers below.
+`registerDatatype(name, def, { authMode: 'enforce' })` runs that data type's whole router under `enforce`
+whatever `DMS_AUTH_MODE` says (an `AsyncLocalStorage` scope, `routes/auth/settings.js withEnforcedAuth`, so the
+helpers' own checks bite too). Plugins installed at run time get it; compiled-in data types follow the server's mode.
+
+Forked workers and the spawned tools (`ogr2ogr`, `zip`, `tippecanoe`) get `tasks/worker-env.js workerEnv()`: an
+allow-list (process basics, `DMS_`, `DAMA_`, `AWS_`, `PG`, `GDAL_`/`PROJ_`/`CPL_`/`OGR_`, `LC_`) minus the server's
+signing secrets, never `{ ...process.env }`. A worker needing another variable names it (`declared`).
 
 ### Worker `ctx`
 

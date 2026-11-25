@@ -66,6 +66,8 @@ const pagesConfig = ({
   // false for a pattern type that reuses this config without the page editor
   // (e.g. dms-template's qa type); hides the view↔edit toggle in the user menu.
   hasEditor = true,
+  // the site's plugin activations (plugins/registries.js activationsOf): which plugins' section types to offer
+  pluginActivations = {},
   ...rest
 }) => {
   const theme = getPatternTheme(themes, pattern, ssrCollect)
@@ -154,7 +156,11 @@ const pagesConfig = ({
     // that don't need it. A lazy section shows its Suspense fallback until its
     // chunk lands. See boot-chain-fewer-serial-hops.md (and
     // bundle-split-initial-graph.md for the chunks themselves).
-    preload: async (falcor, data, request, params) => {
+    // `reload`: the loader is re-reading a page that is already on screen (dmsPageFactory). Its sections have
+    // their rows, or are fetching them: preloading again ran every section's queries a second time (twice on
+    // a first visit, once sync's bootstrap and delta land) for rows nothing read. The editor still preloads.
+    // See section-data-query-repeats.md.
+    preload: async (falcor, data, request, params, { reload = false } = {}) => {
       const raw = params?.['*'] || '';
       const isEdit = raw.startsWith('edit/');
       const slug = isEdit ? raw.slice('edit/'.length) : raw;
@@ -162,7 +168,7 @@ const pagesConfig = ({
       // the registry tells the preload which section types fetch before render (preloadData) and how;
       // draft sections only show in the editor
       const components = getRegisteredComponents();
-      const loaded = preloadEnabled
+      const loaded = preloadEnabled && !(reload && !isEdit)
         ? await preloadPageSections(falcor, data, request.url, patternFilters, slug, components, { drafts: isEdit })
         : data;
       // a view page's data goes into its HTML: each section type leaves out what only its editor
@@ -198,6 +204,7 @@ const pagesConfig = ({
               authPermissions,
               authBaseUrl,
               hasEditor,
+              pluginActivations,
               // this pattern's own row (e.g. for a pattern type's onPagePublish)
               pattern,
               isUserAuthed: (reqPermissions, customAuthPermissions) => {
@@ -264,6 +271,9 @@ const pagesConfig = ({
               ]
             },
             action: 'view',
+            // Islands opt-in (static-html-islands.md): with DMS_ISLANDS on, this route's view pages are served
+            // by render/islands as static HTML with islands. The core reads the key, never the pattern type.
+            islandsView: 'page-view',
             authPermissions,
             reqPermissions: ['view-page']
           },

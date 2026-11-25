@@ -93,7 +93,7 @@ function resolveElementData(elementData, dataSources) {
 export function SectionEdit({ i, value, attributes, siteType, format, onChange, onRemove, moveItem, onCancel, onSave, group }) {
     const isEdit = true;
     const {AuthAPI} = React.useContext(AuthContext) || {};
-    const {user, isUserAuthed} = React.useContext(CMSContext) || {};
+    const {user, isUserAuthed, pluginActivations} = React.useContext(CMSContext) || {};
     const { pageState, apiLoad, apiUpdate, item, editPageMode } = useContext(PageContext);
     const {theme: fullTheme, UI} = React.useContext(ThemeContext);
     const { dataSources, setDataSource, createDataSource } = useContext(DataSourceContext);
@@ -242,7 +242,7 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
         // `sectionArrayStyle`: the BAND's `pages.sectionArray` style name, so the
         // menu offers the Width/Row span/Border/Padding/Shadow maps this band
         // actually renders with (sectionArray.jsx resolves its grid the same way).
-        ui:  { Switch, Pill, Icon, TitleEditComp, LevelComp, theme: fullTheme, RegisteredComponents, sectionArrayStyle: group?.theme, groupCollapsible: group?.collapsible },
+        ui:  { Switch, Pill, Icon, TitleEditComp, LevelComp, theme: fullTheme, RegisteredComponents, sectionArrayStyle: group?.theme, groupCollapsible: group?.collapsible, pluginActivations },
         dataSource: dataSourceFromRef,
         dwAPI: dwAPI || {},
         settingsAPI,

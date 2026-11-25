@@ -33,7 +33,7 @@ so the effect skips its first run. A later change of `value` still sets the stat
 
 The 4.2 s part, and not mounting Lexical in view at all (static HTML with small handlers): see the options in
 [perf-measurement-tool.md](./perf-measurement-tool.md) and the rich-text row of
-[rsc-view-pages.md](./rsc-view-pages.md).
+[rsc-view-pages.md](../completed/rsc-view-pages.md).
 
 ## Testing checklist
 

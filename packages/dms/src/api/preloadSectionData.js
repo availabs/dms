@@ -45,7 +45,7 @@ function resolveFilterMap(pageFilters, patternFilters, searchParams) {
 
     const urlFilters = {}
     for (const key of searchParams.keys()) {
-        urlFilters[key] = searchParams.get(key)?.split('|||')
+        urlFilters[key] = searchParams.get(key)?.split('|||').filter(v => v !== '')
     }
 
     const resolved = merged.map(filter => {
@@ -149,6 +149,9 @@ export async function preloadSectionData(falcor, elementData, elementType, compo
                 ...state.display,
                 totalLength: length,
                 readyToLoad: true,
+                // when these rows were read: a 'force' section skips its first fetch in the browser if they
+                // are from this page load (dataWrapper/useDataLoader.js), instead of running the same query again
+                preloadedAt: Date.now(),
             },
             data,
             ...(state.dataSourceId && { dataSourceId: state.dataSourceId }),

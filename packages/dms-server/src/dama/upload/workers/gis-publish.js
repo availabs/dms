@@ -12,6 +12,7 @@
  */
 
 const { spawn } = require('child_process');
+const { workerEnv } = require('../../tasks/worker-env');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
@@ -60,6 +61,7 @@ async function runOgr2OgrAsync(args, taskCtx) {
 
   return new Promise((resolve, reject) => {
     const child = spawn('ogr2ogr', ['-progress', ...args], {
+      env: workerEnv(),
       stdio: ['ignore', 'pipe', 'pipe'],
     });
 

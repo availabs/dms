@@ -188,3 +188,24 @@ export const sectionTitleClass = (sectionTheme, fullTheme, level) => {
         : `w-full ${fullTheme?.heading?.[level] || fullTheme?.heading?.['default']}`;
 };
 
+// Whether a section's own settings hide it in view mode (`hideSection`, at the top level or under `display`).
+// Every band's SectionArray asks this of every section on the page on each render. Parsing the settings to
+// answer it (twice: isJson, then JSON.parse) held the main thread for about 10 s on a page of 107 sections
+// in 31 bands whose settings carried preloaded rows. So: no parse when the word isn't in the string, and one
+// parse per element object otherwise.
+const hiddenByElement = new WeakMap();
+export function elementHidesSection(element) {
+    const value = element?.['element-data'];
+    if (!value) return false;
+    if (typeof value === 'object') return Boolean(value.hideSection || value.display?.hideSection);
+    if (typeof value !== 'string' || !value.includes('hideSection')) return false;
+    const cached = hiddenByElement.get(element);
+    if (cached && cached.value === value) return cached.hidden;
+    let hidden = false;
+    try {
+        const data = JSON.parse(value);
+        hidden = Boolean(data?.hideSection || data?.display?.hideSection);
+    } catch { /* not JSON: nothing to read */ }
+    hiddenByElement.set(element, { value, hidden });
+    return hidden;
+}

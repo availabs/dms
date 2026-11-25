@@ -28,6 +28,11 @@ export default {
     name: 'Rich Text',
     EditComp: RichtextEdit,
     ViewComp: RichtextView,
+    // The view is the saved HTML (getHtmlSync) and needs no JavaScript: collapsibles export as
+    // <details>, links and link buttons as <a>. A button that sets a page parameter does need it.
+    // Read by the islands path (render/islands, static-html-islands.md): a page whose every section says
+    // true is served with no section code.
+    serverStatic: (elementData) => !String(elementData || '').includes('"setParam"'),
     defaultState: {
         display: {
             isCard: '',

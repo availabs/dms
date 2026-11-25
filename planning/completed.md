@@ -131,6 +131,7 @@
 
 ## ssr
 
+- [rsc-view-pages.md](./tasks/completed/rsc-view-pages.md) - View pages as React Server Components: phase 0 (React Router 8) and phase 1 (session cookie, per-user server renders) shipped and stay live; the phase 2 RSC delivery was built, measured (2 to 5 times faster to Complete), then measured against static HTML with islands, found equal, and removed in its favour. The capture and island code it wrote lives on in `render/islands/`; the removed sources are in the doc's appendix (2026-11-24)
 - [ssr-multi-tenant-resolution.md](./tasks/completed/ssr-multi-tenant-resolution.md) - SSR resolved the master app for every host, so a tenant subdomain's first load server-rendered `404 - Not Found` until hydration corrected it. `handler.jsx` now passes `isMultiTenant` into the shared `dmsSiteFactory()` (threaded from `mountSSR()`), and a new `onResolvedSiteData` callback gives SSR the tenant-scoped `siteData` for `__dmsSSRData` instead of a separate master-only fetch. Implemented 2026-08-27; confirmed fixed by the user (2026-09-24)
 - [ssr-basic.md](./tasks/completed/ssr-basic.md) - SSR Phase 1: platform-agnostic core (`render/ssr2/handler.jsx`), Express adapter (`render/ssr2/express/`), `mountSSR()` integration into dms-server (`DMS_SSR` env var), `getSubdomain` fix (window bug + localhost production fix), client hydration via `defaultData`/`hydrationData`, two-build system (Vite client + server), per-host route caching, Lexical SSR fixes, linkedom DOM stubs, 8x faster SSR build (2026-02-27)
 

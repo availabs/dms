@@ -99,4 +99,4 @@ describe("avl-map floatMapActions", () => {
 
 // The Map SECTION's side of this opt-in (deriving the prop from a registered plugin's
 // `fullWidthOverlay`) lives with the section, in dms-template's map editor pattern:
-// src/patterns/mapeditor/mapeditor.test.js.
+// src/plugins/mapeditor/mapeditor.test.js.

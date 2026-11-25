@@ -1,4 +1,4 @@
-const { verifyToken } = require('./utils/crypto');
+const { verifyToken, tokenMatchesPassword } = require('./utils/crypto');
 const { getUserByEmail, getUserGroups } = require('./utils/queries');
 const { getDb } = require('../db');
 
@@ -35,8 +35,8 @@ function cacheUser(token, user) {
 /**
  * Verify a JWT token and build the full user object from the auth database.
  * Matches the reference auth() function behavior:
- *   1. Decode JWT to get { email, password (hash), project }
- *   2. Look up user in DB, verify password hash still matches
+ *   1. Decode JWT to get { email, pw (a stamp of the password hash), project }
+ *   2. Look up user in DB, verify the token was issued against their current password
  *   3. Get user's groups + auth level for the embedded project
  *   4. Return full user object
  */
@@ -45,7 +45,7 @@ async function verifyAndGetUser(token, db) {
 
   const { rows: users } = await getUserByEmail(db, decoded.email);
   const userData = users[0];
-  if (!userData || decoded.password !== userData.password) {
+  if (!userData || !tokenMatchesPassword(decoded, userData.password)) {
     throw new Error('Invalid user');
   }
 
@@ -85,6 +85,27 @@ function isExpectedAuthFailure(e) {
 }
 
 /**
+ * The user a token names, from the cache or verified (and cached); null for a bad, expired or revoked token.
+ * Shared by the API's header check (below) and the page host's session cookie (session.js).
+ */
+async function userForToken(token, db) {
+  if (!token) return null;
+  try {
+    let user = getCachedUser(token);
+    if (!user) {
+      user = await verifyAndGetUser(token, db);
+      if (user) cacheUser(token, user);
+    }
+    return user || null;
+  } catch (e) {
+    if (!isExpectedAuthFailure(e)) {
+      console.warn('[auth] token verification failed (infrastructure):', e?.message || e);
+    }
+    return null;
+  }
+}
+
+/**
  * Create JWT auth middleware.
  * @param {string} authDbEnv - Database config name for the auth database
  * @param {Object} [overrides] - Test injection: { db } bypasses getDb(authDbEnv)
@@ -105,23 +126,10 @@ function createJwtMiddleware(authDbEnv, { db: dbOverride } = {}) {
     }
     const token = rawAuth.startsWith('Bearer ') ? rawAuth.slice(7) : rawAuth;
 
-    let user = null;
-    try {
-      user = getCachedUser(token);
-      if (!user) {
-        user = await verifyAndGetUser(token, db);
-        if (user) cacheUser(token, user);
-      }
-    } catch (e) {
-      if (!isExpectedAuthFailure(e)) {
-        console.warn('[auth] token verification failed (infrastructure):', e?.message || e);
-      }
-      user = null;
-    }
-
+    const user = await userForToken(token, db);
     req.availAuthContext = { user };
     next();
   };
 }
 
-module.exports = { createJwtMiddleware, verifyAndGetUser, tokenCache };
+module.exports = { createJwtMiddleware, verifyAndGetUser, userForToken, tokenCache };

@@ -3,13 +3,15 @@ import { ThemeContext } from '../../../ui/useTheme'
 import { nameToSlug } from '../../../utils/type-utils'
 import { patternPickerTheme } from './AddPatternPicker.theme'
 import { listPatternTypes } from '../../registry'
+import { isPatternTypeActive } from '../../../plugins/registries'
 
 // One card per addable registered pattern type (patterns/registry.js) except
 // `page`, whose cards are the page templates below. `auth` goes last, and only
-// while the site has none.
-function patternTypeCards(authExists) {
+// while the site has none. A type a plugin registered is offered only while the
+// plugin is active for this site (`activations`, plugins/registries.js).
+function patternTypeCards(authExists, activations) {
   const card = d => ({ kind: d.name, label: d.label || d.name, desc: d.description || '', defaultName: d.admin?.defaultName })
-  const addable = listPatternTypes().filter(d => d.admin?.addable && d.name !== 'page')
+  const addable = listPatternTypes().filter(d => d.admin?.addable && d.name !== 'page' && isPatternTypeActive(d.name, activations))
   const cards = addable
     .filter(d => d.name !== 'auth')
     .map(card)
@@ -29,7 +31,7 @@ function getDefaultName(card, pageTemplates) {
   return card.defaultName ?? card.label ?? ''
 }
 
-export function AddPatternPicker({ authExists, onAdd }) {
+export function AddPatternPicker({ authExists, onAdd, activations = {} }) {
   const { theme, UI } = React.useContext(ThemeContext) || {}
   const t = { ...patternPickerTheme, ...(theme?.admin?.patternPicker || {}) }
   const pageTemplates = theme?.page_templates ?? []
@@ -39,7 +41,7 @@ export function AddPatternPicker({ authExists, onAdd }) {
   const [baseUrl, setBaseUrl] = useState('')
   const [urlEdited, setUrlEdited] = useState(false)
 
-  const nonPageOptions = patternTypeCards(authExists)
+  const nonPageOptions = patternTypeCards(authExists, activations)
 
   function select(card) {
     const defaultName = getDefaultName(card, pageTemplates)

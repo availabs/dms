@@ -140,7 +140,7 @@ describe("deriveAuthVocabulary", () => {
         });
 
         it("mapeditor — reproduces its symbology verbs exactly", async () => {
-            const { default: mapeditorFormat } = await import("../../../../patterns/mapeditor/mapeditor.format.js");
+            const { default: mapeditorFormat } = await import("../../../../plugins/mapeditor/mapeditor.format.js");
             const mapeditorAuthVocabulary = SHIPPED.mapeditor;
             const derived = deriveAuthVocabulary({ self: PATTERN_ADMIN, formats: [mapeditorFormat] });
             expect(shape(derived.descendants)).toEqual(shape(mapeditorAuthVocabulary.descendants));
@@ -151,8 +151,8 @@ describe("deriveAuthVocabulary", () => {
             // can be filled in later. Both patterns build their config from the page pattern's, so
             // their ticket/channel rows are page rows — the format exists to own the verb list.
             const cases = [
-                ['qa', await import("../../../../patterns/qa/qa.format.js"), SHIPPED.qa],
-                ['chat', await import("../../../../patterns/chat/chat.format.js"), SHIPPED.chat],
+                ['qa', await import("../../../../plugins/qa/qa.format.js"), SHIPPED.qa],
+                ['chat', await import("../../../../plugins/chat/chat.format.js"), SHIPPED.chat],
             ];
             for (const [name, fmt, oracle] of cases) {
                 const derived = deriveAuthVocabulary({ self: PATTERN_ADMIN, formats: [fmt.default] });

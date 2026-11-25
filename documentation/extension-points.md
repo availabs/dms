@@ -4,23 +4,39 @@ The core (client, server, CLI) holds no knowledge of any app, pattern type or th
 (`src/dms/CLAUDE.md`, "DMS Interprets Data"). Everything app-specific gets in through one of the
 points below. **When you add one, add its row here.**
 
-Checked against the code on 2026-11-17. Paths: **C** = `packages/dms/src` (client), **S** =
+Checked against the code on 2026-11-17; plugin rows added 2026-11-23. Paths: **C** = `packages/dms/src` (client), **S** =
 `packages/dms-server/src`, **CLI** = `packages/dms/cli`, **app** = the host app (dms-template). Functions are named
 rather than line numbers, which drift.
 
 | Side | Count | Registered by |
 |---|---|---|
+| Plugins (both sides) | 3 | `registerPlugin(s)` (client), a `register(host)` module (server), the `package.json` `dms` key |
 | Client: pattern types | 14 | `registerPatternTypes` and the type's definition keys |
-| Client: sections and theme keys | 11 | `registerComponents`/`registerWidget`/…, or keys on a site theme |
-| Client: entry props and host files | 6 | `<DmsSite>` props, `lazyComponent`, the SSR entry file |
-| Server | 2 (+4 parts) | env variables naming a module |
+| Client: sections and theme keys | 13 | `registerComponents`/`registerWidget`/…, or keys on a site theme |
+| Client: entry props and host files | 8 | `<DmsSite>` props, `lazyComponent`, the SSR entry file, the islands browser entry |
+| Server | 3 (+4 parts) | env variables naming a module; `registerWriteCheck` |
 | CLI | 2 | `.dmsrc` keys |
 | Build / deploy | 1 | a script flag |
+
+## Plugins (dms-plugin-system.md)
+
+A plugin packages any of pattern types, section and column types, format functions, widgets, themes and data
+types, with a manifest. The host records what each plugin contributed, so activation per tenant can be checked where
+a registry is read. Compiled-in plugins are `default-on` (active unless a site turns them off); run-time ones will be
+`opt-in`.
+
+| Name | Registered by | The core calls it in | It gets / is | App users | For |
+|---|---|---|---|---|---|
+| Client plugin | `registerPlugin(s)` (exported) | C `plugins/index.js`: `register(host)` once; the host's `registerPatternTypes`, `registerSectionTypes`, `registerColumnTypes`, `registerFormatFunctions`, `registerWidgets`, `registerThemes`, `registerDataTypes` wrap the registries below; activation read in C `render/spa/utils/index.js` (`isPatternTypeActive`, `pluginDataTypes(activations)`, from the site row's `plugin_activations`) and `patterns/admin/components/AddPatternPicker.jsx` | `{name, version, api, activation, register(host)}`; the host also gives `contexts`, `getPatternType`, `defaultCheckAuth` (an installed plugin imports nothing from the library) | app `src/plugins/<name>/plugin.js` (mapeditor, qa, chat; now_playing's `plugin.client.js`), all via `src/plugins/index.js`; `src/plugins/weather_analytics/plugin.js` via `src/plugins/themes.js` | packaging and per-site activation |
+| ↳ plugin themes | `host.registerThemes({name: loader})` | C `plugins/registries.js` `withPluginThemes` (used by `resolveThemes`, the admin theme picker, `configureRscClient`); the app wraps its own loader too | `() => Promise<theme>` | weather_analytics | themes from plugins, loaded when a pattern selects them |
+| Installed plugin (run time) | a release installed on the server (`POST /_dms/plugins/install`) + a `plugin_activation` row with `enabled` and `version` | C `plugins/load.js` `loadSitePlugins`, called by `render/spa/dmsSiteFactory.jsx` before routes are built (browser: `/_dms/plugins/<name>/<version>/client.js` on the API host; SSR: the version folder, handler config `resolvePluginUrl`) and by the app's `main.jsx` before hydrating; React shared through `plugins/peers.js` | an ES module built by `dms plugin build` | none yet | plugins that ship without an app release |
+| Server plugin | a data-type module with `register(host)` | S `plugins/index.js` `definitionOf`, from `dama/datatypes/index.js` `registerDatatype` | `{name, version, api, activation, register(host) → definition}` | app `src/plugins/now_playing` (via `data-types/register-datatypes.js`) | the server side of a plugin |
+| Manifest | `package.json` `dms` key; a release's `index.json` | S `plugins/index.js` `validateManifest` | `{api, activation, contributes, entries, permissions}` (+ `files` with size and sha512 in a release) | every converted plugin's `package.json` | what a plugin is, before it is loaded |
 
 ## Client: pattern types
 
 `registerPatternTypes` (C `patterns/registry.js`; its contract is the comment at the top of that file). The app
-registers `{ mapeditor, qa, chat }` in `app/src/patterns/index.js`, imported by both `src/App.jsx` and
+registers `{ mapeditor, qa, chat }` in `app/src/plugins/index.js`, imported by both `src/App.jsx` and
 `src/entry-ssr.jsx`. Full guide: [pattern-registry.md](./pattern-registry.md) and
 `skills/registering-a-pattern-type.md`.
 
@@ -52,6 +68,9 @@ theme. **The registries are global for the app**, so one pattern's theme affects
 | ↳ `preload()` | section entry | `componentRegistry.js` `preloadSectionComponents` | `() => Promise` | mapeditor section | load a lazy chunk with the page data |
 | ↳ `managesOwnState` | section entry | C `…/sections/components/index.jsx`, `sectionMenu.jsx` | bool; settings through the handle's `settingsAPI` | mapeditor section | the section owns its element-data |
 | ↳ `derivePageVariables` | section entry | C `patterns/page/pages/_utils/index.js` | `(elementData) → [{searchKey, …}]` | mapeditor section | registers page variables |
+| ↳ `serverStatic` | section entry | C `…/sections/staticSections.js` (islands path, `render/islands`; behind `DMS_ISLANDS`) | bool, or `(elementData) → bool` | mny `Header: MNY Data` (no search bar) | the section renders as server HTML with no JavaScript; otherwise it stays live as a section island |
+| ↳ `wakeOnUse` | section entry | C `…/sections/staticSections.js` `sectionWakeOnUse` (marked on the capture by `CapturedSection.jsx`; honoured by `render/islands/IslandHost.jsx`) | bool, or `(elementData) → bool`; ignored when `serverStatic` already holds, and dropped for a section whose rows load in the browser (`useDataLoader`) | Spreadsheet | the section keeps its server HTML, and its code is not loaded, until the reader points at, focuses or touches it, or the page's state changes; then it mounts as an island |
+| ↳ `serverIsland` | section entry | C `…/sections/staticSections.js` | `false` refuses | PDF Generator | a type that can't run as a section island keeps its page on today's path |
 | Section menu groups | theme `sectionMenuExtensions` or `registerSectionMenuExtensions` (exported) | C `…/sections/sectionMenu.jsx` | `{componentName: builder[]}`; builder `(ctx) → itemGroup[]` | transportny (`npmrdsMeasureMenu`) | extra settings-menu groups for a section type |
 | Section header content | theme `sectionHeaderExtensions` or `registerSectionHeaderExtensions` (exported) | C `…/sections/section.jsx` | the same ctx → ReactNode(s) | transportny (`npmrdsQuickControls`) | inline content in a section's header |
 | Column types | theme `columnTypes` (`registerColumnType` isn't exported) | C `ui/columnTypes/index.jsx` | `{name: {EditComp, ViewComp, cardHints?}}`; `cardHints` read by Card | wcdb, landbank, mny, tessera | custom cell types for Card / Spreadsheet |
@@ -69,6 +88,8 @@ theme. **The registries are global for the app**, so one pattern's theme affects
 | `routes` | `<DmsSite routes>` | C `render/spa/dmsSiteFactory.jsx` | react-router routes | none | extra app routes |
 | `authWrapper` | `<DmsSite authWrapper>` | C `render/dmsPageFactory.jsx` (default `withAuth`) | a HOC | none | replaces the auth wrapper |
 | `lazyComponent(id, loader)` | function (exported) | C `render/ssr2/handler.jsx`; the client's `preloadLazyComponents` (`app/src/main.jsx`) | a stable id and a dynamic import | qa, mapeditor | code-split components that stay SSR- and hydration-safe |
+| `islandsView` on a route (`DMS_ISLANDS`) | a pattern type's `siteConfig` route | C `patterns/page/pages/view.jsx` `captureIneligible` (the key reaches the view through the dms-manager wrapper's props; `render/dmsPageFactory.jsx` puts it on the route's `handle`; `render/ssr2/handler.jsx` `captureRender` runs the pass) | a key naming the view: `'page-view'` | the page pattern's view route (core) | the route may be served as static HTML with islands (`static-html-islands.md`) |
+| Islands browser entry (`DMS_ISLANDS`) | the app's client build lists `render/islands/entry.browser.jsx` as a second Rollup `input`, sets `build.manifest`, and defines four aliases to its own modules: `@dms-host/themes`, `@dms-host/api-host`, `@dms-host/widgets`, `@dms-host/plugins` (shapes in `render/islands/README.md`; `plugins` is `{ [plugin name]: () => import(entry) }`, and a page loads only the plugins its live sections need, named by the server from what each plugin registered: `plugins/registries.js` `pluginsOfSections`). Optional: `output.chunkFileNames` naming a plugin's entry chunk `plugin.<name>-<hash>.js` lets the server preload it | S `render/ssr2/express/setup.mjs` reads `<clientDir>/.vite/manifest.json` and swaps the entry script into the page template; C `render/islands/entry.browser.jsx` | no entry code in the app; a build without the entry leaves the flag off | `app/vite.config.js` | pages served as static HTML with islands (static-html-islands.md) |
 | SSR entry | the file `src/entry-ssr.jsx` (built to `<DMS_DIST_DIR>/server/entry-ssr.js`), default export `createHandler(config)` | S `index.js` → C `render/ssr2/express/setup.mjs` | `{apiHost, siteConfig, pgEnvs, isMultiTenant, rootDomain}` | `app/src/entry-ssr.jsx` | the app's server render |
 
 ## Server (dms-server)
@@ -79,15 +100,18 @@ theme. **The registries are global for the app**, so one pattern's theme affects
 | ↳ `workers` | the definition | S `dama/tasks/index.js` | `(context{task, pgEnv, db, dispatchEvent, updateProgress})` | most plugins | queued task handlers |
 | ↳ `routes` | the definition | S `dama/datatypes/index.js`, mounted at `/dama-admin/:pgEnv/<name>` behind the write gate (`openRoutes` exempt) | `(router, helpers)`; helpers built in S `index.js` (`queueTask`, `createDamaSource`, `requireUser`, `requireCan`, `authorize*`, `getDb`, `storage`, …) | most plugins; `openRoutes` only analytics | REST endpoints |
 | ↳ `schedulables` | the definition | S `dama/tasks/schedules.js` | `{label, defaultCron, params, buildDescriptor, preflight}` | npmrds, npmrds_raw, transcom, excessive_delay, work_zone, mny actions_cleaned | cron-scheduled runs |
+| ↳ `longRoutes` | the definition | S `dama/datatypes/index.js` `isLongRoute`, read by the request-timeout middleware in S `index.js` | `['METHOD /path']` | routing (`/trsp-memory*`) | routes that run past the 30 s request timeout |
+| ↳ `start` / `stop` | the definition | S `dama/datatypes/index.js`: `start(helpers)` after every route is mounted (not awaited); `stopDatatypes()` for a reload | functions | routing (the graph warm-load) | a data type's own background work |
 | ↳ `rules` | the definition → `registerRule` | S `dama/rules/index.js` | `{label, params, key, validate, install, uninstall, status, …}` | none (the core has `auto_number`, `point_from_lat_lon`) | source-table rule templates |
+| Row-kind write check | `registerWriteCheck(kind, {keys, check})` (S `routes/dms/write-checks.js`), from a server module at start | S `routes/dms/dms.route.js` `dms.data.create` / `dms.data.edit` (after the auth guard; an edit only when it touches `keys`), `dms.data.massedit` (refused for a checked key) | `async ({op, app, type, data, stored}) → data`; throws (400) to refuse | the plugins module: `plugin_activation` (`plugins/store.js` `activationWriteCheck`: the version installed, or the current one written) | validating or completing what is written to a row kind, whoever writes it |
 | Page-delete hook | env `DMS_PAGE_DELETE_HOOK` (a CJS default export) | S `index.js` → `routes/dms/dms.controller.js` `setPageDeleteHook`; runs in `cascadePageDelete` after the commit, failures logged | `(row, {userId, reqMeta, dms_db, resolveTable, jsonField, dbType, splitMode})` | `app/hooks/register_page_delete_hooks.js` → `npmrds_report_page_delete_hook.js` (removes a deleted report's row from the reports dataset); set in `Dockerfile` | an app side effect when a page row is deleted |
 
 ## CLI
 
 | Name | Registered by | The core calls it in | It gets / is | App users | For |
 |---|---|---|---|---|---|
-| Page-publish hook | `.dmsrc` `pagePublishHook` (relative to the file) or env `DMS_PAGE_PUBLISH_HOOK` (relative to the cwd) | CLI `src/commands/page.js` `runPublishHook` | default export `({falcor, config, pattern, page, helpers})`; its return is added to the output | the app's root `.dmsrc` → `src/patterns/qa/cli/onPagePublish.js` | `dms page publish` side effects (QA page tracking) |
-| App commands | `.dmsrc` `commands` (paths relative to the file) | CLI `bin/dms.js`, before parsing | default export `register({program, helpers})` | the app's root `.dmsrc` → `src/patterns/qa/cli/commands.js` (`dms qa`) | the app's own command groups |
+| Page-publish hook | `.dmsrc` `pagePublishHook` (relative to the file) or env `DMS_PAGE_PUBLISH_HOOK` (relative to the cwd) | CLI `src/commands/page.js` `runPublishHook` | default export `({falcor, config, pattern, page, helpers})`; its return is added to the output | the app's root `.dmsrc` → `src/plugins/qa/cli/onPagePublish.js` | `dms page publish` side effects (QA page tracking) |
+| App commands | `.dmsrc` `commands` (paths relative to the file) | CLI `bin/dms.js`, before parsing | default export `register({program, helpers})` | the app's root `.dmsrc` → `src/plugins/qa/cli/commands.js` (`dms qa`) | the app's own command groups |
 
 ## Build / deploy
 
@@ -99,7 +123,7 @@ theme. **The registries are global for the app**, so one pattern's theme affects
 
 | Name | Registered by | App users | For |
 |---|---|---|---|
-| Map plugins | `registerMapPlugins` (`app/src/patterns/mapeditor/MapEditor/pluginRegistry.js`), or theme `mapeditor.mapPlugins` through the type's `registerFromTheme` | transportny theme (routecreation, macroview, routing, detour) | map editor and Map section plugins |
+| Map plugins | `registerMapPlugins` (`app/src/plugins/mapeditor/MapEditor/pluginRegistry.js`), or theme `mapeditor.mapPlugins` through the type's `registerFromTheme` | transportny theme (routecreation, macroview, routing, detour) | map editor and Map section plugins |
 
 ## Known gaps (2026-11-17)
 

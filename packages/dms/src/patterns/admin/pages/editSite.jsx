@@ -9,6 +9,7 @@ import { backfillAdminPattern } from '../../../utils/tenantProvisioning';
 import { parseIfJSON, saveSiteRefList } from '../utils';
 import { siteCan, patternActions, VIEW_PATTERN_LIST, CREATE_PATTERN, MANAGE_DOMAINS, MANAGE_TENANTS } from '../../../utils/adminPermissions';
 import { editSiteTheme } from './editSite.theme'
+import { activationsOf } from '../../../plugins/registries'
 import { AddPatternPicker } from '../components/AddPatternPicker'
 import { getPatternType, listPatternTypes, stampPatternRow } from '../../registry'
 import { authedFetch } from '../../../utils/authedFetch'
@@ -122,6 +123,7 @@ function SiteEdit ({
 	  <PatternList
       value={item?.['patterns']}
 			siteId={item?.id}
+			pluginActivations={activationsOf(item)}
 			format={format}
 			apiLoad={apiLoad}
 			attributes={attributes['patterns'].attributes}
@@ -154,6 +156,7 @@ function PatternList({
 	 apiLoad,
 	 siteName,
 	 siteId,
+	 pluginActivations = {},
 	 ...rest
 }) {
 	const {app, type: siteType, API_HOST, baseUrl, isMultiTenant, user, authPermissions, subdomain, tenantSubdomain = subdomain} = React.useContext(AdminContext);
@@ -658,6 +661,7 @@ function PatternList({
 				<Modal open={addingNew} setOpen={setAddingNew}>
 					<AddPatternPicker
 						authExists={authExists}
+						activations={pluginActivations}
 						onAdd={async ({ pattern_type, name, base_url, templateId }) => {
 							await addNewValue({ pattern_type, name, base_url }, templateId)
 							setAddingNew(false)

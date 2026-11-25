@@ -96,6 +96,15 @@ async function main() {
     assert.deepStrictEqual(listed[1].attributes, [{ key: 'title', type: 'text' }]);
     assert.deepStrictEqual(listed[2].childRefs, { page: { sections: 'component' } });
   });
+  await t('merge: a plugin\'s rows are added beside the set, and nothing is removed', async () => {
+    const plugin = [{ type: 'now_playing+pattern', authRules: { now_playing: { owner: 'site', ops: { '*': ['activate-plugins'] } } } }];
+    const m = await formats.upsertFormats(APP, plugin, { merge: true });
+    assert.deepStrictEqual([m.written, m.removed], [['now_playing+pattern'], []]);
+    assert.deepStrictEqual((await formats.listFormats(APP)).map(r => r.type), ['admin+site', 'dms-site+page', 'now_playing+pattern', 'page+pattern']);
+    // the next whole-set registration (a deploy without the plugin) removes it again
+    const w = await formats.upsertFormats(APP, declaration());
+    assert.deepStrictEqual([w.written, w.removed], [[], ['now_playing+pattern']]);
+  });
   await t('a site\'s rows live in its own table (per-app split mode); legacy mode resolves to the shared one', async () => {
     const { resolveFormatsTable } = require('../src/db/table-resolver');
     const mine = resolveFormatsTable(APP, dms.type, 'per-app').fullName;

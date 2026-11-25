@@ -15,6 +15,7 @@
 const fs = require('fs');
 const puppeteer = require('puppeteer-core');
 const { PDFDocument, StandardFonts, rgb, pushGraphicsState, popGraphicsState, rectangle, clip, endPath } = require('pdf-lib');
+const { COOKIE } = require('../auth/session');
 
 const PAGE_TIMEOUT_MS = +process.env.DMS_PDF_PAGE_TIMEOUT_MS || 120_000;
 const QUIET_MS = 1000;
@@ -74,13 +75,16 @@ async function launchBrowser() {
 
 /**
  * A fresh tab in the job's (incognito) context. In `self` mode the caller's token is in localStorage
- * before the site's code runs, so pages render as that person; in `public` mode there is none.
+ * before the site's code runs, and in the session cookie for `url`'s host, so the server renders the page as
+ * that person too (without the cookie it rendered signed out and the browser re-rendered); in `public` mode
+ * there is neither.
  */
-async function openTab(context, token) {
+async function openTab(context, token, url) {
   const page = await context.newPage();
   await page.setViewport({ width: LAYOUT_WIDTH, height: 1000 });
   await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }]);
   if (token) await page.evaluateOnNewDocument(t => localStorage.setItem('userToken', t), token);
+  if (token && url) await page.setCookie({ name: COOKIE, value: encodeURIComponent(token), url, httpOnly: true, sameSite: 'Lax' });
   // A site with local sync on (VITE_DMS_SYNC) downloads the whole pattern into the browser on every
   // load (/sync/bootstrap, ~30 s on MitigateNY), and the page waited for it. Printing never reads that
   // mirror: refused, the client reads from the API as it does with sync off (its offline fallback).
@@ -321,7 +325,7 @@ async function printTall(page) {
  * it (sign-in), or it shows the page pattern's no-access screen (`data-dms-no-access`).
  */
 async function renderPage(context, url, { token, isCancelled = () => false } = {}) {
-  const page = await openTab(context, token);
+  const page = await openTab(context, token, url);
   const deadline = Date.now() + PAGE_TIMEOUT_MS;
   try {
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: PAGE_TIMEOUT_MS });
@@ -356,7 +360,7 @@ const escapeHtml = (s) => `${s ?? ''}`.replace(/[&<>"']/g, c => ({ '&': '&amp;',
  * Opened while the pages print, so the contents page doesn't wait for a page load at the end.
  */
 async function openStyleTab(context, styleUrl, { token } = {}) {
-  const page = await openTab(context, token);
+  const page = await openTab(context, token, styleUrl);
   try {
     await page.goto(styleUrl, { waitUntil: 'domcontentloaded', timeout: PAGE_TIMEOUT_MS });
     await waitForReady(page, Date.now() + 30_000);

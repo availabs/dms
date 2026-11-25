@@ -21,6 +21,20 @@ export const getUser = ({AUTH_HOST, PROJECT_NAME}) => {
         });
 }
 
+// The session cookie (rsc-view-pages.md phase 1): the page's own host keeps an HttpOnly copy of the token so
+// its server render knows who is asking. Called on sign-in and sign-out, and on load when the server's state
+// differs from the stored token (providers.jsx). Only where pages come from dms-server (window.__dmsSSRData is
+// set, or window.__dmsIslandsPage on an islands page); a static host has no /_session. The cookie is read only to render pages: API calls keep the header.
+export const syncSessionCookie = (token) => {
+    if (typeof window === 'undefined' || !(window.__dmsSSRData || window.__dmsIslandsPage)) return Promise.resolve();
+    return fetch('/_session', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(token ? { token } : {}),
+    }).catch(() => {});
+};
+
 // The auth row that governs this site's auth calls: the server reads its grants (auth-users,
 // auth-groups, view-as) on the SITE ROW of the `app` a call names (dms-server auth/utils/permissions.js).
 // Set by the auth pattern's route config once the site's patterns are known (auth/siteConfig.jsx);

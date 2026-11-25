@@ -6,7 +6,7 @@
  * registration script, the table's only writer (no browser or CLI may write it; owner, 2026-11-06):
  *
  *     node scripts/emit-formats.mjs > formats.json
- *     node scripts/emit-formats.mjs --extra ../../../src/patterns/qa/qa.format.js > formats.json
+ *     node scripts/emit-formats.mjs --extra ../../../src/plugins/qa/qa.format.js > formats.json
  *     node ../dms-server/src/scripts/register-formats.js --db <config> --app <app> --file formats.json [--apply]
  *     dms formats diff formats.json          # what a site's stored rows differ in, read-only
  *

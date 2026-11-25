@@ -1,4 +1,5 @@
 /* global process */
+import { withPluginThemes, pluginDataTypes, activationsOf, isPatternTypeActive } from '../../../plugins/registries'
 import React from 'react'
 import { cloneDeep, get } from "lodash-es"
 import { useFalcor } from "@availabs/avl-falcor"
@@ -140,8 +141,9 @@ async function resolveDbThemes(siteData, names, { falcor, app } = {}) {
  */
 export async function resolveThemes(themesConfig, siteData, opts = {}) {
     const names = collectThemeNames(siteData);
+    // a loader also finds the themes plugins register (plugins/index.js), behind the app's own
     const codeThemes = typeof themesConfig === 'function'
-        ? await themesConfig(names)
+        ? await withPluginThemes(themesConfig)(names)
         : (themesConfig || { default: {} });
     const dbThemes = await resolveDbThemes(siteData, names, opts);
     // DB themes win on a name collision — same precedence pattern2routes has
@@ -394,11 +396,16 @@ export function pattern2routes (siteData, props) {
 
     // console.log('dmssite factory, datasources', datasources)
 
+    // the site's plugin activations (plugins/registries.js): a pattern of a plugin the site has switched off (or
+    // never switched on, for an opt-in plugin) gets no routes; its data-type pages aren't offered
+    const pluginActivations = activationsOf(siteData?.[0]);
+
     return [
         ...patterns
           .filter(pattern => pattern?.pattern_type)
           .reduce((acc, pattern) => {
 
+            if (!isPatternTypeActive(pattern.pattern_type, pluginActivations)) return acc;
             const c = getPatternType(pattern.pattern_type)?.siteConfig;
             if(!c) {
                 warnUnregisteredPatternType(pattern.pattern_type);
@@ -468,12 +475,15 @@ export function pattern2routes (siteData, props) {
                     // Raw, unresolved theme loader — only the admin pattern-theme-picker
                     // (themeEditor.jsx) needs the full theme registry; everyone else gets
                     // the already-narrowed `themes` above. See resolveThemes/collectThemeNames.
-                    themesLoader: pattern?.pattern_type === 'admin' ? adminThemesLoader : undefined,
+                    themesLoader: pattern?.pattern_type === 'admin' ? withPluginThemes(adminThemesLoader) : undefined,
                     useFalcor,
                     API_HOST,
                     DAMA_HOST,
                     PROJECT_NAME,
-                    damaDataTypes,
+                    // the app's data-type pages, and those plugins register (the app's win on a name both have)
+                    damaDataTypes: { ...pluginDataTypes(pluginActivations), ...(damaDataTypes || {}) },
+                    // the site's plugin activations, for the lists a pattern offers (the section-type picker)
+                    pluginActivations,
                     isMultiTenant,
                     ssrCollect,
                 });

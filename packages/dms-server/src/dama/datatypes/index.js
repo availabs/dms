@@ -17,7 +17,11 @@
 
 const { registerHandler } = require('../tasks');
 const { registerRule } = require('../rules/registry');
-const { writeGate } = require('./auth');
+const { writeGate, compileOpenRoute } = require('./auth');
+const { withEnforcedAuth } = require('../../routes/auth/settings');
+
+const enforcedRoutes = new Set();   // data types whose routes run under enforce (registerDatatype's authMode)
+const { definitionOf } = require('../../plugins');
 
 const datatypes = {};
 
@@ -28,7 +32,8 @@ const schedulables = {};
 /**
  * Register a datatype plugin.
  * @param {string} name - Datatype name (used as URL prefix: /dama-admin/:pgEnv/{name}/)
- * @param {Object} definition
+ * @param {Object} definition - the definition, or a plugin module ({ name, version, api, register(host) }) whose
+ *   register returns it (src/plugins/index.js, dms-plugin-system.md)
  * @param {Object} [definition.workers] - Map of workerPath → async handler function
  * @param {Function} [definition.routes] - fn(router, helpers) to define Express routes
  * @param {string[]} [definition.openRoutes] - writes that need no signed-in user, as 'METHOD /path'
@@ -40,8 +45,20 @@ const schedulables = {};
  *   cron scheduling (see dama/tasks/schedules.js).
  * @param {Object} [definition.rules] - Map of ruleId → source-rule spec (see dama/rules/registry.js):
  *   table rules an author can attach to any DAMA source from the datasets Rules page.
+ * @param {Function} [definition.start] - start(helpers): called once after every data type's routes are mounted
+ *   (background work a data type owns: a warm-load, a timer); not awaited, a failure is logged. `stop()` is its
+ *   counterpart (stopDatatypes), for a reload (dms-plugin-system.md, P2).
+ * @param {Function} [definition.stop]
+ * @param {string[]} [definition.longRoutes] - routes that run longer than the server's request timeout (30 s),
+ *   as 'METHOD /path' (`:param` segments allowed), like openRoutes: the timeout middleware leaves them alone
+ *   (isLongRoute). Declared by the data type, so the core names none (dms-plugin-system.md, P0).
  */
-function registerDatatype(name, definition) {
+function registerDatatype(name, definition, { authMode } = {}) {
+  // a plugin-shaped module (`register(host)`, src/plugins) gives its definition by registering
+  definition = definitionOf(name, definition);
+  // `{ authMode: 'enforce' }`: its routes are judged under enforce whatever DMS_AUTH_MODE says (a plugin
+  // installed at run time; compiled-in data types follow the server's mode)
+  if (authMode === 'enforce') enforcedRoutes.add(name); else enforcedRoutes.delete(name);
   if (datatypes[name]) {
     console.warn(`[datatypes] Overwriting existing datatype: ${name}`);
   }
@@ -77,6 +94,19 @@ function registerDatatype(name, definition) {
 }
 
 /**
+ * Whether a request is one of a data type's declared `longRoutes` (`/dama-admin/:pgEnv/<datatype>/<route>`).
+ * Read by the server's request-timeout middleware on every request, so the patterns are compiled once.
+ */
+function isLongRoute(method, fullPath) {
+  const m = /^\/dama-admin\/[^/]+\/([^/]+)(\/.*)?$/.exec(fullPath || '');
+  if (!m) return false;
+  const def = datatypes[m[1]];
+  if (!def || !Array.isArray(def.longRoutes) || !def.longRoutes.length) return false;
+  if (!def.compiledLongRoutes) Object.defineProperty(def, 'compiledLongRoutes', { value: def.longRoutes.map(compileOpenRoute) });
+  return def.compiledLongRoutes.some(o => o.method === String(method).toUpperCase() && o.re.test(m[2] || '/'));
+}
+
+/**
  * Mount all registered datatype routes on the Express app.
  * Call this after all registerDatatype() calls but before listening.
  * @param {Object} app - Express app
@@ -88,6 +118,7 @@ function mountDatatypeRoutes(app, helpers) {
     if (def.routes) {
       const express = require('express');
       const router = express.Router({ mergeParams: true });
+      if (enforcedRoutes.has(name)) router.use((req, res, next) => withEnforcedAuth(next));
       router.use(writeGate(def.openRoutes));
       def.routes(router, helpers);
       app.use(`/dama-admin/:pgEnv/${name}`, router);
@@ -96,6 +127,21 @@ function mountDatatypeRoutes(app, helpers) {
   }
   if (count > 0) {
     console.log(`[datatypes] Mounted routes for ${count} datatype(s)`);
+  }
+  // each data type's own background work, once its routes exist (`start`, declared; not awaited)
+  for (const [name, def] of Object.entries(datatypes)) {
+    if (typeof def.start !== 'function') continue;
+    Promise.resolve()
+      .then(() => def.start(helpers))
+      .catch(e => console.error(`[datatypes] ${name}: start failed: ${e.message}`));
+  }
+}
+
+/** Calls each data type's `stop()` (the counterpart of `start`), for a reload. */
+async function stopDatatypes() {
+  for (const [name, def] of Object.entries(datatypes)) {
+    if (typeof def.stop !== 'function') continue;
+    try { await def.stop(); } catch (e) { console.error(`[datatypes] ${name}: stop failed: ${e.message}`); }
   }
 }
 
@@ -114,4 +160,7 @@ function getSchedulables() {
   return { ...schedulables };
 }
 
-module.exports = { registerDatatype, mountDatatypeRoutes, getDatatypes, getSchedulables };
+/** Whether a data type of this name is registered (installed plugins never replace a compiled-in one). */
+const isDatatypeRegistered = (name) => Object.prototype.hasOwnProperty.call(datatypes, name);
+
+module.exports = { registerDatatype, mountDatatypeRoutes, getDatatypes, getSchedulables, isLongRoute, stopDatatypes, isDatatypeRegistered };

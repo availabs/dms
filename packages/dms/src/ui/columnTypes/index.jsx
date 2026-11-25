@@ -9,7 +9,13 @@ import { DateEdit, DateView } from './date'
 import { TextareaEdit, TextareaView } from './textarea'
 import { BooleanEdit, BooleanView } from './boolean'
 import { DmsFormatEdit, DmsFormatView } from './dms-format'
-import { LexicalEdit, LexicalView } from '../components/lexical'
+import { lazyComponent } from '../../utils/lazyComponent'
+// Rich text is code-split: the editor (Lexical, its nodes, collab) is most of the UI kit's weight, and the
+// shared chrome reaches this map (the user menu's NavigableMenu) on pages that show no rich text cell. The
+// page pattern's rich-text section imports the editor itself, so a page with rich text has the chunk
+// already and these resolve at once; SSR preloads them (utils/lazyComponent.js).
+const LexicalEdit = lazyComponent('columnTypes/LexicalEdit', () => import('../components/lexical').then(m => ({ default: m.LexicalEdit })))
+const LexicalView = lazyComponent('columnTypes/LexicalView', () => import('../components/lexical').then(m => ({ default: m.LexicalView })))
 import { MultiSelectEdit as MultiselectEdit, MultiSelectView as MultiselectView } from '../components/MultiSelect'
 import { RadioEdit, RadioView } from './radio'
 import { CheckboxEdit, CheckboxView } from './checkbox'

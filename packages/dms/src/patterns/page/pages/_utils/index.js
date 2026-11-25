@@ -1,22 +1,14 @@
 import { v4 as uuidv4 } from 'uuid';
 import { isEqual, reduce, map, cloneDeep} from "lodash-es"
-import { matchRoutes } from 'react-router'
 import {
     dataItemsNav as dataItemsNavCore,
     getChildNav as getChildNavCore
 } from '../../../../utils/nav'
 import { getRegisteredComponents } from '../../components/sections/componentRegistry'
-export const convertToUrlParams = (obj, delimiter='|||') => {
-    const params = new URLSearchParams();
-
-    Object.keys(obj).forEach(column => {
-        const values = obj[column];
-        if(!values || !Array.isArray(values) || !values?.length) return;
-        params.append(column, values.filter(v => Array.isArray(v) ? v.length : v).join(delimiter));
-    });
-
-    return params.toString();
-};
+// convertToUrlParams, timeAgo and parseIfJSON live in ./basics.js, which imports nothing: the islands browser
+// entry and the UI primitives that need only those must not pull this module's section registry in with them.
+import { convertToUrlParams, parseIfJSON } from './basics.js'
+export { convertToUrlParams, timeAgo, parseIfJSON } from './basics.js'
 
 /**
  * The page-variable query string for a URL, as `useLocation().search` shapes it: '' when
@@ -34,27 +26,6 @@ export const buildSearchString = (filtersObject) => {
     const params = convertToUrlParams(filtersObject);
     return params ? `?${params}` : '';
 };
-
-export function timeAgo(input) {
-  const date = (input instanceof Date) ? input : new Date(input);
-  const formatter = new Intl.RelativeTimeFormat('en');
-  const ranges = {
-    years: 3600 * 24 * 365,
-    months: 3600 * 24 * 30,
-    weeks: 3600 * 24 * 7,
-    days: 3600 * 24,
-    hours: 3600,
-    minutes: 60,
-    seconds: 1
-  };
-  const secondsElapsed = (date.getTime() - Date.now()) / 1000;
-  for (let key in ranges) {
-    if (ranges[key] < Math.abs(secondsElapsed)) {
-      const delta = secondsElapsed / ranges[key];
-      return formatter.format(Math.round(delta), key);
-    }
-  }
-}
 
 // Nav shaping lives in utils/nav (shared with other patterns); the page
 // pattern binds its section-aware in-page rail (getInPageNav) as the
@@ -86,25 +57,8 @@ export function detectNavLevel(dataItems, baseUrl) {
 export const dataItemsNav = (dataItems, baseUrl = '', edit = false) =>
     dataItemsNavCore(dataItems, baseUrl, edit, inPageMenuItems);
 
-export function nav2Level(items, level = 1, path, baseUrl = '', navTitle = '') {
-  let output = null
-  if (level > 1) {
-    let relativePath = path.endsWith('/edit') ? path.replace('/edit', '') : path.replace('/edit/', '/')
-    if (baseUrl && relativePath.startsWith(baseUrl)) {
-      relativePath = relativePath.slice(baseUrl.length)
-    }
-    let levelPath = baseUrl + '/' + relativePath.split('/').filter(d => d).filter((d, i) => i < level - 1).join('/')
-    let matchItems = items.map(d => ({
-      ...d, path: d?.path?.endsWith('/edit') ? d?.path?.replace('/edit', '') : d?.path?.replace('/edit/', '/')
-    }))
-    let matches = matchRoutes(matchItems, { pathname: levelPath })
-    output = matches?.[0]?.route?.subMenus || []
-    if (navTitle && matches?.[0]?.route?.name) {
-      output = [{ name: matches?.[0]?.route?.name, path: matches?.[0]?.route?.path, className: navTitle }, ...output]
-    }
-  }
-  return output || items
-}
+// nav2Level lives in utils/nav.js (no section registry), so the islands path's client chrome can import it alone.
+export { nav2Level } from '../../../../utils/nav'
 
 export const json2DmsForm = (data,requestType='update') => {
   let out = new FormData()
@@ -449,16 +403,6 @@ export const getNestedValue = (obj) => typeof obj?.value === 'object' ? getNeste
 // Re-export from central location for backward compatibility
 export { updateRegisteredFormats, updateAttributes, initializePatternFormat } from '../../../../dms-manager/_utils';
 
-export const parseIfJSON = (text, fallback={}) => {
-    try {
-        if(text && typeof text === 'object') return text;
-        if(typeof text !== 'string' || !text) return fallback;
-        return JSON.parse(text)
-    }catch (e){
-        return fallback;
-    }
-}
-
 export const mergeFilters = (pageFilters=[], patternFilters=[]) => {
     // patternFilters should take over if present
 
@@ -596,7 +540,10 @@ export const resolveClearedPageVariables = (removeFilter = {}, pageFilters = [],
 export const updatePageStateFiltersOnSearchParamChange = ({searchParams, item, patternFilters, setPageState}) => {
     // Extract filters from the URL
     const urlFilters = Array.from(searchParams.keys()).reduce((acc, searchKey) => {
-        acc[searchKey] = searchParams.get(searchKey)?.split('|||');
+        // An empty param (`?state=`, which initNavigateUsingSearchParams writes for a variable with no value)
+        // is no values, not one empty value: [''] differed from the registry's [] and sent every section that
+        // reads the variable to fetch a second time, and a third when a reload set it back.
+        acc[searchKey] = searchParams.get(searchKey)?.split('|||').filter(v => v !== '');
         return acc;
     }, {});
 
@@ -631,21 +578,29 @@ export const updatePageStateFiltersOnSearchParamChange = ({searchParams, item, p
     //}
 }
 
-export const initNavigateUsingSearchParams = ({pageState, search, navigate, baseUrl, item, isView}) => {
-    // one time redirection
+/**
+ * The URL a page with URL-bound page variables moves to when it is opened with no search string: the same
+ * page with each variable's registered value written out (`?state=&year=2024`). Null when the page has no
+ * such variables or `item` is not resolved yet. The page it names is the page the bare URL shows, which
+ * is how the islands path knows not to fetch it again (render/islands/entry.browser.jsx).
+ */
+export const pageVariablesUrl = ({pageState, baseUrl, item, isView}) => {
     // `item` can still be a not-yet-resolved stand-in on the very first render (e.g. sync's
     // local mirror hasn't caught up with this specific page yet) — without this guard a
     // falsy `item.url_slug` navigates to a literal `.../edit/undefined` URL.
-    if (!item?.url_slug) return;
+    if (!item?.url_slug) return null;
     const searchParamFilters = (pageState?.filters || []).filter(f => f.useSearchParams);
-    if(searchParamFilters?.length){
-        const filtersObject = searchParamFilters
-            .reduce((acc, curr) => ({...acc, [curr.searchKey]: typeof curr.values === 'string' ? [curr.values] : curr.values}), {});
-        const url = buildSearchString(filtersObject);
-        if(!search && url !== search){
-            navigate(`${baseUrl}${isView ? `/` : `/edit/`}${item.url_slug}${url}`)
-        }
-    }
+    if (!searchParamFilters.length) return null;
+    const filtersObject = searchParamFilters
+        .reduce((acc, curr) => ({...acc, [curr.searchKey]: typeof curr.values === 'string' ? [curr.values] : curr.values}), {});
+    const url = buildSearchString(filtersObject);
+    return url ? `${baseUrl}${isView ? `/` : `/edit/`}${item.url_slug}${url}` : null;
+}
+
+export const initNavigateUsingSearchParams = ({pageState, search, navigate, baseUrl, item, isView}) => {
+    // one time redirection
+    const url = search ? null : pageVariablesUrl({pageState, baseUrl, item, isView});
+    if (url) navigate(url)
 }
 
 export const getPageAuthPermissions = authPermissions => {

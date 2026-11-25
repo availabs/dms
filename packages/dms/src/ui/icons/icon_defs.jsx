@@ -610,6 +610,13 @@ export const HardDrive = (props) => (
   </svg>
 )
 
+// tessera v6 Puzzle, line style like HardDrive (the admin's Plugins page, 2026-11-23)
+export const Puzzle = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={16} height={16} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M5 8.5h3.2a2 2 0 1 1 3.6 0H15v3.3a2 2 0 1 1 0 3.4V19.5H11.8a2 2 0 1 0-3.6 0H5v-3.4a2 2 0 1 0 0-3.4z" />
+  </svg>
+)
+
 export const Database = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={16} height={16} fill="none" {...props}>
     <ellipse cx="12" cy="5" rx="8" ry="3" stroke="currentColor" strokeWidth="1.5" />

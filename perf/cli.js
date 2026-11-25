@@ -33,6 +33,8 @@ export default function register({ program, helpers }) {
     .option('--pages <slugs>', 'Visit these pages only (comma-separated slugs)')
     .option('--pages-from <run-dir>', "Visit the same pages and journey as a saved run")
     .option('--visits <types>', 'cold,warm,click,journey (default: all four)')
+    .option('--profiles <names>', 'public,signed_in (default: public). signed_in signs in with DMS_PERF_EMAIL / DMS_PERF_PASSWORD (else DMS_EMAIL / DMS_PASSWORD)')
+    .option('--login-path <path>', "The target's sign-in page, for signed-in profiles (default /auth/login)")
     .option('--journey-steps <n>', 'In-app clicks in the journey (default 8)')
     .option('--quiet-ms <ms>', 'How long a page must be quiet to count as complete (default 1000)')
     .option('--timeout <seconds>', 'Give up on one page after this long (default 60)')

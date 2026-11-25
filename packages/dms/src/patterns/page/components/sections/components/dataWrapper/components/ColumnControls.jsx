@@ -14,51 +14,61 @@ const gridClasses = {
         gridClass: 'grid grid-cols-2',
         gridTemplateColumns: '47rem 3rem',
         width: '50rem',
+        widthClass: 'w-[50rem]',
     },
     3: {
         gridClass: 'grid grid-cols-3',
         gridTemplateColumns: '42rem 5rem 3rem',
         width: '50rem',
+        widthClass: 'w-[50rem]',
     },
     4: {
         gridClass: 'grid grid-cols-4',
         gridTemplateColumns: '37rem 5rem 5rem 3rem',
         width: '50rem',
+        widthClass: 'w-[50rem]',
     },
     5: {
         gridClass: 'grid grid-cols-5',
         gridTemplateColumns: '32rem 5rem 5rem 5rem 3rem',
         width: '50rem',
+        widthClass: 'w-[50rem]',
     },
     6: {
         gridClass: 'grid grid-cols-6',
         gridTemplateColumns: '27rem 5rem 5rem 5rem 5rem 3rem',
         width: '50rem',
+        widthClass: 'w-[50rem]',
     },
     7: {
         gridClass: 'grid grid-cols-7',
         gridTemplateColumns: '22rem 5rem 5rem 5rem 5rem 5rem 3rem',
         width: '50rem',
+        widthClass: 'w-[50rem]',
     },
     8: {
         gridClass: 'grid grid-cols-8',
         gridTemplateColumns: '17rem 5rem 5rem 5rem 5rem 5rem 5rem 3rem',
         width: '50rem',
+        widthClass: 'w-[50rem]',
     },
     9: {
         gridClass: 'grid grid-cols-9',
         gridTemplateColumns: '10rem 5rem 5rem 5rem 5rem 5rem 5rem 5rem 3rem',
         width: '55rem',
+        widthClass: 'w-[55rem]',
     },
     10: {
         gridClass: 'grid grid-cols-10',
         gridTemplateColumns: '10rem 5rem 5rem 5rem 5rem 5rem 5rem 5rem 5rem 3rem',
         width: '59rem',
+        widthClass: 'w-[59rem]',
     },
     11: {
         gridClass: 'grid grid-cols-11',
         gridTemplateColumns: '10rem 5rem 5rem 5rem 5rem 5rem 5rem 5rem 5rem 5rem 3rem',
         width: '60rem',
+        widthClass: 'w-[60rem]',
     },
 };
 
@@ -229,7 +239,8 @@ export default function ColumnControls({context, cms_context}) {
         }), [columns])
 
     const totalControlColsLen = 2 + controls.columns.length;
-    const {gridClass, gridTemplateColumns, width} = gridClasses[totalControlColsLen];
+    // widthClass is written out (not `w-[${width}]`) so the build's Tailwind scan sees it (server-compiled-site-css.md)
+    const {gridClass, gridTemplateColumns, widthClass} = gridClasses[totalControlColsLen];
 
     const isEveryColVisible = (externalSource.columns || []).map(({name}) => columns.find(column => column.name === name)).every(column => column?.show);
     const isSystemIDColOn = columns.find(c => c.systemCol && c.name === 'id');
@@ -246,7 +257,7 @@ export default function ColumnControls({context, cms_context}) {
                     ({open, setOpen}) => (
                         <div
                              role="menu"
-                             className={`${open ? 'visible transition ease-in duration-50' : 'hidden transition ease-in duration-50'} w-[${width}]  left-0 origin-top-left divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition focus:outline-none`}
+                             className={`${open ? 'visible transition ease-in duration-50' : 'hidden transition ease-in duration-50'} ${widthClass}  left-0 origin-top-left divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition focus:outline-none`}
                         >
                             <div className="py-1 select-none">
                                 <div key={'header'}

@@ -2,7 +2,7 @@
 
 **Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** phase 1 built, uncommitted · **Created by:** amuro@albany.edu · **Edited by:** —
 
-Research and design, 2026-11-18; decisions from the owner's review the same day are folded in ("Decided"). To be built **before** [rsc-view-pages.md](./rsc-view-pages.md), so that task
+Research and design, 2026-11-18; decisions from the owner's review the same day are folded in ("Decided"). To be built **before** [rsc-view-pages.md](../completed/rsc-view-pages.md), so that task
 starts from a baseline and its spike is judged with this tool.
 
 ## Objective

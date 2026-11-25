@@ -9,9 +9,22 @@
  * test may set it after requiring this module.
  */
 
+const { AsyncLocalStorage } = require('async_hooks');
+
+// A request scope that makes every decision bite whatever the server's mode: a data type registered with
+// `{ authMode: 'enforce' }` (plugins installed at run time, dms-plugin-system.md P0 finding 1) runs its routes in
+// it, so new plugin code never ships under `log`. It can only tighten: there is no scope that loosens.
+const enforceScope = new AsyncLocalStorage();
+
 /** `log` (default) | `enforce`. An unrecognised value is `log` — the safe reading of a typo. */
 function authMode() {
+    if (enforceScope.getStore() === 'enforce') return 'enforce';
     return String(process.env.DMS_AUTH_MODE || 'log').toLowerCase() === 'enforce' ? 'enforce' : 'log';
+}
+
+/** Runs `fn` (and everything it awaits or calls back) with every auth decision enforced. */
+function withEnforcedAuth(fn) {
+    return enforceScope.run('enforce', fn);
 }
 
 /**
@@ -21,4 +34,4 @@ function authMode() {
  */
 const NO_CHANGE = Symbol('no change');
 
-module.exports = { authMode, NO_CHANGE };
+module.exports = { authMode, withEnforcedAuth, NO_CHANGE };

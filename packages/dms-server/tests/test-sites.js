@@ -230,6 +230,39 @@ async function run() {
     assert((await request('www.delta.test')).body.includes('delta b1'), 'delta not served');
   });
 
+  console.log('\nindex.html transform (per-site CSS link)');
+  await test('transformIndex rewrites the index page; a failure sends it as built', async () => {
+    writeBuild('gamma', 'g1', 'gamma g1');
+    writeSite('gamma', { hosts: ['www.gamma.test'], live: 'g1' });
+    const t = express();
+    let fail = false;
+    t.use(createSitesMiddleware({
+      sitesDir: root,
+      reloadIntervalMs: 0,
+      transformIndex: async ({ dir, html }) => {
+        if (fail) throw new Error('boom');
+        const info = JSON.parse(fs.readFileSync(path.join(dir, 'deploy-info.json'), 'utf8'));
+        return html.replace('</html>', ` ${info.build}</html>`);
+      },
+    }));
+    const s = await new Promise(resolve => { const l = t.listen(0, '127.0.0.1', () => resolve(l)); });
+    const savedPort = port;
+    port = s.address().port;
+    try {
+      const r = await request('www.gamma.test', '/some/page');
+      assert(r.status === 200 && r.body === '<html>gamma g1 g1</html>' && /html/.test(r.headers['content-type']), `got ${r.status} ${r.body}`);
+      assert(r.headers['cache-control'] === 'no-cache', `cache-control ${r.headers['cache-control']}`);
+      const asset = await request('www.gamma.test', '/assets/app-abc123.js');
+      assert(asset.body.includes('gamma g1') && !asset.body.includes('g1 g1'), 'assets are not transformed');
+      fail = true;
+      const f = await request('www.gamma.test', '/');
+      assert(f.status === 200 && f.body === '<html>gamma g1</html>', `fallback got ${f.status} ${f.body}`);
+    } finally {
+      port = savedPort;
+      s.close();
+    }
+  });
+
   console.log('\nNo sites folder');
   await test('a server without the folder passes every request through', async () => {
     const bare = express();

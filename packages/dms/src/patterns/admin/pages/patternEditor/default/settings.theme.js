@@ -36,7 +36,7 @@ export const settingsEditorTheme = {
     saveBarText: 't-metaSM text-[var(--t-graphite)]',
     saveBarTextDirty: 't-metaSM text-[var(--t-amber)]',
     // btnReset / btnSave: no longer read here (UI.Button action / primary); kept for the QA pattern
-    // (src/patterns/qa/admin configureTab + patternSettings read theme.admin.settingsEditor).
+    // (src/plugins/qa/admin configureTab + patternSettings read theme.admin.settingsEditor).
     btnReset: 'inline-flex items-center justify-center gap-1.5 rounded-md border whitespace-nowrap cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] h-8 px-3 t-proseSM border-[var(--t-rule)] bg-[var(--t-panel)] text-[var(--t-ink)] hover:border-[var(--t-rule-strong)]',
     btnSave: 'inline-flex items-center justify-center gap-1.5 rounded-md border whitespace-nowrap cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] h-8 px-3.5 t-proseSM font-medium border-[var(--t-ink)] bg-[var(--t-ink)] text-[var(--t-paper)] hover:bg-[var(--t-graphite)] hover:border-[var(--t-graphite)]',
 

@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
@@ -24,8 +25,24 @@ const verifyToken = (token) =>
     });
   });
 
+// A login token has to stop working when its user's password changes, so it carries a stamp of the password
+// hash it was issued against. It used to carry the hash itself, which anyone holding the token (it lives in
+// localStorage and the session cookie) could read and attack offline. The stamp is a keyed hash of it: it
+// changes with the password and reveals nothing without the server's secret.
+const passwordStamp = (passwordHash) =>
+  crypto.createHmac('sha256', JWT_SECRET).update(String(passwordHash)).digest('base64url').slice(0, 22);
+
 const createUserToken = (email, passwordHash, project = null) =>
-  signToken({ email: email.toLowerCase(), password: passwordHash, project });
+  signToken({ email: email.toLowerCase(), pw: passwordStamp(passwordHash), project });
+
+/** Was this decoded login token issued against the user's current password? */
+const tokenMatchesPassword = (decoded, passwordHash) => {
+  if (!decoded || !passwordHash) return false;
+  if (decoded.pw) return decoded.pw === passwordStamp(passwordHash);
+  // tokens issued before the stamp carry the hash itself; accepted until they expire (JWT_EXPIRY).
+  // Remove this branch one release after the stamp ships.
+  return decoded.password === passwordHash;
+};
 
 const passwordGen = () => {
   const numbers = '0123456789';
@@ -50,6 +67,7 @@ module.exports = {
   signToken,
   verifyToken,
   createUserToken,
+  tokenMatchesPassword,
   passwordGen,
   JWT_SECRET,
   JWT_EXPIRY,

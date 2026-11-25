@@ -32,7 +32,8 @@ function applyMode(decision, ctx) {
   if (decision && decision.allow) return true;
   // A row whose `reach` is limited (authorize marks the decision) asked to be private: its refusals
   // bite under every mode, and over a surface's own `mode: 'log'` (tiles) too (auth-reach.md).
-  let mode = decision && decision.reachLimited ? 'enforce'
+  // So does a refusal the judge marks `enforced` (a server-only row kind, routes/auth/index.js).
+  let mode = decision && (decision.reachLimited || decision.enforced) ? 'enforce'
     : ctx.mode === 'log' || ctx.mode === 'enforce' ? ctx.mode : authMode();
   const reason = (decision && decision.reason) || 'refused';
   const { guard = 'data', kind = '', target = '', perms = [], user = null, app = '' } = ctx;

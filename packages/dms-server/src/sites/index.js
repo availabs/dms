@@ -118,7 +118,9 @@ function fileStamp(file) {
   }
 }
 
-function createSitesMiddleware({ sitesDir, reloadIntervalMs = 1000, aliasOf = null } = {}) {
+// transformIndex({ dir, html }) → html: rewrites a build's index.html before it is sent (dms-server index.js points
+// its per-site stylesheet link at the site's server-compiled sheet). Any failure sends the file as built.
+function createSitesMiddleware({ sitesDir, reloadIntervalMs = 1000, aliasOf = null, transformIndex = null } = {}) {
   if (!sitesDir) throw new Error('createSitesMiddleware: sitesDir is required');
   sitesDir = path.resolve(sitesDir);
 
@@ -233,6 +235,7 @@ function createSitesMiddleware({ sitesDir, reloadIntervalMs = 1000, aliasOf = nu
       if (err.code !== 'ENOENT') console.warn(`[sites] can't read ${dir}/_redirects (${err.message})`);
     }
     const build = {
+      dir,
       indexPath,
       forcedRedirects: redirects.filter(r => r.force),
       softRedirects: redirects.filter(r => !r.force),
@@ -285,9 +288,14 @@ function createSitesMiddleware({ sitesDir, reloadIntervalMs = 1000, aliasOf = nu
       // surface as a confusing module/MIME error in the browser.
       if (pathname.startsWith('/assets/')) return res.status(404).type('text/plain').send('Not Found');
       res.set('Cache-Control', 'no-cache');
-      res.sendFile(build.indexPath, { cacheControl: false }, err => {
+      const sendBuilt = () => res.sendFile(build.indexPath, { cacheControl: false }, err => {
         if (err && !res.headersSent) res.status(err.status || 500).end();
       });
+      if (!transformIndex) return sendBuilt();
+      if (build.html === undefined) build.html = fs.readFileSync(build.indexPath, 'utf8');
+      Promise.resolve(transformIndex({ dir: build.dir, html: build.html }))
+        .then(html => res.type('html').send(html))
+        .catch(err => { console.warn(`[sites] index.html transform failed (${err.message}), sending it as built`); if (!res.headersSent) sendBuilt(); });
     };
 
     // The build's own _redirects file is config, not content.

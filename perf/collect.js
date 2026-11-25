@@ -113,7 +113,12 @@ export function collector() {
   if (document.documentElement) startDomWatch(); else document.addEventListener('readystatechange', startDomWatch, { once: true });
 
   // an in-app navigation: when the click happened, and when the URL changed
-  window.addEventListener('click', () => { P.lastClick = now(); }, true);
+  // the click's time on the wall clock too, kept across a document load (runner.mjs measureClick): a click
+  // that loads a new document is timed from here, not from when the runner started trying to click
+  window.addEventListener('click', () => {
+    P.lastClick = now();
+    try { sessionStorage.setItem('__dmsPerfClick', String(performance.timeOrigin + performance.now())); } catch { /* storage off */ }
+  }, true);
   for (const name of ['pushState', 'replaceState']) {
     const orig = history[name];
     history[name] = function (...args) {

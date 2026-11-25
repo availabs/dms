@@ -5,6 +5,7 @@
  */
 
 const { spawn, execSync } = require('child_process');
+const { workerEnv } = require('../tasks/worker-env');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
@@ -165,7 +166,7 @@ async function generatePmtiles(ctx) {
       geojsonPath,
     ];
 
-    const proc = spawn('tippecanoe', args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    const proc = spawn('tippecanoe', args, { env: workerEnv(), stdio: ['ignore', 'pipe', 'pipe'] });
     let stderr = '';
     proc.stderr.on('data', d => { stderr += d.toString(); });
     proc.stdout.on('data', d => { /* tippecanoe progress output */ });
