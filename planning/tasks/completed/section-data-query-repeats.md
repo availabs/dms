@@ -1,6 +1,6 @@
 # Section data queries run several times per page load
 
-**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** in progress: step 2 (stop the repeats at the source) built 2026-11-24 except the first-load count; steps 3–5 (database) next · **Created by:** amuro@albany.edu · **Edited by:** amuro@albany.edu
+**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** done (2026-11-25, owner: the repeats are fixed (step 2) and the indexes built (step 3); the rest is under "Left for later") · **Created by:** amuro@albany.edu · **Edited by:** amuro@albany.edu
 
 Written 2026-11-24, from the perf analysis of the fusion site on the hub (app `fusion`, pattern FUSION
 2136825). Median page Complete on that pattern was 23 s on today's path and 19 s with islands; the cause is
@@ -235,3 +235,15 @@ Nothing is published; the published sections still carry the old expression. The
 unchanged. Next for the database side: the summary dataset,
 `planning/fusion/tasks/current/fusion-events-state-month-summary-dataset.md`.
 
+## Left for later (owner, 2026-11-25: task done, these not tasks yet)
+
+Closed with the page-load performance initiative. Make a task of any of these when it matters.
+
+- **2c, first load:** no separate count query when the result is smaller than the page size (about half of a
+  page's remaining queries); `getData` reads the count before it asks for rows, so it needs its own change and tests.
+- **Step 4:** the year filter's row estimate (statistics on the year expression); FUSION database work.
+- **Step 5:** Postgres memory settings (`shared_buffers` 128 MB, `work_mem` 4 MB, 2 parallel workers per query on
+  a 1 TB machine): an operations change for the owner.
+- **Step 1:** the server result cache, deferred by the owner.
+- The FUSION summary dataset that answers most national-overview queries is its own task
+  (`planning/fusion/tasks/current/fusion-events-state-month-summary-dataset.md`).

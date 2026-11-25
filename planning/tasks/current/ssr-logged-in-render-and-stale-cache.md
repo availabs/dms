@@ -1,10 +1,14 @@
 # SSR: logged-in users get a mismatched first render, and production mode may serve stale pages
 
-**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) (primary), [plat_qa_automation](../../../../../planning/initiatives/plat_qa_automation.md) · **Status:** next · **Created by:** rdubowsky@albany.edu · **Edited by:** amuro@albany.edu
+**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) (primary), [plat_qa_automation](../../../../../planning/initiatives/plat_qa_automation.md) · **Status:** built (2026-11-25, not committed: issue 3 fixed and checked on a production build; issues 1 and 2 fixed earlier by the session cookie) · **Created by:** rdubowsky@albany.edu · **Edited by:** amuro@albany.edu
 
 Found 2026-10-22 on the first local SSR run, ahead of the per-site SSR switch in the parent repo's
 [serve-sites-from-mercury.md](../../../../../planning/shared/tasks/current/serve-sites-from-mercury.md) ("Later").
 Fix these before any site turns SSR on.
+
+**2026-11-25 (owner): narrowed to issue 3.** Issues 1 (a signed-in user's render didn't match) and 2 (the "no
+permission" flash) are gone: since the session cookie (rsc-view-pages.md phase 1, deployed 2026-11-25) the
+server renders as the signed-in user. Issue 3 is still in the code: see "Issue 3, fixed" at the end.
 
 ## What was seen
 
@@ -94,3 +98,35 @@ then served from memory. `invalidateRoutes()` exists, but nothing calls it. The 
       check below still to do): production build run locally (`npm run build:ssr`, then the server with
       `NODE_ENV=production`), edit a public page, hard refresh. This writes to the prod DB, so get the owner's go.
       Then the same check after the fix.
+
+## Issue 3, fixed (2026-11-25, not committed)
+
+**Confirmed first:** on a production SSR build, a signed-out render after a write the server didn't hear about
+still showed the old text (check B below). That is the cache this issue describes.
+
+**The fix (option (c) above, plus an age limit):**
+- `render/ssr2/dataVersions.js` (new): a version per app. It moves on every write to that app's rows, and also every
+  `DMS_SSR_DATA_MAX_AGE_MS` (default 5 min; `0` turns the age limit off) for writes this server never hears
+  about: another process on the same database, or an external (DAMA) dataset. A write to a row the routes are
+  built from (`site`, `pattern`, `theme`, `dmsenv`) also drops the cached routes.
+- `utils/requestScope.js`: `setDataVersionProvider` / `dataVersionOf` (null in the browser).
+- `render/dmsPageFactory.jsx`: on the server, a loader that finds its app's version moved empties the route's
+  shared model (`setCache({})`) before it reads. Signed-in renders already read through models of their own.
+- `render/ssr2/handler.jsx`: installs the provider and exports `noteChange(app, msg)`; `express/setup.mjs` passes
+  it on (a no-op in dev, where each request builds fresh).
+- `dms-server/src/index.js`: the change hook every write goes through (`notifyAll`, which already feeds sync and
+  the site CSS) now also calls `ssrHandle.noteChange`; `DMS_SSR_DATA_MAX_AGE_MS` passed to the handler.
+- Docs: `documentation/dms-server-env.md`.
+
+**Checked:**
+- `tests/ssrDataVersions.test.js` (4): a write moves only its app's version; the age limit; `0` never ages; which
+  row kinds rebuild routes.
+- `scratchpad/ssr-stale/check.mjs`, a production SSR build (`scratchpad/plugin-e2e/build`) over its own SQLite,
+  7/7:
+  - A: a signed-out render, an edit of the section through `/graph`, then the next render shows the new text;
+  - B: a direct database write is still cached right after (the cache is real), and shows after the age limit.
+- Library suite: 980 pass, the same 15 failures in 7 files as before (none in a file changed here).
+
+**Not covered:** a pattern change rebuilding the routes is tested in the unit test only, not end to end. On
+the islands path the same loaders run, so it is covered by the same change; the check above ran without
+`DMS_ISLANDS`.

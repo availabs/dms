@@ -10,7 +10,7 @@ import { useAuth } from "../patterns/auth/context";
 
 import { falcorGraph, FalcorProvider } from "@availabs/avl-falcor";
 import { tagFalcorRequests } from "../utils/authedFetch";
-import { requestScopedModel, sendTokenWith } from "../utils/requestScope";
+import { requestScopedModel, sendTokenWith, dataVersionOf } from "../utils/requestScope";
 //const noAuth = Component => Component
 
 export default function dmsPageFactory({
@@ -59,9 +59,20 @@ export default function dmsPageFactory({
   // change), not a navigation: the pattern's preload hook is told, so it doesn't fetch again what the
   // mounted page already loaded for itself. A closure variable, as above, so the loader can read it.
   let shownPath = null;
+  // The app's data version the shared model's cache holds (server only; render/ssr2/dataVersions.js): when a
+  // write or the age limit moves it, the next loader empties that cache before reading, so signed-out visitors
+  // see edits without a restart. Signed-in renders read through a model of their own (requestScopedModel).
+  let sharedDataVersion;
 
   async function loader({ request, params }) {
     if (isAuth) return { data: [] };
+    if (import.meta.env.SSR) {
+      const version = dataVersionOf(requestApp);
+      if (version !== null && version !== sharedDataVersion) {
+        if (sharedDataVersion !== undefined) sharedFalcor.setCache({});
+        sharedDataVersion = version;
+      }
+    }
     const path = `/${params["*"] || ""}`;
     // if (import.meta.env.DEV) console.log(`[dms loader] ${path} — start`)
     const t0 = import.meta.env.DEV ? performance.now() : 0;

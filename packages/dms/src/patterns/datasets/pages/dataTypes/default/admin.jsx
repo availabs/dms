@@ -9,7 +9,7 @@ import SourceAccessEditorChain from "../../../components/SourceAccessEditorChain
 import { DeleteSourceModal, DeleteDmsSourceBtn } from "../../../components/DeleteSource";
 import { ThemeContext } from "../../../../../ui/useTheme";
 import { adminTheme } from "./admin.theme";
-import { updateSourceData } from "./utils";
+import { updateSourceData, parseIfJson } from "./utils";
 import { udaDeleteSource } from "../../../../../api";
 
 const AddViewBtn = ({source, format, apiLoad, apiUpdate}) => {
@@ -156,10 +156,12 @@ const AddExternalVersionBtn = ({source}) => {
         </>
     )
 }
-// External sources only — becomes enabled once the source has a real primary key
-// (set/detected via the Advanced Metadata page, see set_primary_col_from_meta.md).
-// This is a deliberate admin action, not automatic just because a pkey exists.
-const EditableToggle = ({source, setSource, format, pgEnv, id}) => {
+// Whether the source's rows can be edited: `metadata.isEditable`, on internal and external sources alike
+// (planning/tasks/current/source-editable-flag-everywhere.md). The server refuses row writes when it is off.
+// An external source can only be switched on once it has a real primary key (set/detected via the
+// Advanced Metadata page, see set_primary_col_from_meta.md); an internal one (`isDms`) needs none and
+// is editable until switched off. A deliberate admin action either way.
+export const EditableToggle = ({source, setSource, format, pgEnv, id, isDms = false}) => {
     const { theme } = useContext(ThemeContext) || {};
     const t = { ...adminTheme, ...(theme?.datasets?.admin || {}) };
     const {UI, falcor, datasetsPattern} = useContext(DatasetsContext);
@@ -169,13 +171,29 @@ const EditableToggle = ({source, setSource, format, pgEnv, id}) => {
     const [error, setError] = useState(null);
 
     useEffect(() => {
-        if (!falcor || !id) return;
+        if (!falcor || !id || isDms) return;
         falcor.get(['uda', pgEnv, 'sources', 'byId', +id, 'pkeyInfo']).then(res => {
             setPkeyInfo(res?.json?.uda?.[pgEnv]?.sources?.byId?.[id]?.pkeyInfo || null);
         });
-    }, [falcor, pgEnv, id]);
+    }, [falcor, pgEnv, id, isDms]);
 
-    const isEditable = !!source?.metadata?.isEditable;
+    // An internal source's page doesn't load `metadata` (its columns live in `config`), so the switch reads
+    // it here, as JSON text. `undefined` until it has: the switch waits, since a save replaces the whole blob.
+    const dmsEnv = isDms && format?.app && source?.type ? `${format.app}+${source.type}` : null;
+    const [dmsMetadata, setDmsMetadata] = useState(undefined);
+    useEffect(() => {
+        if (!falcor || !id || !dmsEnv) return;
+        falcor.get(['uda', dmsEnv, 'sources', 'byId', +id, 'metadata']).then(res => {
+            const stored = parseIfJson(res?.json?.uda?.[dmsEnv]?.sources?.byId?.[id]?.metadata);
+            setDmsMetadata(stored && typeof stored === 'object' ? stored : {});
+        }).catch(() => setError('Could not read this setting.'));
+    }, [falcor, dmsEnv, id]);
+
+    // an internal source with no value yet is an older, editable source
+    const storedMetadata = (isDms ? dmsMetadata : source?.metadata) || {};
+    const loading = isDms && dmsMetadata === undefined;
+    const isEditable = isDms ? storedMetadata?.isEditable !== false : !!storedMetadata?.isEditable;
+    const canSwitchOn = isDms || !!pkeyInfo?.hasPkey;
 
     // Pessimistic on purpose: the switch's visible state is driven entirely by
     // `source.metadata.isEditable` (no separate local optimistic flag), so it only
@@ -188,8 +206,11 @@ const EditableToggle = ({source, setSource, format, pgEnv, id}) => {
         setError(null);
         setSaving(true);
         try {
-            const data = {...(source?.metadata || {}), isEditable: e};
-            const confirmed = await updateSourceData({data, attrKey: 'metadata', isDms: false, setSource, format, source, pgEnv, falcor, id, pattern: datasetsPattern});
+            // a metadata write replaces the whole blob, so it carries every stored key
+            const data = {...storedMetadata, isEditable: e};
+            // an internal source keeps its metadata here, not on the page's `source`
+            const confirmed = parseIfJson(await updateSourceData({data, attrKey: 'metadata', isDms, setSource: isDms ? () => {} : setSource, format, source, pgEnv, falcor, id, pattern: datasetsPattern}));
+            if (isDms && confirmed && typeof confirmed === 'object') setDmsMetadata(confirmed);
             if (!!confirmed?.isEditable !== e) {
                 setError('The change did not save — please try again.');
             }
@@ -202,14 +223,16 @@ const EditableToggle = ({source, setSource, format, pgEnv, id}) => {
 
     return (
         <div className={t.editableToggleRow}
-             title={pkeyInfo?.hasPkey ? undefined : 'Requires a primary key — set one on the Advanced Metadata page'}
+             title={canSwitchOn ? undefined : 'Requires a primary key — set one on the Advanced Metadata page'}
         >
             {t.editableToggleHint ? (
                 // v6: label + a visible hint (and the no-primary-key reason, not just a tooltip)
                 <div className={t.editableToggleMain}>
                     <FieldLabel activeStyle={'inline'} text={'Allow editing'} />
                     <div className={t.editableToggleHint}>
-                        {pkeyInfo?.hasPkey || isEditable
+                        {!isEditable && isDms
+                            ? 'Rows are locked: nobody can add, edit or delete them.'
+                            : canSwitchOn || isEditable
                             ? 'Lets permitted users edit rows in the Table tab.'
                             : 'Requires a primary key — set one on Advanced Metadata.'}
                     </div>
@@ -225,7 +248,7 @@ const EditableToggle = ({source, setSource, format, pgEnv, id}) => {
             {t.editableToggleHint && saving ? <Icon icon={'LoadingHourGlass'} className={t.editableToggleSavingIcon} /> : null}
             <Switch
                 enabled={isEditable}
-                disabled={saving || (!pkeyInfo?.hasPkey && !isEditable)}
+                disabled={saving || loading || (!canSwitchOn && !isEditable)}
                 setEnabled={handleToggle}
                 size={'small'}
             />
@@ -270,6 +293,7 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
                                     <>
                                         {canAddVersion && <AddViewBtn source={source} format={format} apiLoad={apiLoad} apiUpdate={apiUpdate}/>}
                                         {/*<ClearDataBtn app={app} type={source.doc_type} apiLoad={apiLoad} apiUpdate={apiUpdate}/>*/}
+                                        {canUpdate && <EditableToggle source={source} setSource={setSource} format={format} id={id} isDms={true} />}
                                         <DeleteDmsSourceBtn source={source} baseUrl={baseUrl}/>
                                     </>
                                 ) : (

@@ -1,6 +1,6 @@
 # View pages as static HTML with islands, without server components
 
-**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** in progress: this is the chosen path (owner, 2026-11-24). Phase 1 (delivery without RSC) done; the RSC delivery is removed; now working on the three priorities below (click delay, more static section types, less JavaScript) · **Created by:** amuro@albany.edu · **Edited by:** amuro@albany.edu
+**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** done (2026-11-25, owner: the chosen delivery path is built and on master; what is left is listed under "Left for later") · **Created by:** amuro@albany.edu · **Edited by:** amuro@albany.edu
 
 Written 2026-11-23, from the code review of the RSC task
 ([research/rsc-view-pages-code-review.md](../../research/rsc-view-pages-code-review.md), suggestion 14,
@@ -373,3 +373,17 @@ phase removes. **Continue if** they are within run-to-run noise or better.
     sections' element-data, so a variable derived from one would be missing): the URLs differ and the page is
     fetched, as before the fix.
 
+## Left for later (owner, 2026-11-25: task done, these not tasks yet)
+
+Closed with the page-load performance initiative. The work below was written down along the way; none of it is
+needed for islands to serve pages. Make a task of any of it when it matters.
+
+- The 2026-11-25 page-variables fix is committed (`a4335657`).
+- A click to a page with heavy live sections is still slower than today's path (County Template drought 11.8 s
+  today, 19.7 s on islands, one run each): after a click every waiting table wakes (the page-wide state check,
+  priority B). Narrow the wake to tables that read page state.
+- Graph: server-drawn SVG, so it can be static (117 live sections). Card: why 23 load rows in the browser.
+- A waiting table's first sort or scroll before its code loads is lost; focus is lost when a table wakes by focus.
+- Less JavaScript: a chrome-sized `UI` with the heavy members lazy; icons, falcor, lodash-es.
+- Phases 2–5 (one wire format, navigation by merging HTML, streaming late sections, cleanup) and open questions 2–3.
+- Whether `DMS_ISLANDS=1` is on in production.

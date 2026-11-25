@@ -444,7 +444,8 @@ async function setupAndListen() {
     console.warn(`[dms-tasks] Could not initialize: ${err.message}`);
   }
 
-  // SSR: opt-in via DMS_SSR env var
+  // SSR: opt-in via DMS_SSR env var. `ssrHandle` also hears every change notice (notifyAll, below).
+  let ssrHandle = null;
   if (process.env.DMS_SSR) {
     const path = require('path');
     const { mountSSR } = await import('../../dms/src/render/ssr2/express/setup.mjs');
@@ -485,8 +486,12 @@ async function setupAndListen() {
         rootDomain: process.env.DMS_ROOT_DOMAIN || process.env.VITE_DMS_ROOT_DOMAIN || '',
         // installed plugins a site turns on are imported from their version folder (plugins/store.js)
         resolvePluginUrl: (name, version) => pluginStore.ssrEntryUrl(name, version),
+        // the longest a route's shared page data is kept without a change notice (render/ssr2/dataVersions.js)
+        ...(process.env.DMS_SSR_DATA_MAX_AGE_MS !== undefined && Number.isFinite(Number(process.env.DMS_SSR_DATA_MAX_AGE_MS))
+          ? { dataMaxAgeMs: Number(process.env.DMS_SSR_DATA_MAX_AGE_MS) } : {}),
       },
     });
+    ssrHandle = ssr;
     // The hub: a tenant or domain change (alias verified / removed, primary moved, tenant added) changes
     // what a host renders, so the SSR handler's per-host route cache starts over (tenant-external-domains.md).
     if (ssr && ssr.invalidateRoutes) {
@@ -536,10 +541,13 @@ async function setupAndListen() {
   // Still unwired, same cause: the per-dbEnv controller dama/upload/index.js:34 builds for
   // the file-upload publish handlers.
   //
-  // Both also feed the per-site CSS: a saved row's new classes go into its app's sheet (css/siteCss.js).
+  // Both also feed the per-site CSS: a saved row's new classes go into its app's sheet (css/siteCss.js), and the
+  // server render: the app's pages are read again rather than served from its cache (ssr-logged-in-render-and-
+  // stale-cache.md, issue 3).
   const notifyAll = (app, msg) => {
     notifyChange(app, msg);
     try { siteCss.noteChange(app, msg); } catch (e) { console.warn('[site-css] change not applied:', e.message); }
+    try { ssrHandle?.noteChange?.(app, msg); } catch (e) { console.warn('[ssr] change not applied:', e.message); }
   };
   const dmsRoutes = require('./routes/dms/dms.route');
   dmsRoutes.controller.setNotifyChange(notifyAll);

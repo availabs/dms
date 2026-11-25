@@ -382,7 +382,8 @@ export function pattern2routes (siteData, props) {
           baseUrl: datasetsMount(linkPattern),
           label: 'managed',
           isDms: true,
-          srcAttributes: ['app', 'name', 'config', 'default_columns'],
+          // `metadata` for the source's Editable flag (dataWrapper/useDataSource.js toSource)
+          srcAttributes: ['app', 'name', 'config', 'default_columns', 'metadata'],
           viewAttributes: ['name', 'updated_at'],
           pattern: dsPattern,
         });

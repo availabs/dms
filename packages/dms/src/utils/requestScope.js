@@ -9,6 +9,19 @@ export function setRequestScopeProvider(fn) {
   provider = fn
 }
 
+// The version of an app's shared page data on the server (render/ssr2/dataVersions.js): installed by the SSR
+// handler; in the browser nothing installs one and it is null.
+let dataVersionProvider = () => null
+
+export function setDataVersionProvider(fn) {
+  dataVersionProvider = fn
+}
+
+/** A token that changes when `app`'s content changed, or its shared data is too old; null in the browser. */
+export function dataVersionOf(app) {
+  return dataVersionProvider(app)
+}
+
 /** The current server request's scope, or null (in the browser, or outside a page render). */
 export function getRequestScope() {
   return provider()

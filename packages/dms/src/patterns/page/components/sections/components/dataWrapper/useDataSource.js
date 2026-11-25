@@ -2,7 +2,7 @@ import { useContext, useEffect, useMemo, useRef, useState, useCallback } from "r
 import { get, isEqual, set } from "lodash-es";
 import { nameToSlug, getInstance } from "../../../../../../utils/type-utils";
 import { CMSContext, PageContext } from "../../../../context";
-import { EXTERNAL_SOURCE_KEY } from "./schema";
+import { EXTERNAL_SOURCE_KEY, sourceIsEditable } from "./schema";
 import { DEFAULT_SOURCE_JOIN } from "./utils/utils";
 import { SchemaManager } from "./SchemaManager";
 import { calculateIsJoinPresent } from "./utils/joinUtils"
@@ -39,6 +39,14 @@ const toSource = ({ envs, e, source_id, valueGetter }) => {
         ...envs[e].srcAttributes.reduce((acc, attr) => {
             let value = valueGetter(attr);
 
+            if (attr === "metadata" && envs[e].isDms) {
+                // An internal source's columns come from `config`; its metadata carries the Editable flag
+                // (text here: the DMS branch of uda sources serves `data->>'metadata'`). No value stays
+                // undefined, which sourceIsEditable (schema.js) reads as an older, editable source.
+                let meta = value;
+                if (typeof meta === "string") { try { meta = JSON.parse(meta); } catch { meta = null; } }
+                return typeof meta?.isEditable === "boolean" ? { ...acc, isEditable: meta.isEditable } : acc;
+            }
             if (attr === "metadata") {
                 // Row-identity (real PK column, which can be any name) is resolved
                 // server-side per-request (uda.controller.js's resolveIdAttribute),
@@ -322,6 +330,14 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
             const reconcile = (data) => {
                 const existing = data.find((d) => +d.source_id === +sourceId);
 
+                // Editable was switched on or off since the section was saved: only the flag moves, so nothing
+                // that keys a fetch changes with it
+                if (existing && sourceIsEditable(existing) !== sourceIsEditable(state?.externalSource)
+                    && isEqual(existing.columns, state?.externalSource?.columns) && !isJoinPresent) {
+                    setState((draft) => {
+                        if (draft?.externalSource) draft.externalSource.isEditable = existing.isEditable;
+                    });
+                }
                 if (existing && (!isEqual(existing.columns, state?.externalSource?.columns) || isJoinPresent) ) {
                     // Include baseUrl from envs when updating externalSource
                     const baseUrl = envs[existing.srcEnv]?.baseUrl || '';

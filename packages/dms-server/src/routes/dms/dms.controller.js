@@ -17,6 +17,7 @@ const {
   QueryBuilder
 } = require('#db/query-utils.js');
 const { resolveAuthPermissions, normaliseGrants, GRANT_KEYS } = require('../auth/grants');
+const { withSourceEditableDefault, refusesRowWrites, notEditableError } = require('./sourceEditable');
 const {
   isSplitType,
   changeLogData,
@@ -121,6 +122,12 @@ function createController(dbName = 'dms-sqlite', options = {}) {
   // untracked dataset. A write to any source row clears it; the TTL covers other server processes.
   const _changeHistoryCache = new Map();
   const CHANGE_HISTORY_CACHE_TTL = 60_000;
+
+  // Which internal sources refuse row writes (sourceEditable.js): `${app}:${sourceId}` → { refused, ts }.
+  // A write to any source row through this controller clears it; the short TTL covers a source row
+  // written by /sync/push or another server process.
+  const _sourceEditableCache = new Map();
+  const SOURCE_EDITABLE_CACHE_TTL = 5_000;
 
   // Periodic cache cleanup — evict expired tags entries and cap source ID cache
   const _cacheCleanup = setInterval(() => {
@@ -554,6 +561,28 @@ function createController(dbName = 'dms-sqlite', options = {}) {
     }
     _changeHistoryCache.set(cacheKey, { spec, ts: Date.now() });
     return spec;
+  }
+
+  /**
+   * Throws when `type` is a dataset row type whose source has Editable turned off
+   * (`data.metadata.isEditable === false`, sourceEditable.js). Every other type, and a dataset whose
+   * source can't be found or has no value yet, passes. Called before a row write's transaction: it reads
+   * through the adapter.
+   */
+  async function assertSourceEditable(app, type) {
+    if (!app || !type || !isSplitType(type)) return;
+    const sourceId = await lookupSourceId(app, type);
+    if (!sourceId) return;
+    const cacheKey = `${app}:${sourceId}`;
+    let cached = _sourceEditableCache.get(cacheKey);
+    if (!cached || Date.now() - cached.ts >= SOURCE_EDITABLE_CACHE_TTL) {
+      const table = await mainTable(app);
+      const [source] = await dms_db.promise(`SELECT data FROM ${table} WHERE id = $1`, [sourceId]);
+      cached = { refused: refusesRowWrites(source?.data), ts: Date.now() };
+      if (_sourceEditableCache.size > 500) _sourceEditableCache.clear();
+      _sourceEditableCache.set(cacheKey, cached);
+    }
+    if (cached.refused) throw notEditableError();
   }
 
   /**
@@ -1403,6 +1432,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
         const seqName = getSequenceName(app, dbType, splitMode);
         await ensureTable(dms_db, resolved.schema, resolved.table, dbType, seqName, { checks: !isSplitType(type) });
         table = resolved.fullName;
+        await assertSourceEditable(app, type);
         history = changeHistory && isSplitType(type) ? await loadChangeHistory(app, type) : null;
         // the history table's DDL runs here, outside the transaction (see mainTable)
         if (history) historyTarget = await ensureForWrite(app, history.targetType);
@@ -1471,7 +1501,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       });
       _tagsCache.clear();
       // a source's settings (change_history among them) may have changed
-      if (getKind(rows[0]?.type || '') === 'source') _changeHistoryCache.clear();
+      if (getKind(rows[0]?.type || '') === 'source') { _changeHistoryCache.clear(); _sourceEditableCache.clear(); }
       return rows;
     },
 
@@ -1484,6 +1514,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       // set through the permission editors. A dataset's own column of that name is its own business.
       if (!isSplitType(type) && GRANT_KEYS.includes(sanitizedName)) throw new Error(`${sanitizedName} cannot be mass-edited`);
 
+      await assertSourceEditable(app, type);
       const { fullName } = await ensureForWrite(app, type);
 
       const columnToUpdate = sanitizedName.includes('data->>') ? column :
@@ -1581,6 +1612,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
     // `changeHistory: true`: as setDataById. Off by default; the Falcor create route asks for it.
     createData: async (args, user, reqMeta = null, { changeHistory = false } = {}) => {
       const [app, type, data = {}] = args;
+      await assertSourceEditable(app, type);
       const resolved = await ensureForWrite(app, type);
       const userId = get(user, "id", null);
 
@@ -1636,7 +1668,8 @@ function createController(dbName = 'dms-sqlite', options = {}) {
 
       // `parent_id` — the client states it, the server validates it, and a claim that passes is
       // stored as `data.parent_id`. One that fails is dropped, never thrown.
-      const rowData = normaliseGrants(await claimParentId(app, type, data, resolved.fullName), type);
+      // a new source is editable unless its creator says otherwise (sourceEditable.js)
+      const rowData = withSourceEditableDefault(normaliseGrants(await claimParentId(app, type, data, resolved.fullName), type), type);
 
       // A tracked dataset's new row also writes its change history, as an edit does (setDataById).
       // The history table's DDL runs here, outside the transaction.
@@ -1701,6 +1734,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
         if (slug) _sourceIdCache.delete(`${app}:${slug}`);
         // the name may now lead to this source instead of a history dataset that had it
         _changeHistoryCache.clear();
+        _sourceEditableCache.clear();
       }
       return rows;
     },
@@ -1719,6 +1753,9 @@ function createController(dbName = 'dms-sqlite', options = {}) {
     claimParentId,
     withoutParentId,
     normaliseGrants,
+    // internal sources' Editable flag (sourceEditable.js): the create default and the row-write refusal
+    withSourceEditableDefault,
+    assertSourceEditable,
     stampDeclaredChildren,
     sweepDeclaredChildren,
     sweepChildrenOfDeleted,
@@ -1748,6 +1785,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
     // `changeHistory: true`: as setDataById. A deleted row of a tracked dataset gets its tracked
     // values recorded with `op: 'delete'`. Only the Falcor delete route asks for it.
     deleteData: async (app, type, ids, user, reqMeta = null, { changeHistory = false } = {}) => {
+      await assertSourceEditable(app, type);
       const resolved = await ensureForRead(app, type);
       const userId = get(user, "id", null);
       const history = changeHistory && isSplitType(type) ? await loadChangeHistory(app, type) : null;
@@ -1888,6 +1926,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
     updateDataById: async (app, id, newType, data, userId) => {
       // Determine which table the row is in based on the new type.
       // For dataset rows the valid and invalid types resolve to the same split table.
+      await assertSourceEditable(app, newType);
       const resolved = await ensureForWrite(app, newType);
       data = normaliseGrants(withoutParentId(data), newType);
       const sql = `

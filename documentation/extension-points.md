@@ -64,7 +64,7 @@ theme. **The registries are global for the app**, so one pattern's theme affects
 
 | Name | Registered by | The core calls it in | It gets / is | App users | For |
 |---|---|---|---|---|---|
-| Section types | `registerComponents` (exported), a type's `pageComponents`, or theme `pageComponents` | C `patterns/page/components/sections/componentRegistry.js` | `{name: {name, EditComp, ViewComp, controls, defaultState, useDataSource, useDataWrapper, …}}` | theme `pageComponents` in transportny (theme, themev2), wcdb, mny, tessera v6 | section types |
+| Section types | `registerComponents` (exported), a type's `pageComponents`, or theme `pageComponents` | C `patterns/page/components/sections/componentRegistry.js` | `{name: {name, EditComp, ViewComp, controls, defaultState, useDataSource, useDataWrapper, …}}` | theme `pageComponents` in transportny (theme, themev2), wcdb, mny (Header: MNY Data, Footer: MNY Footer, PDFGenerator), tessera v6 | section types; the library's own are Rich Text, Card, Spreadsheet, Filter, Graph |
 | ↳ `preload()` | section entry | `componentRegistry.js` `preloadSectionComponents` | `() => Promise` | mapeditor section | load a lazy chunk with the page data |
 | ↳ `managesOwnState` | section entry | C `…/sections/components/index.jsx`, `sectionMenu.jsx` | bool; settings through the handle's `settingsAPI` | mapeditor section | the section owns its element-data |
 | ↳ `derivePageVariables` | section entry | C `patterns/page/pages/_utils/index.js` | `(elementData) → [{searchKey, …}]` | mapeditor section | registers page variables |
@@ -78,6 +78,7 @@ theme. **The registries are global for the app**, so one pattern's theme affects
 | Nav widgets | `registerWidget` (exported) or theme `widgets` | C `ui/widgets/index.jsx`; placed by `ui/components/Layout.jsx` | `(name, {label, component, internal})`; the component gets the slot's `options` | `app/src/widgets.js` (`NavCta`), qa (`ReportIssue`); theme key in wcdb, weather_analytics, tessera v6, transportny v2 | components a theme places in the top or side nav |
 | Icons | theme `Icons` | C `ui/components/Icon.jsx`, the icon pickers | `{name: Component}` | most themes | the icon set, by name |
 | Graph legend unit | theme `avlGraph.resolveLegendUnit` (a function) | C `ui/components/graph_new/index.jsx`, `…/ComponentRegistry/graph_new/config.jsx` | `(display) → unit` | transportny themev2 | the legend title's default unit |
+| Footer section type | theme `pages.footerSectionType` (a section type's key) | C `patterns/page/pages/_utils/index.js` `sectionsEditBackill` / `sectionsBackill` | `'Footer: MNY Footer'` | mny | the section a page's Footer setting adds when an old page gets section groups; none when unset (the library has no footer type since 2026-11-25) |
 
 ## Client: entry props and host files
 

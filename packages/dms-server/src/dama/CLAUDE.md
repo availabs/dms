@@ -48,7 +48,7 @@ One row per logical dataset (e.g. "FEMA NFIP Claims", "WCDB FM Now Playing"). Co
 | `name` | TEXT UNIQUE | Display name. Auto-suffixed `_2`, `_3`, … on collision (see `metadata.js#createDamaSource`). |
 | `type` | TEXT | DataType identifier — matches the plugin name registered via `registerDatatype` (e.g. `now_playing_stream`, `fima_nfip_claims_v2_enhanced`, `csv_dataset`). The client-side `damaDataTypes[type]` is keyed on this. |
 | `categories` | JSONB | `[[<top>, <sub>]]` for grouping in the UI. |
-| `metadata` | JSONB | **Cross-DAMA contract** — see "metadata.columns contract" below. |
+| `metadata` | JSONB | **Cross-DAMA contract** — see "metadata.columns contract" below. `metadata.isEditable` says whether the source's rows can be edited, the same flag an internal source carries at `data.metadata.isEditable`: `createDamaSource` writes `false` unless the caller passes a value, an author turns it on from the admin page (needs a primary key), and a source with no value or no metadata reads as not editable. |
 | `statistics` | JSONB | Per-source state: auth grants (`auth: { users: { [user_id]: '10' }, groups: {} }`), plus plugin-specific keys (e.g. `webhook_secret`, `acr_project_id`, `backfill: { … }`). |
 | `user_id` | INT | Creator. |
 
@@ -217,7 +217,7 @@ Passed to every `routes` registration:
 | `getTaskStatus(taskId, pgEnv)` | `→ Promise<row>` | |
 | `getTaskEvents(taskId, pgEnv, sinceEventId?)` | `→ Promise<rows>` | |
 | `dispatchEvent(taskId, type, message, payload?, pgEnv)` | `→ Promise` | Out-of-band event from a route (rare). |
-| `createDamaSource(values, pgEnv)` | `→ Promise<sourceRow>` | Inserts into `data_manager.sources`; auto-suffixes on name collision. Sets default `auth` grant if `user_id` is provided. |
+| `createDamaSource(values, pgEnv)` | `→ Promise<sourceRow>` | Inserts into `data_manager.sources`; auto-suffixes on name collision. Sets default `auth` grant if `user_id` is provided. Adds `isEditable: false` to `metadata` when the caller set none, so a new source's metadata is never NULL. |
 | `createDamaView(values, pgEnv)` | `→ Promise<viewRow>` | Inserts a view, auto-derives `table_schema = 'gis_datasets'` and `table_name = 's{source_id}_v{view_id}'`. Override after the fact via UPDATE if you need different naming. |
 | `ensureSchema(db, schemaName)` | `→ Promise` | `CREATE SCHEMA IF NOT EXISTS` on Postgres; no-op on SQLite. |
 | `deleteDamaView(pgEnv, viewIds, {cascade, db, authorize})` | `→ Promise<result>` | Delete views and drop their tables; see "Deleting" below. |

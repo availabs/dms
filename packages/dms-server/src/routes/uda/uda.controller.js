@@ -8,6 +8,8 @@ const {
   getSiteSources,
 } = require('./utils');
 const { jsonMerge } = require('#db/query-utils.js');
+const { parseSplitDataType } = require('#db/type-utils.js');
+const { refusesRowWrites, notEditableError } = require('../dms/sourceEditable');
 const { resolveTable, sanitize } = require('#db/table-resolver.js');
 const { getInstance } = require('#db/type-utils.js');
 const querySets = require('./query_sets');
@@ -1265,8 +1267,18 @@ async function deleteExternalRow(env, view_id, id) {
 }
 
 async function clearViewData(env, view_id) {
-  const { isDms, db, app, splitMode, table_schema, table_name } = await getEssentials({ env, view_id: +view_id });
+  const { isDms, db, app, type, splitMode, table_schema, table_name } = await getEssentials({ env, view_id: +view_id });
   if (!isDms) throw new Error('clearViewData only supported for DMS internal_table sources');
+
+  // A clear deletes every row: a dataset with Editable turned off refuses it like any other row write
+  // (routes/dms/sourceEditable.js). The rows' type names the source, `{source}|{view}:data`.
+  const ownerSlug = parseSplitDataType(type || '')?.source;
+  if (ownerSlug) {
+    const { rows: [source] } = await db.query(
+      `SELECT data FROM ${await dmsMainTable(db, app, splitMode)} WHERE app = $1 AND type LIKE '%|' || $2 || ':source' ORDER BY id DESC LIMIT 1`,
+      [app, ownerSlug]);
+    if (refusesRowWrites(source?.data)) throw notEditableError();
+  }
 
   // Only ever a split table. A type that doesn't resolve to one falls back to the main table, which
   // is `data_items` in legacy mode and on per-app Postgres, but `data_items__<app>` on per-app

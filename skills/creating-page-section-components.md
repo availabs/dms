@@ -280,8 +280,9 @@ picture of itself, since headless print draws WebGL blank.
 
 - `packages/dms/CLAUDE.md` — Vite Fast Refresh rules, file conventions, theming guidance.
 - `patterns/page/components/sections/components/ComponentRegistry/Card.config.jsx` — most feature-complete reference component.
-- `patterns/page/components/sections/components/ComponentRegistry/header.config.js` — minimal reference component.
-- `patterns/page/components/sections/components/ComponentRegistry/index.jsx` — the built-in registry. A pattern type can ship its own section types too: its registration's `pageComponents` go to `registerComponents` (see [`registering-a-pattern-type.md`](./registering-a-pattern-type.md)).
+- `patterns/page/components/sections/components/ComponentRegistry/FilterComponent.config.js` — a small reference component.
+- dms-template `src/themes/mny/components/` — section types a THEME ships through `pageComponents` (MNY's header, footer and PDF Generator): brand code stays out of the library, whose built-in types are Rich Text, Card, Spreadsheet, Filter and Graph.
+- `patterns/page/components/sections/components/ComponentRegistry/index.jsx` — the built-in registry (Rich Text, Card, Spreadsheet, Filter, Graph). A pattern type can ship its own section types too: its registration's `pageComponents` go to `registerComponents` (see [`registering-a-pattern-type.md`](./registering-a-pattern-type.md)).
 - `patterns/page/defaultTheme.js` — where pattern-tied themes get registered.
 - `ui/useTheme.js` — `getComponentTheme`, `mergeTheme`, the context surface.
 - [`creating-interactive-pages.md`](./creating-interactive-pages.md) — the page/author side of page variables (registering, Filter controls, cascading, gotchas).

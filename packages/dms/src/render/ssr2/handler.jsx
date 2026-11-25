@@ -14,7 +14,8 @@ import { IslandsCaptureContext } from '../islands/captureContext.js'
 import { configureIslandsClient } from '../islands/clientConfig.js'
 import { createIslandsRenderer } from '../islands/servePage.js'
 import { AsyncLocalStorage } from 'node:async_hooks'
-import { setRequestScopeProvider, sendTokenWith } from '../../utils/requestScope.js'
+import { setRequestScopeProvider, setDataVersionProvider, sendTokenWith } from '../../utils/requestScope.js'
+import { createDataVersions } from './dataVersions.js'
 import { authProvider } from '../../patterns/auth/providers.jsx'
 
 // Who each page render is for (rsc-view-pages.md phase 1): { session, user, token, models }, read through
@@ -102,8 +103,12 @@ export function createSSRHandler({
   isMultiTenant = false,
   rootDomain = '',
   resolvePluginUrl = () => null,
+  // the longest a route's shared data model keeps page data without a change notice (dataVersions.js)
+  dataMaxAgeMs = 5 * 60 * 1000,
 }) {
   setRootDomain(isMultiTenant ? rootDomain : '')
+  const dataVersions = createDataVersions({ maxAgeMs: dataMaxAgeMs })
+  setDataVersionProvider((app) => dataVersions.versionOf(app))
   // Cache per-host — different subdomains produce different route sets
   // (pattern2routes filters by subdomain).
   const routeCache = new Map()
@@ -334,5 +339,13 @@ export function createSSRHandler({
     islands.clear()
   }
 
-  return { render, captureRender, renderIslands, invalidateRoutes }
+  /**
+   * A row of `app` was written (dms-server's change notices: { item: { type, … } }). Page loaders for that app
+   * empty their shared data before the next read; a site, pattern, theme or dmsenv row rebuilds the routes.
+   */
+  function noteChange(app, msg) {
+    if (dataVersions.noteChange(app, msg?.item?.type)) invalidateRoutes()
+  }
+
+  return { render, captureRender, renderIslands, invalidateRoutes, noteChange }
 }
