@@ -806,11 +806,9 @@ All settled 2026-11-23 (D9–D11).
   A plugin installed at run time is loaded on those pages from the API host by name and version (written, not yet
   exercised with an installed plugin). Not saved on the activation row: a compiled-in plugin has no row.
 
-- 2026-11-25 — **the dms-template half of P1/P2 was found missing** from the checkout: no `src/plugins/` (none of the
-  five converted plugins, `index.js`, `themes.js`, `loaders.js`), no `src/apiHost.js`, no plugin loading in
-  `main.jsx`, no `vite-plugins/dmsCssCandidates.js`, no `longRoutes` in `data-types/routing`; not in any commit,
-  stash or dangling object. The library / dms-server half is committed. `test-plugins.js` "routing declares its
-  searches" fails for that reason.
+- 2026-11-25 — the dms-template half of P1/P2 looked missing from one checkout; it had been committed elsewhere
+  (`80e71c38`) and arrived by merge. In that merge now_playing moved into the wcdb plugin and out of
+  `src/plugins/now_playing` (dms-template `3f40f3db`).
 - 2026-11-25 — owner asked: the **wcdb theme and the now_playing data type as one plugin, installed only**
   (`src/plugins/wcdb/`, README there). Removed from `src/themes/index.js`, `src/data-types.js`,
   `data-types/register-datatypes.js` and the app's Tailwind scan; App.jsx's default app is now `avail`. Owner's
