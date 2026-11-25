@@ -358,3 +358,18 @@ phase removes. **Continue if** they are within run-to-run noise or better.
   - Focus is lost when a table wakes by keyboard focus (its HTML is replaced). Not handled.
   - Tests: islands file 18 pass; library suite 969 pass, the same 15 failures in 7 files as before this work;
     `src/plugins` 326 pass, one file (`chat/cli/slack/convert_all.test.mjs`) fails to load, not touched here.
+
+- 2026-11-25 — a page with URL-bound page variables was rendered twice. Opened with no search string, it moves to
+  itself with the variables written out (`?state=&hazard=`, `usePageViewState`); the islands router fetched that
+  as a navigation, so the server ran every query again and every live section remounted and refetched (FUSION
+  national-overview: 4.5 s of an 11.5 s load). Fix: the page view names that URL in the island data
+  (`island.variablesUrl`, from the new `pageVariablesUrl` in `pages/_utils`, which `initNavigateUsingSearchParams`
+  now uses too) and the browser entry answers that one navigation with the page it has (`isShownPage`,
+  `render/islands/islandData.js`). Any other URL is fetched as before.
+  - Measured on FUSION (build `nav1`, with the county summary that landed the same day): national-overview
+    11.5 → 4.8 s, explore 9.2 → 2.0 s loaded alone; the pattern's 8-click journey 28.4 → 10.1 s.
+  - Tests: `tests/islandsVariablesUrl.test.js` (4). Library suite: the same 15 failures in 7 files as before.
+  - Not covered: a page whose browser-side registry differs from the server's (the island data trims static
+    sections' element-data, so a variable derived from one would be missing): the URLs differ and the page is
+    fetched, as before the fix.
+

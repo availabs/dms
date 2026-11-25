@@ -52,3 +52,15 @@ export function headKey(html = '') {
   for (let i = 0; i < html.length; i++) h = (h * 31 + html.charCodeAt(i)) | 0
   return `${html.length}:${h}`
 }
+
+/**
+ * Browser: is a navigation to `url` the page already shown? True for one move only: a page opened with no
+ * search string (`shownBare`) going to itself with its page variables written out, the URL the server named
+ * with the page (`island.variablesUrl`, patterns/page/pages/view.jsx). That URL renders what the bare one
+ * did, so the entry answers it without the server.
+ */
+export function isShownPage(island, shownBare, url) {
+  if (!shownBare || !island?.variablesUrl) return false
+  const written = new URL(island.variablesUrl, url.origin)
+  return written.pathname === url.pathname && written.search === url.search
+}

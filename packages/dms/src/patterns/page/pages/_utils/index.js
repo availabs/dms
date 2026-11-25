@@ -578,21 +578,29 @@ export const updatePageStateFiltersOnSearchParamChange = ({searchParams, item, p
     //}
 }
 
-export const initNavigateUsingSearchParams = ({pageState, search, navigate, baseUrl, item, isView}) => {
-    // one time redirection
+/**
+ * The URL a page with URL-bound page variables moves to when it is opened with no search string: the same
+ * page with each variable's registered value written out (`?state=&year=2024`). Null when the page has no
+ * such variables or `item` is not resolved yet. The page it names is the page the bare URL shows, which
+ * is how the islands path knows not to fetch it again (render/islands/entry.browser.jsx).
+ */
+export const pageVariablesUrl = ({pageState, baseUrl, item, isView}) => {
     // `item` can still be a not-yet-resolved stand-in on the very first render (e.g. sync's
     // local mirror hasn't caught up with this specific page yet) — without this guard a
     // falsy `item.url_slug` navigates to a literal `.../edit/undefined` URL.
-    if (!item?.url_slug) return;
+    if (!item?.url_slug) return null;
     const searchParamFilters = (pageState?.filters || []).filter(f => f.useSearchParams);
-    if(searchParamFilters?.length){
-        const filtersObject = searchParamFilters
-            .reduce((acc, curr) => ({...acc, [curr.searchKey]: typeof curr.values === 'string' ? [curr.values] : curr.values}), {});
-        const url = buildSearchString(filtersObject);
-        if(!search && url !== search){
-            navigate(`${baseUrl}${isView ? `/` : `/edit/`}${item.url_slug}${url}`)
-        }
-    }
+    if (!searchParamFilters.length) return null;
+    const filtersObject = searchParamFilters
+        .reduce((acc, curr) => ({...acc, [curr.searchKey]: typeof curr.values === 'string' ? [curr.values] : curr.values}), {});
+    const url = buildSearchString(filtersObject);
+    return url ? `${baseUrl}${isView ? `/` : `/edit/`}${item.url_slug}${url}` : null;
+}
+
+export const initNavigateUsingSearchParams = ({pageState, search, navigate, baseUrl, item, isView}) => {
+    // one time redirection
+    const url = search ? null : pageVariablesUrl({pageState, baseUrl, item, isView});
+    if (url) navigate(url)
 }
 
 export const getPageAuthPermissions = authPermissions => {

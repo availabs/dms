@@ -15,7 +15,7 @@ import pluginLoaders from '@dms-host/plugins'
 import { configureIslandsClient } from './clientConfig.js'
 import ClientChrome, { preloadChromeTheme } from './ClientChrome.jsx'
 import StaticSlot from './StaticSlot.jsx'
-import { readIslandData, NAV_HEADER } from './islandData.js'
+import { readIslandData, isShownPage, NAV_HEADER } from './islandData.js'
 
 const ROUTE_ID = 'dms-islands'
 
@@ -31,15 +31,23 @@ function Page() {
 
 // A navigation inside the chrome (a nav link, a URL-bound filter): the destination as JSON from the same
 // server render. A page this path does not serve, or one that needs a different head, is a document load.
+//
+// One navigation is answered without the server. A page opened with no search string moves to itself with
+// its page variables written out (`?state=&year=2024`, patterns/page/pages/usePageViewState.js). The
+// server names that URL with the page (`island.variablesUrl`), and it is the render the browser already
+// has: fetching it ran every query of the page a second time and remounted every live section.
 function makeLoader(first) {
+  let shown = { bare: !window.location.search, data: { island: first.island, slots: null, key: null } }
   return async function loader({ request }) {
     const url = new URL(request.url)
+    if (isShownPage(shown.data.island, shown.bare, url)) return shown.data
     const response = await fetch(url.pathname + url.search, { headers: { [NAV_HEADER]: '1' }, signal: request.signal })
     const next = response.ok && (response.headers.get('content-type') || '').includes('json') ? await response.json() : null
     if (!next?.island || next.island.headKey !== first.island.headKey) throw redirectDocument(url.pathname + url.search + url.hash)
     await preloadChromeTheme(next.island.selection)
     if (next.title) document.title = next.title
-    return { island: next.island, slots: next.slots, key: url.pathname + url.search }
+    shown = { bare: !url.search, data: { island: next.island, slots: next.slots, key: url.pathname + url.search } }
+    return shown.data
   }
 }
 

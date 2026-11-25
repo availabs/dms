@@ -957,6 +957,9 @@
 
 ### patterns/admin
 
+- [ ] [An app's Settings as pluggable sub pages, one definition for the app and the hub's tenant page](tasks/current/app-settings-pages.md) — created 2026-11-25 (initiative `dms_page_load_performance`). Settings on every app, as sub pages like the Pattern Editor's tabs; extended by the app, plugins (a new host kind) and pattern types (`admin.settingsPages`); the hub's tenant page renders the same list; Storage and the server Plugins page move under it. Not started.
+- [ ] [A Performance tab on each pattern: run a perf test on the server and read its reports](tasks/current/pattern-perf-report-tab.md) — created 2026-11-25 (initiative `dms_page_load_performance`). Owner: a Pattern Editor tab; runs as a dms-server job with the image's Chromium (the perf engine moves into dms-server); runs list, report, compare. Not started.
+
 
 - [x] Tenant table on the platform admin list page doesn't scroll: rows past the viewport are cut off behind the page. Reported 2026-09-29, **fixed 2026-09-29, uncommitted**.
   - **Cause:** both lists' `wrapper` was `flex flex-1 flex-col overflow-auto`, so on the platform root the two lists split the page height equally. `tableCard` (`overflow-hidden`) is a flex child and was squeezed below its table's height, clipping the bottom rows out of reach of the table's own scroll. With few patterns there was also a large empty gap above Tenants.

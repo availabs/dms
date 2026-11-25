@@ -28,6 +28,15 @@ the entry as a second input of its client build, sets `build.manifest`, and defi
 | `@dms-host/widgets` | `src/widgets.js` | imported for its side effect: registers every nav widget the server registers |
 | `@dms-host/plugins` | `src/plugins/loaders.js` | default export `{ [plugin name]: () => import(its entry) }`; a page loads only the plugins its live sections need |
 
+## Navigation
+
+A link or a URL-bound filter inside the chrome fetches the destination from the same server render as JSON
+(the `x-dms-islands-nav` header) and swaps the slots. One navigation is answered without the server: a page
+with URL-bound page variables, opened with no search string, moves to itself with the variables written out
+(`?state=&year=2024`, `patterns/page/pages/usePageViewState.js`). The server names that URL with the page
+(`island.variablesUrl`), and `isShownPage` (`islandData.js`) recognises it: it is the render the browser
+already has. Fetching it ran every query of the page a second time and remounted every live section.
+
 ## Which sections run in the browser
 
 A section's registry entry decides (`patterns/page/components/sections/staticSections.js`):

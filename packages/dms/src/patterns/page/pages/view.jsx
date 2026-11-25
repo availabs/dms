@@ -4,6 +4,7 @@ import { cloneDeep } from "lodash-es"
 import {
     dataItemsNav,
     nav2Level,
+    pageVariablesUrl,
 } from './_utils'
 import { usePageViewState } from './usePageViewState'
 import SectionGroup from '../components/sections/sectionGroup'
@@ -165,6 +166,9 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
         selection: pattern?.theme?.selectedTheme || pattern?.theme?.settings?.theme?.theme || 'default',
         // the user menu as route building left it (site menu, the pattern's own menu over it)
         authMenu: fullTheme?.navOptions?.authMenu || null,
+        // where the browser moves a page opened with no search string (usePageViewState): this same render,
+        // so the islands entry answers that navigation with the page it already has
+        variablesUrl: search || navLink ? null : pageVariablesUrl({ pageState, baseUrl, item, isView: true }),
       };
       // Section islands (sections that stay live in the browser) push themselves here while the slots
       // render (CapturedSection.jsx); what the browser needs to rebuild PageContext around them goes with them.
