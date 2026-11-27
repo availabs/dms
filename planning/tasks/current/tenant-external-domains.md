@@ -225,7 +225,7 @@ project, **domains**, pattern subdomains, danger zone) and `admin-tenants.html` 
     `authorize`'s retry-on-miss, `routes/auth/index.js:107`): every read whose subject misses reloads
     the whole app snapshot, so a list of unmirrored sources (`readableSources`) can reload it hundreds
     of times and saturate the database (187% CPU; every request queued). Not reproduced on demand
-    afterwards. Task: [auth-snapshot-reload-on-miss.md](./auth-snapshot-reload-on-miss.md) (the hub's tenants
+    afterwards. Task: [auth-snapshot-reload-on-miss.md](../completed/auth-snapshot-reload-on-miss.md) (the hub's tenants
     have no pgEnv mirror rows, so every external read misses).
   - Rig server now runs as:
     `docker run -d --name dms-hub-local-server --network dms-hub-local -p 127.0.0.1:5560:5555
@@ -302,7 +302,7 @@ project, **domains**, pattern subdomains, danger zone) and `admin-tenants.html` 
     "nope.test" is not set up on this hub". Login on `devmny.test` posts `project: "mny"`.
     `/list/domains` renders for `mny-domains` (after the wrapper fix).
   - **Slow pages on the rig** (17–45 s) are the snapshot flood
-    ([auth-snapshot-reload-on-miss.md](./auth-snapshot-reload-on-miss.md)): Postgres at 100% on the
+    ([auth-snapshot-reload-on-miss.md](../completed/auth-snapshot-reload-on-miss.md)): Postgres at 100% on the
     snapshot query during every mny/tny load. It now reproduces on every cold load.
 - [x] **Root tenant overview checked in the browser (staff):** `localhost:5562/list/tenants/2903392`
   shows MitigateNY, primary devmny.test, the three domain rows and the pending alias's records; the

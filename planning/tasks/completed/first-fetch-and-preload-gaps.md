@@ -1,6 +1,6 @@
 # Live sections: no wait before the first fetch, preload for filter options, no suspended first render
 
-**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** built and measured 2026-11-25, not committed · **Created by:** amuro@albany.edu · **Edited by:** amuro@albany.edu
+**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** done (2026-11-27, owner: committed and deployed) · **Created by:** amuro@albany.edu · **Edited by:** amuro@albany.edu
 
 From the browser profiles of FUSION with islands, preload and the result cache all on (`uda-result-cache.md`,
 "Browser profiles with everything on"). Queries were no longer the cost: after first paint the page spent its

@@ -4,7 +4,7 @@
 
 ## Objective
 
-Keep the speed gain of [lexical-view-double-set-state.md](./lexical-view-double-set-state.md) without its
+Keep the speed gain of [lexical-view-double-set-state.md](../completed/lexical-view-double-set-state.md) without its
 side effect: pages growing by a blank line for every paragraph saved with an empty text node.
 
 ## Background
@@ -27,7 +27,7 @@ because its largest card grew a line when its editor mounted.
 
 The look on screen today is the saved state applied *after* the plugins' transforms have run once. Only the
 original sequence produces it, so both of those were dropped and the double set
-([lexical-view-double-set-state.md](./lexical-view-double-set-state.md)) was put back.
+([lexical-view-double-set-state.md](../completed/lexical-view-double-set-state.md)) was put back.
 
 ## The change (in `ui/components/lexical/editor/index.tsx`, view mode only)
 

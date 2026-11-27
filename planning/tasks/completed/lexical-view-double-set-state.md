@@ -3,7 +3,7 @@
 **Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** dropped · **Created by:** amuro@albany.edu · **Edited by:** —
 
 **Dropped 2026-11-20:** removing the second set changed how pages look in more ways than could be patched
-(see Results and [lexical-view-keep-empty-text-paragraphs.md](./lexical-view-keep-empty-text-paragraphs.md), which keeps
+(see Results and [lexical-view-keep-empty-text-paragraphs.md](../current/lexical-view-keep-empty-text-paragraphs.md), which keeps
 the double set and removes its cost another way). The code change was reverted in the working tree.
 
 ## Objective
@@ -32,7 +32,7 @@ so the effect skips its first run. A later change of `value` still sets the stat
 ## Out of scope
 
 The 4.2 s part, and not mounting Lexical in view at all (static HTML with small handlers): see the options in
-[perf-measurement-tool.md](./perf-measurement-tool.md) and the rich-text row of
+[perf-measurement-tool.md](../current/perf-measurement-tool.md) and the rich-text row of
 [rsc-view-pages.md](../completed/rsc-view-pages.md).
 
 ## Testing checklist

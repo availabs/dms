@@ -108,4 +108,4 @@ Unaffected: sites still deployed to Netlify (no SSR) and token clients (the dms 
   renderer sets the session cookie (`dms-server/src/pdf/render.js openTab`): a `self` export of a page only
   signed-in users can open prints it. Found and fixed: the SSR middleware's template fill read `$'` in page
   content as a replacement pattern (`middleware.mjs`, replacer functions now). Split out:
-  [login-form-hydration-race.md](./login-form-hydration-race.md), [login-token-password-stamp.md](./login-token-password-stamp.md).
+  [login-form-hydration-race.md](../completed/login-form-hydration-race.md), [login-token-password-stamp.md](./login-token-password-stamp.md).

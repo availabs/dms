@@ -1,9 +1,9 @@
 # Auth: a read whose subject misses reloads the whole app snapshot, every time
 
-**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) (primary), [dms_permissions_move](../../../../../planning/initiatives/dms_permissions_move.md) · **Status:** built · **Release:** commit — code + test on branch `tenant-domains`, uncommitted; step 4 (hub mirror reconcile) is the owner's · **Created by:** ssangdod@albany.edu · **Edited by:** —
+**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) (primary), [dms_permissions_move](../../../../../planning/initiatives/dms_permissions_move.md) · **Status:** done (2026-11-27, owner: committed and deployed) · **Created by:** ssangdod@albany.edu · **Edited by:** —
 
 **Topic:** dms-server / auth · **Filed:** 2026-11-10 (found on the tenant hub rig, during
-[tenant-external-domains.md](./tenant-external-domains.md) Phase A)
+[tenant-external-domains.md](../current/tenant-external-domains.md) Phase A)
 
 ## Objective
 
@@ -49,7 +49,7 @@ if (subject.error && !fresh) subject = await owners.snapshotFor({ …, fresh: tr
   read of a `hazmit_dama` / `npmrds2` source or view misses (`… has no mirror row in <app>
   (reconcile-pgenv-mirror.js)`, `owners.js` :164) and reloads. The copy
   ([tenant-hub-copy-script.md](../../../../../planning/shared/tasks/completed/tenant-hub-copy-script.md))
-  didn't run the mirror reconcile ([pgenv-mirror-into-dms.md](./pgenv-mirror-into-dms.md)).
+  didn't run the mirror reconcile ([pgenv-mirror-into-dms.md](../current/pgenv-mirror-into-dms.md)).
 - Any server running this code with unmirrored external sources has the same exposure. That includes
   the live hub at availabs.com if its data matches the rig's (not checked: production is read-only).
 

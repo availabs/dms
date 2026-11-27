@@ -249,7 +249,7 @@ may get pluggable sub pages like the pattern editor's.
 
 - [pgenv-auth-without-mirror-rows.md](./pgenv-auth-without-mirror-rows.md) — removed the mirror; left the env
   row, `ensureEnvRow` and `attach-pgenv.js`. Has the 2026-11-12 production incident.
-- [auth-snapshot-reload-on-miss.md](./auth-snapshot-reload-on-miss.md) — what an unattached app costs per read.
+- [auth-snapshot-reload-on-miss.md](../completed/auth-snapshot-reload-on-miss.md) — what an unattached app costs per read.
 - [pgenv-mirror-into-dms.md](./pgenv-mirror-into-dms.md) — dropped; first built the env row.
 - [new-app-auth-setup-and-db-constraints.md](./new-app-auth-setup-and-db-constraints.md) — companion:
   what a new app gets by default; attach depends on its formats being registered.

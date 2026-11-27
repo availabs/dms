@@ -1,6 +1,6 @@
 # SSR: rich-text (Lexical) sections render empty in server HTML
 
-**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** built · **Release:** commit — `a0fb4047` has the first pass; the managed-line-break change and the MitigateNY sweep fixes (below) are uncommitted · **Created by:** amuro@albany.edu · **Edited by:** —
+**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** done (2026-11-27, owner: committed and deployed) · **Created by:** amuro@albany.edu · **Edited by:** —
 
 ## Objective
 
@@ -186,7 +186,7 @@ grouped by county/place under a `CASE WHEN owner_type …` filter. The rest take
 
 **The slow queries, fixed at the source (2026-11-17):** an expression index on the BILD table for the section's
 `CASE WHEN owner_type IN ('2') THEN 1 ELSE 0 END`, added through the new source Indexes feature
-([setindex-composite-covering-indexes.md](./setindex-composite-covering-indexes.md)). The query went from a 7.5 s
+([setindex-composite-covering-indexes.md](../current/setindex-composite-covering-indexes.md)). The query went from a 7.5 s
 seq scan (~38 GB read) to ~190 ms (bitmap index scan, 24,881 rows). On 5555 the lightning risk profile now
 server-renders in 3–4 s with every section preloaded (slowest 1.6 s, no budget warnings).
 

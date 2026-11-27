@@ -1,9 +1,9 @@
 # Boot chain — fewer serial hops before first render
 
-**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** built (was: "STATUS: IMPLEMENTED + VERIFIED 2026-09-24 — not committed/deployed (owner).") · **Release:** deploy — commit + deploy-mnyprod (sets VITE_DMS_PRELOAD_THEMES) · **Created by:** amuro@albany.edu · **Edited by:** —
+**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** done (2026-11-27, owner: committed and deployed) · **Created by:** amuro@albany.edu · **Edited by:** —
 
 > Opened 2026-09-24 from the render-delay analysis in
-> [`site-bootstrap-payload-and-pattern-lookup.md`](./site-bootstrap-payload-and-pattern-lookup.md)
+> [`site-bootstrap-payload-and-pattern-lookup.md`](../current/site-bootstrap-payload-and-pattern-lookup.md)
 > ("Render-delay chain on `/`"). Owner asked to implement options 1–4 from that list.
 
 **STATUS: IMPLEMENTED + VERIFIED 2026-09-24 — not committed/deployed (owner).** Real-throttle hero render

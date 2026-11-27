@@ -1,6 +1,6 @@
 # Joined map tiles — nested-loop blowup in the MVT join query
 
-**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** built · **Created by:** rdubowsky@albany.edu · **Edited by:** amuro@albany.edu
+**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** done (2026-11-27, owner: committed and deployed) · **Created by:** rdubowsky@albany.edu · **Edited by:** amuro@albany.edu
 
 **Applied 2026-11-25 (owner: "lets implement it now"), not committed or deployed.** The fix was
 written and measured on 2026-09-18, then backed out the same day when macroview stopped joining in

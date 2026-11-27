@@ -1,6 +1,6 @@
 # A Performance tab on each pattern: run a perf test on the server and read its reports
 
-**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** built · **Created by:** amuro@albany.edu · **Edited by:** amuro@albany.edu
+**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** done (2026-11-27, owner: committed and deployed) · **Created by:** amuro@albany.edu · **Edited by:** amuro@albany.edu
 
 **Project:** DMS library + dms-server · **Topic:** patterns/admin · **Created:** 2026-11-25
 
@@ -9,7 +9,7 @@
 An admin opens a pattern, goes to its **Performance** tab, presses **Run**, and later reads the report: how
 long visitors wait on that pattern's pages, the scorecard and where the time goes, as the `dms perf` report
 already shows. Past runs stay listed so two can be compared. This is phase 6 of
-[perf-measurement-tool.md](./perf-measurement-tool.md) ("results … with a report page"), with a Run button.
+[perf-measurement-tool.md](../current/perf-measurement-tool.md) ("results … with a report page"), with a Run button.
 
 ## Decided (owner, 2026-11-25)
 

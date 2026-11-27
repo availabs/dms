@@ -1,10 +1,10 @@
 # Page load: the router's hydration data carries drafts, the home page and copied metadata
 
-**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** built · **Release:** commit — uncommitted · **Created by:** amuro@albany.edu · **Edited by:** —
+**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** done (2026-11-27, owner: committed and deployed) · **Created by:** amuro@albany.edu · **Edited by:** —
 
 ## Found
 
-2026-11-17, after the BILD index ([setindex-composite-covering-indexes.md](./setindex-composite-covering-indexes.md))
+2026-11-17, after the BILD index ([setindex-composite-covering-indexes.md](../current/setindex-composite-covering-indexes.md))
 made MitigateNY's risk profiles render in 3–4 s: their server-rendered HTML is 10–15 MB. Compressed it is ~0.8 MB on
 the wire, but the browser still unpacks it, parses the HTML and `JSON.parse`s the router data before the page is
 interactive, and the server builds and serializes it on every request.

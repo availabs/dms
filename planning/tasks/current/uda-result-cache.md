@@ -167,7 +167,7 @@ requests and 1.9 s of main-thread work on national-overview, 189 requests on rep
 3. ~~Internal (DMS) datasets in phase 2, or after.~~ Answered 2026-11-25: only datasets with `isEditable`
    false are cached, so internal datasets are never cached.
 4. Whether the server render's shared page data (`render/ssr2/dataVersions.js`, in progress under
-   [ssr-logged-in-render-and-stale-cache.md](./ssr-logged-in-render-and-stale-cache.md)) should shorten its
+   [ssr-logged-in-render-and-stale-cache.md](../completed/ssr-logged-in-render-and-stale-cache.md)) should shorten its
    5-minute age limit once re-reading a page is cheap.
 
 ## Which datasets are editable (checked 2026-11-25)

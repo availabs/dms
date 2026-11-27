@@ -1,6 +1,6 @@
 # A reload of the page on screen keeps its sections; link pages redirect from the loader
 
-**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** built and measured 2026-11-25, not committed · **Created by:** amuro@albany.edu · **Edited by:** amuro@albany.edu
+**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** done (2026-11-27, owner: committed and deployed) · **Created by:** amuro@albany.edu · **Edited by:** amuro@albany.edu
 
 Found 2026-11-25 while tracing why FUSION's `reports` and `export` pages sent every data request three times
 (`uda-result-cache.md`, "The triple fetch on reports and export, traced"). Two separate problems, both on the

@@ -9,7 +9,7 @@ hand-written index ("we always want to empower the author even if figuring it ou
 
 **The case.** Every MitigateNY hazard risk-profile page (`/assess_risk/natural_hazards/<hazard>/risk_profile`, 18
 pages) took ~30 s to server-render and hit dms-server's 30 s request timeout; a budget on the section preload now
-renders them in 4–7 s ([ssr-lexical-view-html.md](./ssr-lexical-view-html.md), *Risk profiles timed out*), but the
+renders them in 4–7 s ([ssr-lexical-view-html.md](../completed/ssr-lexical-view-html.md), *Risk profiles timed out*), but the
 slow sections still take 20–28 s in the visitor's browser. They are a Card and Spreadsheets over **AVAIL BILD 2026
 V1** (`hazmit_dama` source 1649, view 2354, table `gis_datasets.s1649_v2354_parcel_to_footprint_ny_v_2`: 43 GB,
 7.2 M rows), filtered on an author's **calculated column**:
