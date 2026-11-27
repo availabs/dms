@@ -162,6 +162,16 @@ async function main() {
     db.answer = () => [{ loss: 114332726963.3679, label: 'x' }];
     await c.cachedQuery(db, SQL, [1], { tables: ROADS });
     check(c.stats().floatNoise === 1 && c.stats().mismatches === 0, 'shadow: a float sum differing in its last digits is noise, not a mismatch', c.stats());
+    db.answer = () => [{ loss: 2296382687.05 }];
+    await c.cachedQuery(db, 'SELECT 2', [], { tables: ROADS });
+    db.answer = () => [{ loss: 2296382687.0499997 }];
+    await c.cachedQuery(db, 'SELECT 2', [], { tables: ROADS });
+    check(c.stats().floatNoise === 2 && c.stats().mismatches === 0, 'also across a rounding boundary');
+    db.answer = () => [{ geoid: '01107' }];
+    await c.cachedQuery(db, 'SELECT geoid FROM gis.roads LIMIT 1', [], { tables: ROADS });
+    db.answer = () => [{ geoid: '08' }];
+    await c.cachedQuery(db, 'SELECT geoid FROM gis.roads LIMIT 1', [], { tables: ROADS });
+    check(c.stats().unordered === 1 && c.stats().mismatches === 0, 'shadow: a LIMIT with no ORDER BY giving other rows is not a mismatch');
   }
 
   console.log(`\n${passed} passed, ${failed} failed`);

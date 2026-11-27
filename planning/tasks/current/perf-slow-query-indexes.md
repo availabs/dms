@@ -116,3 +116,11 @@ All 84 warm visits: first byte summed 50.6 → 44.7 s, Complete summed 197.4 →
   filter from the sections (an authoring change, page by page), or have the server evaluate the column once
   (e.g. a `LATERAL` subselect), a dms-server change. The new index serves only the energy page's key; the
   other built-environment pages filter other keys (a 150 kB index each if wanted).
+
+## Added 2026-11-26: hazard-type indexes on the actions table
+
+Three more on `gis_datasets.s12453_v13526_actions_cleaned` (hazmit_dama), for the County Template hazard pages'
+server render: `perf_s12453_primary_hazard_idx (primary_hazard_type)`, `perf_s12453_secondary_hazard_idx
+(secondary_hazard_type)`, `perf_s12453_tertiary_hazard_idx ((data->>'tertiary_hazard_type'))`. Built
+`CONCURRENTLY`, analyzed, all valid; CREATE and DROP in `scratchpad/perf-rsc/indexes/indexes3.tsv`. Hail's
+count 614 → 12 ms. Detail in `first-fetch-and-preload-gaps.md`, "County template: the three server fixes".

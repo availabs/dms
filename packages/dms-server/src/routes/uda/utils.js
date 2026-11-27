@@ -81,6 +81,123 @@ function quoteAlias(nameOrExpr) {
   return /^\d/.test(nameOrExpr) ? `"${nameOrExpr}"` : nameOrExpr;
 }
 
+// ============================================= DMS source lookup ===============================================
+
+/**
+ * The data type, column attributes and source id behind a DMS dataset request (`app+sourceSlug`, view id):
+ * up to three reads of the app's main table.
+ */
+async function readDmsSource({ db, mainTbl, app, rawType, view_id }) {
+  // For DMS, the type may be suffixed with -view_id for versioned data
+  let type = rawType;
+  let dmsAttributes;
+
+  if (view_id) {
+    // Look up the view_id item to check if it's versioned data
+    const sanitisedApp = sanitizeName(app);
+
+    if (sanitisedApp) {
+      const versionTypeRows = await db.query(
+        `SELECT type AS version_type FROM ${mainTbl} WHERE app = $1 AND id = $2`,
+        [sanitisedApp, view_id]
+      );
+      const version_type = versionTypeRows?.rows?.[0]?.version_type;
+
+      if (version_type && version_type.includes('|')) {
+        if (getKind(version_type) === 'view') {
+          // New format: view type is '{sourceSlug}|v1:view'
+          // The client sends env as 'app+sourceSlug', so rawType IS the source slug.
+          // Construct data type as '{sourceSlug}|{view_id}:data'
+          const isInvalid = type.endsWith('-invalid-entry');
+          const baseType = isInvalid ? type.replace('-invalid-entry', '') : type;
+          type = isInvalid
+            ? `${baseType}|${view_id}:data-invalid-entry`
+            : `${baseType}|${view_id}:data`;
+
+          // Look up source config by source slug in type column
+          const configRows = await db.query(
+            `SELECT data->>'config' AS config FROM ${mainTbl} WHERE app = $1 AND type LIKE '%|' || $2 || ':source' ORDER BY id DESC LIMIT 1`,
+            [sanitisedApp, rawType]
+          );
+          dmsAttributes = JSON.parse(configRows?.rows?.[0]?.config || '{}')?.attributes || [];
+        } else {
+          // Legacy format: view type has pipes but no :view kind
+          const sanitisedType = sanitizeName(rawType.replace(`-${view_id}`, '').replace('-invalid-entry', ''));
+          if (sanitisedType) {
+            if (!type.endsWith(`-${view_id}`) && !type.endsWith(`${view_id}-invalid-entry`)) {
+              type = type.endsWith('-invalid-entry') && !type.includes(view_id)
+                ? type.replace('-invalid-entry', `${view_id}-invalid-entry`)
+                : `${type}-${view_id}`;
+            }
+
+            const sourceVersionType = version_type.split('|').slice(0, 2).join('|');
+            const configRows = await db.query(
+              `SELECT data->>'config' AS config FROM ${mainTbl} WHERE app = $1 AND type = $2 AND data->>'doc_type' = $3`,
+              [sanitisedApp, sourceVersionType, sanitisedType]
+            );
+            dmsAttributes = JSON.parse(configRows?.rows?.[0]?.config || '{}')?.attributes || [];
+          }
+        }
+      }
+    }
+  }
+
+  // Normalize split type to lowercase — stored data uses lowercase type strings
+  // but the client may send mixed case from doc_type (e.g., 'Actions_Revised-1074456')
+  if (isSplitType(type)) {
+    type = type.toLowerCase();
+  }
+
+  // Look up source_id for split type naming
+  let sourceId = null;
+  if (isSplitType(type)) {
+    // New format: {source}|{view}:data — look up source by instance name in type column
+    const newParsed = parseSplitDataType(type);
+    if (newParsed) {
+      const srcRows = await db.query(
+        `SELECT id FROM ${mainTbl} WHERE app = $1 AND type LIKE '%|' || $2 || ':source' ORDER BY id DESC LIMIT 1`,
+        [app, newParsed.source]
+      );
+      sourceId = srcRows?.rows?.[0]?.id || null;
+    } else {
+      // Legacy format: {docType}-{viewId} — look up source by data.doc_type
+      const parsed = parseType(type);
+      if (parsed && parsed.docType) {
+        const srcRows = await db.query(
+          `SELECT id FROM ${mainTbl} WHERE app = $1 AND lower(${db.type === 'postgres' ? "data->>'doc_type'" : "json_extract(data, '$.doc_type')"}) = lower($2) AND (type LIKE '%|source' OR type LIKE '%:source') ORDER BY id DESC LIMIT 1`,
+          [app, parsed.docType]
+        );
+        sourceId = srcRows?.rows?.[0]?.id || null;
+      }
+    }
+  }
+  return { type, dmsAttributes, sourceId };
+}
+
+// Every query on a DMS dataset starts with that lookup, and a page asks many questions of few datasets: one
+// render of a MitigateNY hazard page made it 57 times for 5 datasets, 171 statements (2026-11-26). Callers
+// asking for the same dataset while a lookup is in flight share it. With the result cache on
+// (./resultCache.js) the answer is also kept for the cache's window, as a view's table is below.
+const _dmsSourceCache = new WeakMap();   // db -> Map(key -> { value: Promise, at, settled })
+
+function dmsSourceOf({ db, mainTbl, app, rawType, view_id }) {
+  let bySource = _dmsSourceCache.get(db);
+  if (!bySource) { bySource = new Map(); _dmsSourceCache.set(db, bySource); }
+  const key = JSON.stringify([mainTbl, app, rawType, view_id == null ? null : String(view_id)]);
+  const cache = resultCache();
+  const keepMs = cache.mode() === 'off' ? 0 : cache.windowMs();
+  const hit = bySource.get(key);
+  if (hit && (!hit.settled || Date.now() - hit.at < keepMs)) return hit.value;
+  if (bySource.size > 5000) bySource.clear();
+  const entry = { value: readDmsSource({ db, mainTbl, app, rawType, view_id }), at: 0, settled: false };
+  bySource.set(key, entry);
+  entry.value.then(
+    () => { entry.settled = true; entry.at = Date.now(); if (!keepMs) bySource.delete(key); },
+    () => { if (bySource.get(key) === entry) bySource.delete(key); }
+  );
+  return entry.value;
+}
+
 // ============================================= Environment Detection ===============================================
 
 /**
@@ -105,92 +222,9 @@ async function getEssentials({ env, view_id, options = {} }) {
     const splitMode = config.splitMode || process.env.DMS_SPLIT_MODE || 'legacy';
     const [app, rawType] = env.split('+');
 
-    // For DMS, the type may be suffixed with -view_id for versioned data
-    let type = rawType;
-    let dmsAttributes;
-
     // Resolve the main table for DMS content lookups (patterns, sources, views)
     const mainTbl = await dmsMainTable(db, app, splitMode);
-
-    if (view_id) {
-      // Look up the view_id item to check if it's versioned data
-      const sanitisedApp = sanitizeName(app);
-
-      if (sanitisedApp) {
-        const versionTypeRows = await db.query(
-          `SELECT type AS version_type FROM ${mainTbl} WHERE app = $1 AND id = $2`,
-          [sanitisedApp, view_id]
-        );
-        const version_type = versionTypeRows?.rows?.[0]?.version_type;
-
-        if (version_type && version_type.includes('|')) {
-          if (getKind(version_type) === 'view') {
-            // New format: view type is '{sourceSlug}|v1:view'
-            // The client sends env as 'app+sourceSlug', so rawType IS the source slug.
-            // Construct data type as '{sourceSlug}|{view_id}:data'
-            const isInvalid = type.endsWith('-invalid-entry');
-            const baseType = isInvalid ? type.replace('-invalid-entry', '') : type;
-            type = isInvalid
-              ? `${baseType}|${view_id}:data-invalid-entry`
-              : `${baseType}|${view_id}:data`;
-
-            // Look up source config by source slug in type column
-            const configRows = await db.query(
-              `SELECT data->>'config' AS config FROM ${mainTbl} WHERE app = $1 AND type LIKE '%|' || $2 || ':source' ORDER BY id DESC LIMIT 1`,
-              [sanitisedApp, rawType]
-            );
-            dmsAttributes = JSON.parse(configRows?.rows?.[0]?.config || '{}')?.attributes || [];
-          } else {
-            // Legacy format: view type has pipes but no :view kind
-            const sanitisedType = sanitizeName(rawType.replace(`-${view_id}`, '').replace('-invalid-entry', ''));
-            if (sanitisedType) {
-              if (!type.endsWith(`-${view_id}`) && !type.endsWith(`${view_id}-invalid-entry`)) {
-                type = type.endsWith('-invalid-entry') && !type.includes(view_id)
-                  ? type.replace('-invalid-entry', `${view_id}-invalid-entry`)
-                  : `${type}-${view_id}`;
-              }
-
-              const sourceVersionType = version_type.split('|').slice(0, 2).join('|');
-              const configRows = await db.query(
-                `SELECT data->>'config' AS config FROM ${mainTbl} WHERE app = $1 AND type = $2 AND data->>'doc_type' = $3`,
-                [sanitisedApp, sourceVersionType, sanitisedType]
-              );
-              dmsAttributes = JSON.parse(configRows?.rows?.[0]?.config || '{}')?.attributes || [];
-            }
-          }
-        }
-      }
-    }
-
-    // Normalize split type to lowercase — stored data uses lowercase type strings
-    // but the client may send mixed case from doc_type (e.g., 'Actions_Revised-1074456')
-    if (isSplitType(type)) {
-      type = type.toLowerCase();
-    }
-
-    // Look up source_id for split type naming
-    let sourceId = null;
-    if (isSplitType(type)) {
-      // New format: {source}|{view}:data — look up source by instance name in type column
-      const newParsed = parseSplitDataType(type);
-      if (newParsed) {
-        const srcRows = await db.query(
-          `SELECT id FROM ${mainTbl} WHERE app = $1 AND type LIKE '%|' || $2 || ':source' ORDER BY id DESC LIMIT 1`,
-          [app, newParsed.source]
-        );
-        sourceId = srcRows?.rows?.[0]?.id || null;
-      } else {
-        // Legacy format: {docType}-{viewId} — look up source by data.doc_type
-        const parsed = parseType(type);
-        if (parsed && parsed.docType) {
-          const srcRows = await db.query(
-            `SELECT id FROM ${mainTbl} WHERE app = $1 AND lower(${db.type === 'postgres' ? "data->>'doc_type'" : "json_extract(data, '$.doc_type')"}) = lower($2) AND (type LIKE '%|source' OR type LIKE '%:source') ORDER BY id DESC LIMIT 1`,
-            [app, parsed.docType]
-          );
-          sourceId = srcRows?.rows?.[0]?.id || null;
-        }
-      }
-    }
+    const { type, dmsAttributes, sourceId } = await dmsSourceOf({ db, mainTbl, app, rawType, view_id });
 
     // Resolve the correct table for this (app, type) pair
     const { schema: table_schema, table: table_name } = resolveTable(app, type, db.type, splitMode, sourceId);

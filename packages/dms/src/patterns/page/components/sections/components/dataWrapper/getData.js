@@ -365,28 +365,48 @@ export const getData = async ({
         optionsOnly && options.groupBy.length > 0 && !state.display?.usePagination;
     const OPTIONS_LIMIT = state.display?.optionsLimit ?? 1000;
 
-    let length;
-    try {
-        debugTime && console.time('length')
-        length = isRequestingSingleRow
-            ? 1
-            : isOptionsLoad
-                ? OPTIONS_LIMIT
-                : Number.isFinite(knownLength) && knownLength >= 0
-                    ? knownLength
-                    : await getLength({ options, state, apiLoad });
-        debugTime && console.timeEnd('length')
-    } catch (e) {
-        console.error("Error:", e);
-        return { length: 0, data: [], invalidState: "An Error occurred while fetching data." };
-    }
-    const actionType = "uda";
     // A pivot cross-tab returns one row per row-group (bounded by `length`) and has no
-    // pagination UI — always fetch the full set. Also coerce pageSize to a safe number:
+    // pagination UI — always fetch the full set.
+    const loadAllRows = isPivotMode || fullDataLoad;
+    const hasKnownLength = Number.isFinite(knownLength) && knownLength >= 0;
+    // The count and the rows are two full runs of the same query, and a page of rows doesn't need the count to
+    // be asked for: its window comes from the pager. So the two go out together and the rows are cut to the
+    // count when both are back. On a table with no index for the section's filters that halves the wait (0.6 s
+    // + 0.6 s one after the other on MitigateNY's actions table). Only a load of ALL rows waits for the count,
+    // which is its window. `length` is Infinity until `lengthLater` settles.
+    const countWithRows = !isRequestingSingleRow && !isOptionsLoad && !hasKnownLength && !loadAllRows;
+    let length;
+    let lengthLater = null;
+    if (countWithRows) {
+        lengthLater = getLength({ options, state, apiLoad });
+        lengthLater.catch(() => {});      // awaited below; never an unhandled rejection on an early return
+        length = Infinity;
+    } else {
+        try {
+            debugTime && console.time('length')
+            length = isRequestingSingleRow
+                ? 1
+                : isOptionsLoad
+                    ? OPTIONS_LIMIT
+                    : hasKnownLength
+                        ? knownLength
+                        : await getLength({ options, state, apiLoad });
+            debugTime && console.timeEnd('length')
+        } catch (e) {
+            console.error("Error:", e);
+            return { length: 0, data: [], invalidState: "An Error occurred while fetching data." };
+        }
+    }
+    // the count, for a return that comes before the rows are asked for
+    const lengthNow = async () => {
+        if (!lengthLater) return length;
+        try { return await lengthLater; } catch (e) { console.error("Error:", e); return 0; }
+    };
+    const actionType = "uda";
+    // Coerce pageSize to a safe number:
     // a `usePagination:false` section can omit pageSize, and `currentPage * undefined`
     // is NaN, which serializes to a null `dataByIndex` range → the server returns 0 rows
     // and the section hangs on "loading..." (route-comparison pivot page bug).
-    const loadAllRows = isPivotMode || fullDataLoad;
     const safePageSize = Number(state.display?.pageSize) > 0 ? Number(state.display.pageSize) : 25;
     // `display.rowOffset` — skip the first N rows of the section's OWN result.
     //
@@ -410,7 +430,8 @@ export const getData = async ({
         : loadAllRows
             ? length - 1
             : Math.min(length, offset + currentPage * safePageSize + safePageSize) - 1;
-    if (fromIndex >= length) {
+    // What a window that starts at or past the end of the result returns.
+    const pastTheEnd = () => {
         // Empty-result fallback. Opt-in via `display.useBlankRowFallback`.
         // When the real query returned 0 rows AND the section has opted in,
         // synthesize a single placeholder row keyed by the same
@@ -448,7 +469,8 @@ export const getData = async ({
             return { length: 1, data: [blankRow], outputSourceInfo };
         }
         return { length, data: [] };
-    }
+    };
+    if (fromIndex >= length) return pastTheEnd();
     debugTime && console.timeEnd('check indices')
 
     // ─── Check columns to fetch ───────────────────────────────────────────────
@@ -458,7 +480,7 @@ export const getData = async ({
     if (!columnsToFetch.length) {
         const hasVisibleStaticColumns = (state.columns || []).some(c => c.show && c.origin === 'static');
         if (!hasVisibleStaticColumns) {
-            return { length, data: [] };
+            return { length: await lengthNow(), data: [] };
         }
         // Only static columns visible — fall through so the id column gets added below
     }
@@ -545,7 +567,7 @@ export const getData = async ({
                 : groupNoFnCondition
                     ? `All Non grouped columns must have a function applied. # Non grouped columns: ${nonGroupedColumnsLength}, # Function applied: ${fnColumnsLength}.`
                     : "";
-            return { length, data: [], invalidState: invalidStateText };
+            return { length: await lengthNow(), data: [], invalidState: invalidStateText };
         }
         debugTime && console.timeEnd('check invalid')
     }
@@ -568,12 +590,17 @@ export const getData = async ({
     let data;
 
     try {
-        debugTime && console.time('apiLoad')
-        data = await apiLoad({ format: sourceInfo, children }, "/");
+        debugTime && console.time('apiLoad');
+        [data, length] = await Promise.all([apiLoad({ format: sourceInfo, children }, "/"), lengthLater ?? length]);
         debugTime && console.timeEnd('apiLoad')
     } catch (e) {
         if (process.env.NODE_ENV === "development") console.error(e);
-        return { length, data: [], invalidState: "An Error occurred while fetching data." };
+        return { length: Number.isFinite(length) ? length : 0, data: [], invalidState: "An Error occurred while fetching data." };
+    }
+    if (lengthLater) {
+        // the window was asked for without the count: cut it to the result's end
+        if (fromIndex >= length) return pastTheEnd();
+        data = data.slice(0, length - fromIndex);
     }
 
     // Option lists carry no length query, so the true count is whatever came

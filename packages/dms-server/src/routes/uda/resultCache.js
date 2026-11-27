@@ -42,8 +42,16 @@ const MAX_TRACKED_TABLES = 2000;
 // SQL whose answer depends on when it runs
 const VOLATILE = /\b(now|clock_timestamp|statement_timestamp|transaction_timestamp|timeofday|random|gen_random_uuid|nextval)\s*\(|\bcurrent_(date|time|timestamp)\b|\blocaltime(stamp)?\b/i;
 
-// every decimal number in a JSON text at 11 significant digits, for comparing two runs of one query
-const roundFloats = (json) => json.replace(/-?\d+\.\d+(?:e[+-]?\d+)?/gi, (n) => Number(n).toPrecision(11));
+// Whether two JSON texts are the same but for the last digits of their decimal numbers (one part in a
+// billion), for comparing two runs of one query.
+const DECIMAL = /-?\d+\.\d+(?:e[+-]?\d+)?/gi;
+function sameButFloats(a, b) {
+  if (a.replace(DECIMAL, '#') !== b.replace(DECIMAL, '#')) return false;
+  const na = a.match(DECIMAL) || []; const nb = b.match(DECIMAL) || [];
+  return na.length === nb.length && na.every((x, i) => Math.abs(x - nb[i]) <= 1e-9 * Math.max(1, Math.abs(x), Math.abs(nb[i])));
+}
+// A LIMIT with no ORDER BY asks for any rows that match: two runs may each give different ones.
+const anyRows = (sql) => /\bLIMIT\b/i.test(sql) && !/\bORDER\s+BY\b/i.test(sql);
 
 const numberEnv = (name, fallback) => {
   const v = Number(process.env[name]);
@@ -94,7 +102,7 @@ function createResultCache(overrides = {}) {
   const dbs = new WeakMap();
   const counts = {
     queries: 0, hits: 0, wouldHits: 0, misses: 0, shared: 0, stored: 0, stale: 0, expired: 0,
-    mismatches: 0, floatNoise: 0, probes: 0, probeMs: 0, probeErrors: 0,
+    mismatches: 0, floatNoise: 0, unordered: 0, probes: 0, probeMs: 0, probeErrors: 0,
     notCached: { editable: 0, noTables: 0, volatile: 0, noCounters: 0, tooBig: 0, notPostgres: 0 },
   };
 
@@ -215,7 +223,9 @@ function createResultCache(overrides = {}) {
         // A float sum over parallel workers is added in a different order each run, so the same query on the
         // same rows differs in its last digits (seen on every FUSION page, 2026-11-25). That is not a stale
         // answer: counted apart, and never reported.
-        if (kept && kept.json !== json && roundFloats(kept.json) === roundFloats(json)) counts.floatNoise++;
+        // So does a query that asks for any matching rows (LIMIT with no ORDER BY).
+        if (kept && kept.json !== json && sameButFloats(kept.json, json)) counts.floatNoise++;
+        else if (kept && kept.json !== json && anyRows(sql)) counts.unordered++;
         else if (kept && kept.json !== json) {
           counts.mismatches++;
           if (counts.mismatches <= 20) {

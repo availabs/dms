@@ -1,20 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { isEqual, uniqBy } from "lodash-es"
+import { isEqual } from "lodash-es"
 import { PageContext, ComponentContext } from "../../../../../../context";
-import { attributeAccessorStr, isJson } from "../../utils/utils";
-import {
-    getData,
-    parseIfJson,
-    getFilters,
-    isCalculatedCol,
-    formattedAttributeStr,
-    getNormalFilters, getData as getFilterData, isSystemCol
-} from "./utils"
+import { getFilters } from "./utils"
+import { loadFilterOptions, filterOptionsKey } from "./loadFilterOptions";
 import { RenderFilterValueSelector } from "./Components/RenderFilterValueSelector";
 import { ThemeContext, getComponentTheme } from "../../../../../../../../ui/useTheme";
 import { filterTheme } from "./RenderFilters.theme";
 
 const filterValueDelimiter = '|||';
+// how recent preloaded option lists must be to stand in for the first load (as PRELOAD_FRESH_MS, useDataLoader.js)
+const PRELOADED_OPTIONS_FRESH_MS = 120000;
 
 const gridClasses = {
     1: 'grid-cols-1',
@@ -30,19 +25,23 @@ export const RenderFilters = ({ isEdit, defaultOpen = true }) => {
     const { Icon, Button } = UI;
     const { pageState, updatePageStateFilters } = React.useContext(PageContext) || {}; // page to extract page filters
     const [open, setOpen] = useState(defaultOpen);
-    const [filterOptions, setFilterOptions] = useState([]); // [{column, uniqValues}]
+    // Option lists the page loader read for this page load (api/preloadSectionData.js, `display.filterOptions`:
+    // { key, at, options }). Used in place of the first load while the filters they were read for still
+    // stand (the key); a copy saved with the section's settings carries an old time and is not used.
+    const [preloadedOptions] = useState(() => {
+        const p = state?.display?.filterOptions;
+        return !isEdit && p?.key && Array.isArray(p.options) && Math.abs(Date.now() - Number(p.at)) < PRELOADED_OPTIONS_FRESH_MS ? p : null;
+    });
+    const [filterOptions, setFilterOptions] = useState(() => preloadedOptions?.options || []); // [{column, uniqValues}]
+    const loadedOnceRef = React.useRef(false);
     const [loading, setLoading] = useState(false);
     const isDms = state.externalSource?.isDms;
     const filterColumnsToTrack = useMemo(() => (state.columns || []).filter(({ filters, isDuplicate }) => filters?.length && !isDuplicate), [state.columns]);
     const filterValuesToTrack = useMemo(() =>
         (state.columns || []).filter(({ filters, isDuplicate }) => filters?.length && filters?.[0]?.values?.length && !isDuplicate).reduce((acc, f) => {acc.push(f.filters[0].values); return acc;}, []), [state.columns]);
-    const normalFilterColumnsToTrack = useMemo(() => (state.columns || []).filter(({ filters, isDuplicate }) => filters?.length && isDuplicate), [state.columns]);
     const filters = useMemo(() => getFilters(filterColumnsToTrack), [filterColumnsToTrack]);
-    const normalFilters = useMemo(() => getNormalFilters(normalFilterColumnsToTrack), [normalFilterColumnsToTrack]);
 
     const debug = false;
-    const getFormattedAttributeStr = useCallback((column) => formattedAttributeStr(column, isDms, isCalculatedCol(column, state.columns)), [state.columns, isDms]);
-    const getAttributeAccessorStr = useCallback((column) => attributeAccessorStr(column, isDms, isCalculatedCol(column, state.columns), isSystemCol(column, state.columns)), [state.columns, isDms]);
     const filterWithSearchParamKeys = useMemo(() =>
         Object.keys(filters).reduce((acc, filterColumn) => {
             const currFilters = (state.columns || []).find(c => c.name === filterColumn)?.filters; // for now, it's always just 1 filter.
@@ -100,133 +99,15 @@ export const RenderFilters = ({ isEdit, defaultOpen = true }) => {
     }, [filters, pageState?.filters]);
 
     useEffect(() => {
+        if (preloadedOptions && preloadedOptions.key === filterOptionsKey(state, isEdit)) {
+            if (!isEqual(preloadedOptions.options, filterOptions)) setFilterOptions(preloadedOptions.options);
+            return;
+        }
         // fetch filter data
         async function load() {
+            loadedOnceRef.current = true;
             setLoading(true);
-            const fetchedFilterData = await Promise.all(
-                [...Object.keys(filters), ...normalFilters?.map(f => f.column)]
-                    // don't pull filter data for internal filters in view mode
-                    .filter(f => {
-                        const filter = (state.columns || []).find(({ name }) => name === f)?.filters?.[0];
-
-                        if (['gt', 'gte', 'lt', 'lte', 'like'].includes(filter.operation)) return false; // never load numerical data
-                        if (isEdit) return true;
-                        if (filter?.type === 'external') return true;
-                    })
-                    .map(async columnName => {
-                        // STATIC options: a column may carry an author-provided `options`
-                        // [{value,label}] list (e.g. months with no real DB column) — use it
-                        // directly and skip the DB query. Opt-in; no impact on data-driven filters.
-                        const staticCol = (state.columns || []).find(c => c.name === columnName);
-                        if (Array.isArray(staticCol?.options) && staticCol.options.length) {
-                            return { column: columnName, uniqValues: staticCol.options.map(o => ({ label: o.label ?? o.value, value: o.value })) };
-                        }
-                        // other filter values to filter by
-
-                        const filterBy = await Object.keys(filters)
-                            .filter(f => f !== columnName)
-                            .reduce(async (accPromise, columnName) => {
-                                const acc = await accPromise;
-
-                                const filterColumn = (state.columns || []).find(({ name }) => name === columnName);
-                                const filter = filterColumn?.filters?.[0];
-                                if (!filter?.values?.length) return acc;
-
-                                if (filterColumn.type === 'multiselect') {
-                                    const reqName = getFormattedAttributeStr(columnName);
-                                    const options = await getFilterData({
-                                        reqName,
-                                        refName: getAttributeAccessorStr(columnName),
-                                        allAttributes: [filterColumn],
-                                        apiLoad,
-                                        format: state.externalSource,
-                                    });
-
-                                    const selectedValues = filter.values
-                                        .map(o => o?.value || o)
-                                        .map(o => o === null ? 'null' : o)
-                                        .filter(o => o);
-
-                                    const matchedOptions = options
-                                        .map(row => {
-                                            const option = row[reqName]?.value || row[reqName];
-                                            const parsedOption =
-                                                isJson(option) && Array.isArray(JSON.parse(option)) ? JSON.parse(option) :
-                                                    Array.isArray(option) ? option :
-                                                        typeof option === 'string' ? [option] : [];
-                                            return parsedOption.find(o => selectedValues.includes(o)) ? option : null;
-                                        })
-                                        .filter(option => option);
-
-                                    acc[filter.operation] = {
-                                        ...(acc[filter.operation] || {}),
-                                        [getAttributeAccessorStr(columnName)]: matchedOptions
-                                    };
-                                } else {
-                                    const values = ['gt', 'gte', 'lt', 'lte', 'like'].includes(filter.operation) ? filter.values[0] : filter.values;
-                                    acc[filter.operation] = {
-                                        ...(acc[filter.operation] || {}),
-                                        [getAttributeAccessorStr(columnName)]: values
-                                    };
-                                }
-
-                                return acc;
-                            }, Promise.resolve({}));
-
-                        // get all the filters with value
-                        // build a filterOptions object including each filter type (filter, exclude, gt, gte...),
-                        // for filter and exclude types, and multiselect column combination, pull value sets for
-                        // optional per-column option ordering by an aggregate (e.g. busiest-first by
-                        // sum(aadt)); when set, the query orders the options and we keep that order.
-                        const optionOrderBy = (state.columns || []).find(c => c.name === columnName)?.optionOrderBy;
-                        let data = await getData({
-                            format: state.externalSource,
-                            apiLoad,
-                            // length,
-                            reqName: getFormattedAttributeStr(columnName), // column name with as
-                            refName: getAttributeAccessorStr(columnName), // column name without as
-                            rawName: columnName, // column name without accessor (response name)
-                            allAttributes: state.columns,
-                            filterBy,
-                            orderBy: optionOrderBy
-                        })
-
-                        // console.log('fo data?', columnName, data)
-
-                        // not adding options from meta to allow options to filter down wrt other filter values
-                        const metaOptions = [] //(state.columns || []).find(({name}) => name === columnName)?.options;
-                        const formattedAttrStr = getFormattedAttributeStr(columnName);
-
-                        const dataOptions = data.reduce((acc, d, i) => {
-
-                            const responseValue = d[formattedAttrStr]?.value || d[formattedAttrStr];
-
-                            const metaValue = parseIfJson(responseValue?.value || responseValue);
-
-                            const originalValue = parseIfJson(responseValue?.originalValue || responseValue);
-
-                            const value = Array.isArray(originalValue)
-                                ? originalValue.map((pv, i) => ({ label: metaValue?.[i] || pv, value: pv }))
-                                : [{ label: metaValue || originalValue, value: originalValue }];
-                            value.forEach(({ label, value }) => { if (label && typeof label !== 'object') acc.push({ label, value }); });
-                            return acc;
-                        }, []);
-                        debug && console.log('debug filters: data', data)
-                        const uniq = uniqBy(Array.isArray(metaOptions) ? [...metaOptions, ...dataOptions] : dataOptions, d => d.value);
-                        return {
-                            column: columnName,
-                            // optionOrderBy → preserve the query's aggregate order (uniqBy keeps first-seen
-                            // order); otherwise the default alphabetical/numeric sort.
-                            // numeric:true = NATURAL sort, so numbered labels order by value
-                            // ("Region 2" before "Region 10" — plain localeCompare put 10/11
-                            // between 1 and 2). Identical to alphabetical for unnumbered labels.
-                            uniqValues: optionOrderBy ? uniq : uniq.sort((a, b) =>
-                                typeof a?.label === 'string' && typeof b?.label === 'string' ?
-                                    a.label.localeCompare(b.label, undefined, { numeric: true, sensitivity: 'base' }) :
-                                    b?.label - a?.label
-                            ),
-                        }
-                    }));
+            const fetchedFilterData = await loadFilterOptions({ state, apiLoad, isEdit });
 
             debug && console.log('debug filters: filter data use effect', fetchedFilterData)
             if(!isEqual(fetchedFilterData, filterOptions)){
@@ -237,7 +118,8 @@ export const RenderFilters = ({ isEdit, defaultOpen = true }) => {
             }
         }
 
-        const timeoutId = setTimeout( () => load(), 300);
+        // the debounce collects quick changes; the first load has none to collect
+        const timeoutId = setTimeout( () => load(), loadedOnceRef.current ? 300 : 0);
         return () => {
             clearTimeout(timeoutId)
             setLoading(false);

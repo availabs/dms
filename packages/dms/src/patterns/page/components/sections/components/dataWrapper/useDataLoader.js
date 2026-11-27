@@ -96,8 +96,15 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
   // Seed the dedup ref when state already has data (e.g., from preloadSectionData).
   // This prevents the load effect from re-fetching data that was already loaded
   // server-side during the route loader phase.
+  // Rows the page loader read for THIS load (preloadSectionData stamps display.preloadedAt). Read once, at mount.
+  const [preloadedForThisLoad] = useState(() => {
+    const at = Number(state?.display?.preloadedAt);
+    return Boolean(at) && Math.abs(Date.now() - at) < PRELOAD_FRESH_MS;
+  });
+  // ...also when that preload found no rows: an empty result is an answer, and asking again in the browser
+  // returned the same nothing.
   const lastFetchKeyRef = useRef(
-    state.data?.length && (state.externalSource?.source_id || state.externalSource?.isDms) ? computeFetchKey(state) : null
+    (state.data?.length || preloadedForThisLoad) && (state.externalSource?.source_id || state.externalSource?.isDms) ? computeFetchKey(state) : null
   );
   const outputSourceInfoRef = useRef(null);
   // Generation counter shared by the main load effect and onPageChange — both
@@ -260,10 +267,7 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
   // display.preloadedAt) already are, so the first fetch would only repeat the server's query: with
   // preload_data on, every 'force' section ran twice per view. A saved copy of preloaded rows carries an old
   // stamp, and a section the preload left to its own fetch (over budget) has none, so both still fetch.
-  const [skipFirstForced] = useState(() => {
-    const at = Number(state?.display?.preloadedAt);
-    return Boolean(at) && Math.abs(Date.now() - at) < PRELOAD_FRESH_MS;
-  });
+  const skipFirstForced = preloadedForThisLoad;
   const firstForcedSkippedRef = useRef(false);
 
   // islands path (render/islands, static-html-islands.md): in the server's capture pass, a section that will
@@ -335,7 +339,10 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
       }
 
       load();
-    }, DEBOUNCE_MS);
+    // The debounce collects quick settings changes into one request. A section that has never loaded has
+    // none to collect, and waiting 300 ms before its first request only delayed the page (measured on
+    // FUSION, 2026-11-25). Still a timeout: a page-filter sync in the same commit cancels it and asks once.
+    }, lastFetchKeyRef.current === null && inFlightKeyRef.current === null ? 0 : DEBOUNCE_MS);
 
     return () => clearTimeout(timeoutId);
   }, [fetchKey, readyToLoad, bypassDedup, isValidState, hasLocalFilters, localFilters, gatedOnRequiredFilter]);
