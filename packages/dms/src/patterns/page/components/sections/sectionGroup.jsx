@@ -75,11 +75,14 @@ export default function SectionGroup ({group, attributes, edit}) {
   // it so the rail always has an author-reachable content area.
   const sidebarGroup = groupSource.find(g => g?.position === 'sidebar' || g?.name === 'sidebar')
       || { name: 'sidebar', position: 'sidebar', index: 99, theme: 'content' }
-  const SectionArrayComp = React.useMemo(() => {
-      return edit ?
+  // Held for the life of the band, in state: `attributes.sections.ViewComp` is a new function every time the
+  // manager builds its attributes (dms-manager/_utils.jsx getViewComp), and a new component type here rebuilds
+  // every section of the band. A `useMemo(…, [])` did not hold it: the React Compiler (production builds)
+  // re-derives a memo's dependencies, so each reload of the page's data (sync's start-up loads) remounted the
+  // sections and they fetched their rows again. See planning/tasks/current/page-reload-keeps-sections.md.
+  const [SectionArrayComp] = React.useState(() => edit ?
         ( attributes?.['sections']?.EditComp || SectionArray?.EditComp ) :
-        ( attributes?.['sections'].ViewComp || SectionArray?.ViewComp )
-  }, [])
+        ( attributes?.['sections'].ViewComp || SectionArray?.ViewComp ))
 
   // ── Collapsible band (`group.collapsible`) ──
   // View mode only: in edit mode every section shows, so authors see what they edit. Opens at

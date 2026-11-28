@@ -1,6 +1,6 @@
 # Sign-in form: text typed before the page hydrates is lost
 
-**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** built and checked on the hub 2026-11-22; not committed or deployed · **Created by:** amuro@albany.edu · **Edited by:** amuro@albany.edu
+**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** done (2026-11-27, owner: committed and deployed) · **Created by:** amuro@albany.edu · **Edited by:** amuro@albany.edu
 
 ## Objective
 

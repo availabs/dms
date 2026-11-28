@@ -1,8 +1,8 @@
 # Page preload reads its per-type load config from the component registry
 
-**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** built · **Release:** deploy — client build (owner) · **Created by:** amuro@albany.edu · **Edited by:** —
+**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** done (2026-11-27, owner: committed and deployed) · **Created by:** amuro@albany.edu · **Edited by:** —
 
-**Topic:** api · **Found:** 2026-11-10 (while fixing [pattern-filter-sync-full-data-load.md](./pattern-filter-sync-full-data-load.md))
+**Topic:** api · **Found:** 2026-11-10 (while fixing [pattern-filter-sync-full-data-load.md](../current/pattern-filter-sync-full-data-load.md))
 
 ## Objective
 

@@ -1,4 +1,5 @@
 import { FilterEdit, FilterView } from './FilterComponent'
+import { trimDataWrapperForView } from '../dataWrapper/trimForView'
 
 // Build the "Filter style" options from the resolved `filters` theme block, so a
 // site author picks a whole NAMED filter DESIGN (e.g. 'panel', 'chip', 'labeled',
@@ -35,6 +36,10 @@ export default {
     // pagination, no displayed total — so getData skips the length round-trip and
     // fetches up to display.optionsLimit (default 1000). See getData.js.
     optionsOnly: true,
+    // the page loader reads its option lists (and the one row the dataWrapper asks for) before first render,
+    // so the control is ready when it mounts instead of four requests later (api/preloadSectionData.js)
+    preloadData: true,
+    trimForView: trimDataWrapperForView,
     defaultState: {
         filters: { op: 'AND', groups: [] },
         columns: [],

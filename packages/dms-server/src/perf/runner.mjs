@@ -34,6 +34,9 @@ async function launch() {
   const args = ['--enable-features=SoftNavigationHeuristics', '--disable-extensions'];
   // in a container, as root: Chrome's sandbox can't start, and /dev/shm is small
   if (process.getuid?.() === 0) args.push('--no-sandbox', '--disable-dev-shm-usage');
+  // extra switches, space-separated. A headless browser draws WebGL in software unless told otherwise, and a map
+  // section then costs seconds of main thread it doesn't cost a visitor: see documentation/dms-server-env.md
+  if (process.env.DMS_PERF_CHROME_ARGS) args.push(...process.env.DMS_PERF_CHROME_ARGS.split(/\s+/).filter(Boolean));
   const exe = CHROME_PATHS()[0];
   if (exe || process.env.DMS_PERF_CHROME) return chromium.launch({ executablePath: exe || process.env.DMS_PERF_CHROME, args });
   try { return await chromium.launch({ channel: 'chrome', args }); }

@@ -57,6 +57,7 @@ registers `{ mapeditor, qa, chat }` in `app/src/plugins/index.js`, imported by b
 | Key | The core reads it in | It gets / is | App users | For |
 |---|---|---|---|---|
 | `siteConfig` (required, array) | C `render/spa/utils/index.js` `pattern2routes` | the config-function contract, plus `sitePatterns` | mapeditor, qa, chat | routes for the type's pattern rows |
+| ↳ `preload` on a `siteConfig` entry | C `render/dmsPageFactory.jsx` loader, after the route's rows load (server and browser) | `async (falcor, data, request, params, { reload, shown }) → data`; may `throw redirect(…)`. `reload`: the loader is re-reading the page already on screen; `shown`: the loader data on screen then | page (section rows before first render; a link page's redirect) | add to, or redirect from, a route's loader data |
 | `label`, `description`, `admin.addable/order/defaultName` | C `patterns/admin/components/AddPatternPicker.jsx`, `admin.format.js` | data | all three | the type select and Add Pattern cards |
 | `admin.usesDmsEnv` | C `patterns/admin/pages/patternEditor/default/settings.jsx` | bool | mapeditor | shows the dmsEnv picker |
 | `admin.duplicable` | C `utils/adminPermissions.js`, `patterns/admin/components/patternList.jsx` | bool | qa, chat | `false` hides Duplicate |

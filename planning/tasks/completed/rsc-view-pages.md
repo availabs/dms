@@ -19,7 +19,7 @@ router, reached a route at a time.
 
 Today a view page sends three things: the HTML, the loader data again as JSON (so React can re-render the same
 HTML in the browser), and the JavaScript for every section type, the editor included. After
-[page-hydration-payload.md](../current/page-hydration-payload.md) the lightning risk profile is 3.87 MB of HTML, most of
+[page-hydration-payload.md](./page-hydration-payload.md) the lightning risk profile is 3.87 MB of HTML, most of
 it that JSON; the client build in `dist/` is 9.8 MB of JS in 167 files (2.08 MB in the main chunk).
 
 | | today | with server components |
@@ -93,7 +93,7 @@ Not a gain either: total server work. The same queries run. Caching (phase 7) is
   the loader, with a 5 s budget, and writes the rows into the section's settings. A server section replaces
   that with its own `await`.
 - **The server renders logged out.** `handler.jsx` never reads the user;
-  [ssr-logged-in-render-and-stale-cache.md](../current/ssr-logged-in-render-and-stale-cache.md) is open. A server
+  [ssr-logged-in-render-and-stale-cache.md](./ssr-logged-in-render-and-stale-cache.md) is open. A server
   component that decides what a user may see has to know the user (design §6).
 - **Two bugs are open in client navigation** (stale content after a click; `sectionSource.find is not a
   function`), both in page-hydration-payload.md. The RSC router replaces the code they live in for view pages.
@@ -243,7 +243,7 @@ Today `view.jsx` keeps page state in memory and sections talk through it (`setAc
 
 The login token lives in the browser's `localStorage` (`userToken`). A page request never carries it, so the
 server always renders as a signed-out visitor
-([ssr-logged-in-render-and-stale-cache.md](../current/ssr-logged-in-render-and-stale-cache.md), issues 1 and 2). Today
+([ssr-logged-in-render-and-stale-cache.md](./ssr-logged-in-render-and-stale-cache.md), issues 1 and 2). Today
 the browser re-renders once it has read the token. A server-rendered section can't be corrected that way: the
 browser has neither its code nor its data. So the server must know the user on the first request.
 
@@ -912,7 +912,7 @@ it says so.
     per-user route tree), or reading rows the user's grants make public from the shared model, would recover most
     of it. (Signed-in RSC rendering, the other half of this item, is S9.)
 19. **Not performance, found on the way (S5), both fixed in S9 with tasks of their own:** the sign-in form lost
-    text typed before it hydrated ([login-form-hydration-race.md](../current/login-form-hydration-race.md)); the login
+    text typed before it hydrated ([login-form-hydration-race.md](./login-form-hydration-race.md)); the login
     token carried the user's bcrypt password hash ([login-token-password-stamp.md](../current/login-token-password-stamp.md)).
 
 ## Phases
@@ -1089,7 +1089,7 @@ today's SSR and a signed-in `.rsc` navigation got a document redirect. Now:
   the page's data script, which then failed to parse ("Invalid or unexpected token"), and the browser rendered
   the page a second time below the server's copy. Signed out the page is a no-access screen, so it showed only
   once signed-in pages rendered as the user (phase 1). Fix: replacer functions.
-- Also built: the sign-in form's hydration race ([login-form-hydration-race.md](../current/login-form-hydration-race.md)),
+- Also built: the sign-in form's hydration race ([login-form-hydration-race.md](./login-form-hydration-race.md)),
   the PDF renderer sets the session cookie for the page's host (`dms-server/src/pdf/render.js openTab`), and
   tokens carry a password stamp, not the hash ([login-token-password-stamp.md](../current/login-token-password-stamp.md)).
 
@@ -1133,7 +1133,7 @@ Measured (2026-11-22 00:57–01:59, `chain_rscsi.sh`, phase profile, warm visits
   What would recover it is future direction 18 (signed-in renders start with an empty data cache), but a per-user
   model kept across requests would be as stale as the shared one, and the shared one never refetches page data
   (the zero requests above are issue 3 of
-  [ssr-logged-in-render-and-stale-cache.md](../current/ssr-logged-in-render-and-stale-cache.md), now measured). For editors,
+  [ssr-logged-in-render-and-stale-cache.md](./ssr-logged-in-render-and-stale-cache.md), now measured). For editors,
   who reload to see their own edit, that is worse than 20–60 ms. So: invalidate server-side models on writes
   (issue 3) first, then keep per-user models.
 - **Signed out, 44 pages:** against `p1rm-rsc-on`, Complete ×1.03, first byte ×1.03, first paint ×0.95: no

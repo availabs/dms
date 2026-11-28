@@ -2,6 +2,7 @@
 //import getActiveConfig  from '../dms-manager/getActiveConfig.js'
 import { get } from "lodash-es"
 import {createRequest, getIdPath} from './createRequest.js'
+import { udaRowsFromCache } from './udaRows.js'
 import processNewData from "./proecessNewData.js";
 import updateDMSAttrs from "./updateDMSAttrs.js";
 import { isSplitType } from "../utils/type-utils.js";
@@ -340,7 +341,10 @@ export async function dmsDataLoader (falcor, config, path='/') {
 			console.error('Error getting length')
 		}
 	}
-	const length = get(falcor.getCache(), ['json',...lengthReq], 0);
+	// a dataset request reads its own rows back, not a copy of the whole cache (api/udaRows.js)
+	if(activeConfigs.find(ac => ac.action === 'uda')){
+		return udaRowsFromCache(falcor, newRequests[0]);
+	}
 	// get api response
 	let newReqFalcor = falcor.getCache()
 
@@ -361,12 +365,6 @@ export async function dmsDataLoader (falcor, config, path='/') {
 		const path =  newRequests[0].filter((r, i) => i <= newRequests[0].indexOf('pageTitles'));
 
 		return get(newReqFalcor, path, {});
-	}
-	if(activeConfigs.find(ac => ac.action === 'uda')){
-		// special return for 'uda' action
-		const path =  newRequests[0].filter((r, i) => i <= newRequests[0].indexOf('dataByIndex'));
-		const {from, to} = newRequests[0][newRequests[0].indexOf('dataByIndex') + 1]
-		return Array.from({length: (to + 1 - from)}, (v, k) => get(newReqFalcor, [...path, k+from], {}));
 	}
 
 

@@ -42,6 +42,17 @@ const MAX_TRACKED_TABLES = 2000;
 // SQL whose answer depends on when it runs
 const VOLATILE = /\b(now|clock_timestamp|statement_timestamp|transaction_timestamp|timeofday|random|gen_random_uuid|nextval)\s*\(|\bcurrent_(date|time|timestamp)\b|\blocaltime(stamp)?\b/i;
 
+// Whether two JSON texts are the same but for the last digits of their decimal numbers (one part in a
+// billion), for comparing two runs of one query.
+const DECIMAL = /-?\d+\.\d+(?:e[+-]?\d+)?/gi;
+function sameButFloats(a, b) {
+  if (a.replace(DECIMAL, '#') !== b.replace(DECIMAL, '#')) return false;
+  const na = a.match(DECIMAL) || []; const nb = b.match(DECIMAL) || [];
+  return na.length === nb.length && na.every((x, i) => Math.abs(x - nb[i]) <= 1e-9 * Math.max(1, Math.abs(x), Math.abs(nb[i])));
+}
+// A LIMIT with no ORDER BY asks for any rows that match: two runs may each give different ones.
+const anyRows = (sql) => /\bLIMIT\b/i.test(sql) && !/\bORDER\s+BY\b/i.test(sql);
+
 const numberEnv = (name, fallback) => {
   const v = Number(process.env[name]);
   return process.env[name] !== undefined && Number.isFinite(v) && v >= 0 ? v : fallback;
@@ -91,7 +102,7 @@ function createResultCache(overrides = {}) {
   const dbs = new WeakMap();
   const counts = {
     queries: 0, hits: 0, wouldHits: 0, misses: 0, shared: 0, stored: 0, stale: 0, expired: 0,
-    mismatches: 0, probes: 0, probeMs: 0, probeErrors: 0,
+    mismatches: 0, floatNoise: 0, unordered: 0, probes: 0, probeMs: 0, probeErrors: 0,
     notCached: { editable: 0, noTables: 0, volatile: 0, noCounters: 0, tooBig: 0, notPostgres: 0 },
   };
 
@@ -209,9 +220,20 @@ function createResultCache(overrides = {}) {
 
       if (token !== null) {
         const json = JSON.stringify(result.rows);
-        if (kept && kept.json !== json) {
+        // A float sum over parallel workers is added in a different order each run, so the same query on the
+        // same rows differs in its last digits (seen on every FUSION page, 2026-11-25). That is not a stale
+        // answer: counted apart, and never reported.
+        // So does a query that asks for any matching rows (LIMIT with no ORDER BY).
+        if (kept && kept.json !== json && sameButFloats(kept.json, json)) counts.floatNoise++;
+        else if (kept && kept.json !== json && anyRows(sql)) counts.unordered++;
+        else if (kept && kept.json !== json) {
           counts.mismatches++;
-          if (counts.mismatches <= 20) console.warn(`[uda-cache] shadow: a kept answer differs from the database (${tables.map(t => t.table_name).join(', ')})`);
+          if (counts.mismatches <= 20) {
+            // where the two first differ, with a little of each: tells a changed table from a query whose
+            // answer varies run to run (a float sum over parallel workers, rows with no total order)
+            let i = 0; while (i < json.length && json[i] === kept.json[i]) i++;
+            console.warn(`[uda-cache] shadow: a kept answer differs from the database (${tables.map(t => t.table_name).join(', ')}) at ${i}: kept …${kept.json.slice(Math.max(0, i - 30), i + 30)}… now …${json.slice(Math.max(0, i - 30), i + 30)}…`);
+          }
         }
         if (json.length > MAX_ENTRY_CHARS) counts.notCached.tooBig++;
         // the version read BEFORE the query ran: a write in between leaves a version that no longer matches

@@ -14,7 +14,6 @@ import React from 'react'
 import { getIslandsClientConfig } from './clientConfig.js'
 
 const loadIslandCode = () => import('./islandCode.js')
-const SectionIslands = React.lazy(() => loadIslandCode().then((code) => ({ default: code.SectionIslands })))
 
 // what the reader does to a section before anything in it can respond: point at it, focus into it, touch it
 const WAKE_EVENTS = ['pointerover', 'focusin', 'touchstart']
@@ -40,7 +39,8 @@ function loadPlugins(list = []) {
 export default function IslandHost({ islands }) {
   // null until mounted (nothing renders during hydration), then the keys of the waiting sections now in use
   const [awake, setAwake] = React.useState(null)
-  const [ready, setReady] = React.useState(false)
+  // the island code, once it, the page's plugins and its live sections' lazy chunks are all here
+  const [code, setCode] = React.useState(null)
 
   React.useEffect(() => {
     setAwake(new Set())
@@ -67,14 +67,22 @@ export default function IslandHost({ islands }) {
   React.useEffect(() => {
     if (!needed) return
     let current = true
-    Promise.all([loadIslandCode(), loadPlugins(islands.plugins)]).then(() => { if (current) setReady(true) })
+    // Nothing below may suspend on its first render. A section that waited for a lazy chunk (a Graph's chart
+    // code) showed its boundary's empty fallback first, and React holds the content back for 300 ms after a
+    // fallback, even when the chunk arrives in 5 ms: every page with a live Graph mounted its sections 0.3 s
+    // late (FUSION, 2026-11-25). So the section types' chunks are fetched here, with the rest, and
+    // SectionIslands is rendered from the loaded module, not through React.lazy.
+    const types = islands.sections.map((s) => islands.page?.item?.sections?.[s.index]?.element?.['element-type']).filter(Boolean)
+    Promise.all([loadIslandCode(), loadPlugins(islands.plugins)])
+      .then(([loaded]) => loaded.preloadSectionComponents(types).then(() => loaded))
+      .then((loaded) => { if (current) setCode(loaded) })
     return () => { current = false }
   }, [needed])
 
-  if (!ready) return null
+  if (!code) return null
   return (
     <React.Suspense fallback={null}>
-      <SectionIslands islands={islands} awake={awake} />
+      <code.SectionIslands islands={islands} awake={awake} />
     </React.Suspense>
   )
 }

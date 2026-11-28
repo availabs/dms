@@ -1,6 +1,6 @@
 # SSR: logged-in users get a mismatched first render, and production mode may serve stale pages
 
-**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) (primary), [plat_qa_automation](../../../../../planning/initiatives/plat_qa_automation.md) · **Status:** built (2026-11-25, not committed: issue 3 fixed and checked on a production build; issues 1 and 2 fixed earlier by the session cookie) · **Created by:** rdubowsky@albany.edu · **Edited by:** amuro@albany.edu
+**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) (primary), [plat_qa_automation](../../../../../planning/initiatives/plat_qa_automation.md) · **Status:** done (2026-11-27, owner: committed and deployed) · **Created by:** rdubowsky@albany.edu · **Edited by:** amuro@albany.edu
 
 Found 2026-10-22 on the first local SSR run, ahead of the per-site SSR switch in the parent repo's
 [serve-sites-from-mercury.md](../../../../../planning/shared/tasks/current/serve-sites-from-mercury.md) ("Later").
@@ -73,7 +73,7 @@ then served from memory. `invalidateRoutes()` exists, but nothing calls it. The 
    - (b) keep the route tree cached but give page loads a fresh model;
    - (c) clear the cache when data changes. The SSR mount runs inside dms-server, which sees every write.
 
-   Decide together with [route-build-duplicate-falcor-instances.md](./route-build-duplicate-falcor-instances.md),
+   Decide together with [route-build-duplicate-falcor-instances.md](../current/route-build-duplicate-falcor-instances.md),
    which is about the same per-`dmsPageFactory` model.
 
 ## Files

@@ -1,6 +1,6 @@
 # An app's Settings as pluggable sub pages, one definition for the app and the hub's tenant page
 
-**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** built · **Created by:** amuro@albany.edu · **Edited by:** amuro@albany.edu
+**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** done (2026-11-27, owner: committed and deployed) · **Created by:** amuro@albany.edu · **Edited by:** amuro@albany.edu
 
 **Project:** DMS library (admin pattern, plugin host) · **Topic:** patterns/admin · **Created:** 2026-11-25
 

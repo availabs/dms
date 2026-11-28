@@ -59,6 +59,9 @@ export default function dmsPageFactory({
   // change), not a navigation: the pattern's preload hook is told, so it doesn't fetch again what the
   // mounted page already loaded for itself. A closure variable, as above, so the loader can read it.
   let shownPath = null;
+  // The loader data that page was rendered from, handed to the preload hook on such a reload so it can give
+  // back what is on screen when nothing changed (page-reload-keeps-sections.md).
+  let shownData = null;
   // The app's data version the shared model's cache holds (server only; render/ssr2/dataVersions.js): when a
   // write or the age limit moves it, the next loader empties that cache before reading, so signed-out visitors
   // see edits without a restart. Signed-in renders read through a model of their own (requestScopedModel).
@@ -118,7 +121,7 @@ export default function dmsPageFactory({
     // Pre-load dataWrapper section data if the pattern supports it
     if (dmsConfig.preload) {
       const reload = !import.meta.env.SSR && shownPath !== null && shownPath === new URL(request.url).pathname;
-      data = await dmsConfig.preload(falcor, data, request, params, { reload });
+      data = await dmsConfig.preload(falcor, data, request, params, { reload, shown: reload ? shownData : null });
     }
     if (import.meta.env.DEV) {
       const t2 = performance.now();
@@ -154,6 +157,7 @@ export default function dmsPageFactory({
     const revalidator = useRevalidator();
     // what the loader compares a request with (shownPath, above)
     useEffect(() => { shownPath = location.pathname; return () => { shownPath = null; }; }, [location.pathname]);
+    useEffect(() => { shownData = loaderData?.data || null; return () => { shownData = null; }; }, [loaderData]);
 
     // SSR always renders as anonymous — the server never sees a browser's
     // localStorage token (see the loader's comment above) — and client

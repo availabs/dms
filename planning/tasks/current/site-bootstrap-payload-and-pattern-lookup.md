@@ -602,6 +602,6 @@ Don't chase it, and don't quote dev totals as production ones.
   serial only because `loadDmsFormats` expands one attribute per round trip. Options 1–7 recorded; nothing
   changed.
 - 2026-09-24 — Render-delay options 1–4 implemented in
-  [`boot-chain-fewer-serial-hops.md`](./boot-chain-fewer-serial-hops.md): 9 → 4 serial hops; real-throttle hero
+  [`boot-chain-fewer-serial-hops.md`](../completed/boot-chain-fewer-serial-hops.md): 9 → 4 serial hops; real-throttle hero
   render −420 ms desktop / −1.44 s mobile. Lighthouse flat — its LCP on `/` is bandwidth-bound (2.78 MB
   before LCP, 1.48 MB images: 1 MB of offscreen, oversized hazard illustrations is the next lever).

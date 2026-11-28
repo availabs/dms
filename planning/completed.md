@@ -463,3 +463,22 @@
 - [Phase 2: Propagate textSettings to Core Components](./tasks/completed/lexical-phase2-propagate-textsettings.md) · dropped · closed with `dms_dormant_tracks`
 - [Phase 3: Documentation and Migration](./tasks/completed/lexical-phase3-documentation-migration.md) · dropped · closed with `dms_dormant_tracks`
 - [SSR Phase 2: Streaming Server-Side Rendering](./tasks/completed/ssr-streaming.md) · dropped · closed with `dms_dormant_tracks`
+
+## 2026-11-27 · `dms_page_load_performance`: released tasks
+
+- [A Performance tab on each pattern: run a perf test on the server and read its reports](./tasks/completed/pattern-perf-report-tab.md) · done · committed and deployed by the owner (2026-11-27)
+- [A reload of the page on screen keeps its sections; link pages redirect from the loader](./tasks/completed/page-reload-keeps-sections.md) · done · committed and deployed by the owner (2026-11-27)
+- [An app's Settings as pluggable sub pages, one definition for the app and the hub's tenant page](./tasks/completed/app-settings-pages.md) · done · committed and deployed by the owner (2026-11-27)
+- [Auth: a read whose subject misses reloads the whole app snapshot, every time](./tasks/completed/auth-snapshot-reload-on-miss.md) · done · committed and deployed by the owner (2026-11-27)
+- [Boot chain — fewer serial hops before first render](./tasks/completed/boot-chain-fewer-serial-hops.md) · done · committed and deployed by the owner (2026-11-27)
+- [Data sections in view mode load only their own source, not the whole catalogue](./tasks/completed/datawrapper-view-bound-source-only.md) · done · committed and deployed by the owner (2026-11-27)
+- [Falcor response exceeds V8's max string length and kills the process](./tasks/completed/falcor-response-string-limit-crash.md) · done · committed and deployed by the owner (2026-11-27)
+- [Joined map tiles — nested-loop blowup in the MVT join query](./tasks/completed/joined-tile-nested-loop-fix.md) · done · committed and deployed by the owner (2026-11-27)
+- [Live sections: no wait before the first fetch, preload for filter options, no suspended first render](./tasks/completed/first-fetch-and-preload-gaps.md) · done · committed and deployed by the owner (2026-11-27)
+- [Page load: the router's hydration data carries drafts, the home page and copied metadata](./tasks/completed/page-hydration-payload.md) · done · committed and deployed by the owner (2026-11-27)
+- [Page preload reads its per-type load config from the component registry](./tasks/completed/preload-section-data-from-registry.md) · done · committed and deployed by the owner (2026-11-27)
+- [Perf: page-load root-causing (mitigateny.org/devmny.org) + auth-revalidate duplicate-fetch regression](./tasks/completed/perf-auth-revalidate-duplicate-fetch.md) · done · committed and deployed by the owner (2026-11-27)
+- [Sign-in form: text typed before the page hydrates is lost](./tasks/completed/login-form-hydration-race.md) · done · committed and deployed by the owner (2026-11-27)
+- [SSR: logged-in users get a mismatched first render, and production mode may serve stale pages](./tasks/completed/ssr-logged-in-render-and-stale-cache.md) · done · committed and deployed by the owner (2026-11-27)
+- [SSR: rich-text (Lexical) sections render empty in server HTML](./tasks/completed/ssr-lexical-view-html.md) · done · committed and deployed by the owner (2026-11-27)
+- [Rich text in view mode sets its content twice on mount](./tasks/completed/lexical-view-double-set-state.md) · dropped

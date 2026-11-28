@@ -5,7 +5,7 @@
 ## Found
 
 2026-11-17, on the tenant hub (`.env-hub`, `mny.localhost:5555`), during the SSR rich-text sweep
-([ssr-lexical-view-html.md](./ssr-lexical-view-html.md)). Logged out, only 7 of the 159 published pages of
+([ssr-lexical-view-html.md](../completed/ssr-lexical-view-html.md)). Logged out, only 7 of the 159 published pages of
 `MitigateNY_2025` (pattern 985070) were readable: the top-level ones. Every page with a nav parent came back as
 `no-access` on every field, so the server render picked a different page for its URL and the client redirected to
 sign-in. The pattern grants `public: view-page`, and a logged-out read of a page's whole `data` was allowed for all

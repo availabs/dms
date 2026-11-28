@@ -1,17 +1,17 @@
 # Falcor response exceeds V8's max string length and kills the process
 
-**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** built (was: "Items 1-3 + the request-logger fix IMPLEMENTED and tested 2026-09-16, awaiting deploy.") · **Release:** deploy — dms-server deploy (production was crash-looping) · **Created by:** amuro@albany.edu · **Edited by:** —
+**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** done (2026-11-27, owner: committed and deployed) · **Created by:** amuro@albany.edu · **Edited by:** —
 
 **Status:** Items 1-3 + the request-logger fix IMPLEMENTED and tested 2026-09-16, awaiting
 deploy. Item 4's code fixes are in; item 4's one-time **data cleanup is still outstanding** and
 now tracked separately as
-[`mny-prod-dead-content-cleanup`](../../../../planning/mitigateny/tasks/current/mny-prod-dead-content-cleanup.md)
+[`mny-prod-dead-content-cleanup`](../../../../../planning/mitigateny/tasks/current/mny-prod-dead-content-cleanup.md)
 (MitigateNY project — it is site data, not library code). Diagnosed 2026-09-16 while the server
 was crash-looping.
 **Found:** 2026-09-16, diagnosing "the server is having performance issues again" on
 `dms-template-server` (port 5556, `dms-mercury-3`, app `mitigat-ny-prod`).
 
-> Not a recurrence of [sync-delta-change-log-bloat](./sync-delta-change-log-bloat.md). Those
+> Not a recurrence of [sync-delta-change-log-bloat](../current/sync-delta-change-log-bloat.md). Those
 > fixes are holding: no OOM, heap steady at 4–8 GB of the 16 GB ceiling, and deltas are fully
 > converged (`since=1435218 → 0 changes, 0KB, 2–90ms`). This is a separate failure that the
 > same data growth eventually triggered on a different code path.

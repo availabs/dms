@@ -1,8 +1,9 @@
 import React from "react";
-import { useRouteError } from "react-router";
+import { useRouteError, redirect } from "react-router";
 import { parseIfJSON } from "./pages/_utils";
 import { initializePatternFormat } from "../../dms-manager/_utils";
-import { preloadPageSections, findPageItem, pageSectionTypes, trimSectionsForView } from "../../api/preloadSectionData.js";
+import { preloadPageSections, findPageItem, pageSectionTypes, trimSectionsForView, keepShownPage } from "../../api/preloadSectionData.js";
+import { linkPageTarget } from "./pages/_utils/linkPage.js";
 
 // components
 import cmsFormat from "./page.format.js";
@@ -159,16 +160,27 @@ const pagesConfig = ({
     // `reload`: the loader is re-reading a page that is already on screen (dmsPageFactory). Its sections have
     // their rows, or are fetching them: preloading again ran every section's queries a second time (twice on
     // a first visit, once sync's bootstrap and delta land) for rows nothing read. The editor still preloads.
-    // See section-data-query-repeats.md.
-    preload: async (falcor, data, request, params, { reload = false } = {}) => {
+    // See section-data-query-repeats.md. `shown` is the loader data on screen for such a reload: when the page
+    // and its sections were not saved since, the page keeps it (keepShownPage); skipping the preload alone
+    // handed every section its settings without rows, and the sections dropped the rows they had. When they
+    // were saved, the reload preloads like a first load. See page-reload-keeps-sections.md.
+    preload: async (falcor, data, request, params, { reload = false, shown = null } = {}) => {
       const raw = params?.['*'] || '';
       const isEdit = raw.startsWith('edit/');
       const slug = isEdit ? raw.slice('edit/'.length) : raw;
+      // a link page (`nav_link`) has no content: answer its own URL with a redirect, from the server as a 302,
+      // instead of rendering an empty page that redirects once the whole site has loaded in the browser
+      const linkTo = isEdit ? null : linkPageTarget(data, slug, request.url);
+      if (linkTo) throw redirect(linkTo);
+      if (reload && !isEdit) {
+        const kept = keepShownPage(data, shown, slug);
+        if (kept) return kept;
+      }
       preloadSectionComponents(pageSectionTypes(findPageItem(data, slug)));
       // the registry tells the preload which section types fetch before render (preloadData) and how;
       // draft sections only show in the editor
       const components = getRegisteredComponents();
-      const loaded = preloadEnabled && !(reload && !isEdit)
+      const loaded = preloadEnabled
         ? await preloadPageSections(falcor, data, request.url, patternFilters, slug, components, { drafts: isEdit })
         : data;
       // a view page's data goes into its HTML: each section type leaves out what only its editor

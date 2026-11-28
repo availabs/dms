@@ -5,7 +5,7 @@
 ## Status
 
 NOT STARTED (scoped 2026-09-02). Split out from
-[perf-auth-revalidate-duplicate-fetch.md](./perf-auth-revalidate-duplicate-fetch.md)
+[perf-auth-revalidate-duplicate-fetch.md](../completed/perf-auth-revalidate-duplicate-fetch.md)
 after that task's scoped-invalidate fix (deployed to devmny.org, confirmed
 live via asset-hash match) produced **zero measurable change** across two
 back-to-back production Lighthouse runs. Root-cause investigation (agent +

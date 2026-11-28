@@ -2,6 +2,7 @@ import { isEqual } from "lodash-es";
 import { dmsDataLoader } from './index.js'
 import { migrateToV2 } from '../patterns/page/components/sections/components/dataWrapper/migrateToV2.js'
 import { getData } from '../patterns/page/components/sections/components/dataWrapper/getData'
+import { loadFilterOptions, filterOptionsKey, withPageFilterValues } from '../patterns/page/components/sections/components/dataWrapper/components/filters/loadFilterOptions.js'
 
 // Which sections preload, and how, is read off each section's COMPONENT — the registry entry its
 // element-type resolves to (the caller passes the registry; api/ doesn't import patterns):
@@ -132,7 +133,21 @@ export async function preloadSectionData(falcor, elementData, elementType, compo
 
     try {
         const t0 = import.meta.env.DEV ? performance.now() : 0
-        const { length, data } = await getData({ state, apiLoad, fullDataLoad, keepOriginalValues, sectionId })
+        // The option lists of the section's filter controls, read with its rows: the filter UI loads them
+        // itself once it mounts otherwise, which is two more requests per control after the page is up.
+        // Keyed by the filters they were read for, page variables applied as the filter UI applies them
+        // (dataWrapper/components/filters/loadFilterOptions.js). A failure leaves them to the browser.
+        const optionColumns = withPageFilterValues(state.columns, pageFilterMap)
+        const optionState = optionColumns === state.columns ? state : { ...state, columns: optionColumns }
+        const hasFilterControls = (optionState.columns || []).some(c => (c.filters || []).some(f => f.type === 'external'))
+        const [{ length, data }, filterOptions] = await Promise.all([
+            getData({ state, apiLoad, fullDataLoad, keepOriginalValues, optionsOnly: !!component.optionsOnly, sectionId }),
+            hasFilterControls
+                ? loadFilterOptions({ state: optionState, apiLoad })
+                    .then(options => ({ key: filterOptionsKey(optionState), at: Date.now(), options }))
+                    .catch(e => { console.warn(`[preload] ${elementType} filter options: ${e.message}`); return null })
+                : null,
+        ])
         if (import.meta.env.DEV) {
             const ms = (performance.now() - t0).toFixed(0)
             console.log(`[preload] ${elementType}${sectionId ? ` ${sectionId}` : ''} — ${ms}ms, ${data?.length ?? 0} rows (${length} total)`)
@@ -152,6 +167,7 @@ export async function preloadSectionData(falcor, elementData, elementType, compo
                 // when these rows were read: a 'force' section skips its first fetch in the browser if they
                 // are from this page load (dataWrapper/useDataLoader.js), instead of running the same query again
                 preloadedAt: Date.now(),
+                ...(filterOptions && { filterOptions }),
             },
             data,
             ...(state.dataSourceId && { dataSourceId: state.dataSourceId }),
@@ -242,6 +258,33 @@ export function findPageItem(data, slug = '') {
     return slug
         ? (data || []).find(d => d.url_slug === slug && hasSections(d))
         : (data || []).find(d => !d.parent && d.index == 0 && hasSections(d))
+}
+
+// A row's last save as milliseconds. The same save reads '2026-11-25 19:11:39.994597+00' from the server's
+// route and '2026-11-25T19:11:39.994Z' from sync's local copy; both loaders feed a reload.
+const savedAt = (v) => {
+    const t = Date.parse(String(v).replace(' ', 'T').replace(/(\.\d{3})\d+/, '$1').replace(/([+-]\d{2})$/, '$1:00'))
+    return Number.isNaN(t) ? String(v) : t
+}
+
+// What a reload compares: the page row and each of its published sections, by id and last save.
+const pageStamp = (page) => page && page.id != null && page.updated_at
+    ? `${page.id}@${savedAt(page.updated_at)}|${(page.sections || []).map(s => `${s?.id}@${savedAt(s?.updated_at)}`).join(',')}`
+    : null
+
+/**
+ * For a reload of the page that is on screen (sync's invalidation, an auth change): when the page row and
+ * its section rows are the ones `shown` (the loader data on screen) was built from, the fresh `data` with that
+ * page swapped for the shown one, so every section keeps the settings and rows it has and nothing re-renders
+ * from row-less settings. Null when the page changed, or either side can't be compared: the caller preloads.
+ * Never mutates. See planning/tasks/current/page-reload-keeps-sections.md.
+ */
+export function keepShownPage(data, shown, slug = '') {
+    const fresh = findPageItem(data, slug)
+    const onScreen = findPageItem(shown, slug)
+    const stamp = pageStamp(fresh)
+    if (!stamp || !onScreen || stamp !== pageStamp(onScreen)) return null
+    return data.map(d => d === fresh ? onScreen : d)
 }
 
 /**

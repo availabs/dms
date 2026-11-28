@@ -9,7 +9,7 @@
 | Code (all four phases) | Built, tested, **committed** `878ecc2e` (2026-11-12), on `master` and pushed |
 | Mirror rows on `dms-mercury-3` | Deleted 2026-11-12: 27,590 rows of `mitigat-ny-prod` / `hazmit_dama`, pgEnv side kept. Counted again: zero left; both env rows kept |
 | Mirror rows on the hub db (`hub-dms`) | None (audit 2026-11-12). `mny` and `tny` each have env rows for `hazmit_dama` and `npmrds2`; `hub` and `fusion` have none attached |
-| Reload-on-miss fix ([auth-snapshot-reload-on-miss.md](./auth-snapshot-reload-on-miss.md)) | Merged into `master` with `tenant-domains`. Needed with this task: see the incident below |
+| Reload-on-miss fix ([auth-snapshot-reload-on-miss.md](../completed/auth-snapshot-reload-on-miss.md)) | Merged into `master` with `tenant-domains`. Needed with this task: see the incident below |
 | Other DMS databases | Not checked for mirror rows |
 | Apps on `dms-mercury-3` other than `mitigat-ny-prod` and `rowauth-test` | Not attached (`attach-pgenv.js` not run). Their external reads miss until they are |
 | pgEnv cache load under real traffic | Not measured |

@@ -1,6 +1,6 @@
 # Perf: page-load root-causing (mitigateny.org/devmny.org) + auth-revalidate duplicate-fetch regression
 
-**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** built (was: "Six fixes shipped + verified this session (2026-09-02), all committed. A seventh fix … deployed … ZE…") · **Release:** commit — index.html (root) and dmsPageFactory.jsx (submodule) are uncommitted · **Created by:** ssangdod@albany.edu · **Edited by:** —
+**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** done (2026-11-27, owner: committed and deployed) · **Created by:** ssangdod@albany.edu · **Edited by:** —
 
 > Root-cause performance investigation, verified against real production
 > Lighthouse data (not asserted from code reading alone) per standing
@@ -26,7 +26,7 @@ questions before attempting a fix.
 
 **The actual fix for the measured duplicate-fetch/LCP regression is split
 out to a new task**:
-[route-build-duplicate-falcor-instances.md](./route-build-duplicate-falcor-instances.md)
+[route-build-duplicate-falcor-instances.md](../current/route-build-duplicate-falcor-instances.md)
 — `dmsSiteFactory.jsx` builds routes twice (a fast path from cached/SSR
 data, then an unconditional full-fetch pass), and each pass's
 `dmsPageFactory()` call constructs its own fresh, empty-cache Falcor

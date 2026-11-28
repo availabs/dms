@@ -1,6 +1,6 @@
 # Data sections in view mode load only their own source, not the whole catalogue
 
-**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** built, checked live and measured (2026-11-22); not committed; Edit-mode click-through open · **Created by:** amuro@albany.edu · **Edited by:** amuro@albany.edu
+**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** done (2026-11-27, owner: committed and deployed) · **Created by:** amuro@albany.edu · **Edited by:** amuro@albany.edu
 
 Follow-up 1 from the RSC measurement (`rsc-view-pages.md`, 2026-11-22): the next cheapest page-load win.
 

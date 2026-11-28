@@ -147,6 +147,7 @@ The Pattern Editor's Performance tab runs the perf engine on the server (`src/pe
 | `DMS_PERF_KEEP` | `30` | Runs kept per pattern; older ones are removed after each run. |
 | `DMS_PERF_ALLOW_PRIVATE` | unset | `1` lets a run load pages from localhost / private addresses and over plain http. Local only, never on a public server. |
 | `DMS_PERF_CHROME` | — | Chrome or Chromium path. Tried first, then `PUPPETEER_EXECUTABLE_PATH`, `/usr/bin/chromium`, the system's Chrome, Playwright's download. The `dms perf` CLI reads it too. |
+| `DMS_PERF_CHROME_ARGS` | — | Extra Chrome switches, space-separated. Headless Chrome draws WebGL in software, which makes pages with map sections look many seconds slower than they are for a visitor. On a machine with a GPU, `--use-angle=gl-egl --ignore-gpu-blocklist --enable-gpu` uses it. The `dms perf` CLI reads it too. |
 
 ## PDF export
 
